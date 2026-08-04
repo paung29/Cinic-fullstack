@@ -1,0 +1,4 @@
+.manager { display: inline-flex; }
+.content { display: grid; gap: 12px; }
+.staffList { display: flex; flex-wrap: wrap; gap: 8px; }
+.warning { margin: 0; padding: 10px 12px; background: var(--amberbg); border: 1px solid var(--line); border-radius: var(--r-input); color: var(--amber); }

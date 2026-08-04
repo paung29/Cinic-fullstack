@@ -1,0 +1,14 @@
+.root, .loading { min-height: 100vh; background: var(--bg); }
+.loading { display: grid; place-items: center; }
+.content { display: grid; gap: 16px; padding: 18px; }
+.toolbar { display: flex; gap: 10px; }
+.toolbar input { flex: 1; }
+.list { display: grid; gap: 8px; }
+.patientRow { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--sh-subtle); color: var(--ink); cursor: pointer; text-align: left; }
+.patientRow:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.patientRow span { display: grid; gap: 3px; }
+.patientRow small { color: var(--mut); }
+.outstanding { color: var(--red); }
+.form { display: grid; gap: 12px; }
+.telegram { display: flex; min-height: 40px; align-items: center; gap: 8px; color: var(--ink); }
+@media (max-width: 640px) { .toolbar { display: grid; } }

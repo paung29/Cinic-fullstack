@@ -1,0 +1,9 @@
+.card {
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-subtle);
+}
+
+.compact { padding: 14px; }

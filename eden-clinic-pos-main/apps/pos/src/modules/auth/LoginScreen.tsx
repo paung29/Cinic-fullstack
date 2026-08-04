@@ -1,0 +1,211 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ApiNetworkError } from '@/data/api';
+import { authEnvelopeMetaKey } from '@/data/db';
+import { returnToAfterSignIn } from '@/data/returnTo';
+import { useClinicRuntimeStatus } from '@/app/providers';
+import { useLocaleControl, useT, type Locale } from '@/i18n';
+import {
+  InvalidStoredEnvelopeError,
+  pinDelayMs,
+  type SessionIdentity,
+} from '@/modules/auth/sessionController';
+import { Button, Card, Field, Input, PinPad, Skeleton } from '@/ui';
+import styles from './LoginScreen.module.css';
+
+const showDevelopmentLocaleOverride = process.env.NODE_ENV === 'development';
+
+type LoginMessage = 'internet-required' | 'repair' | 'wrong-pin' | 'wait' | undefined;
+
+export function LoginScreen() {
+  const router = useRouter();
+  const { locale, t } = useT();
+  const { setLocale } = useLocaleControl();
+  const { initializationError, revision, runtime } = useClinicRuntimeStatus();
+  const [staff, setStaff] = useState<SessionIdentity[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<SessionIdentity | undefined>();
+  const [installerStaffId, setInstallerStaffId] = useState('');
+  const [pin, setPin] = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isWaiting, setWaiting] = useState(false);
+  const [isBusy, setBusy] = useState(false);
+  const [message, setMessage] = useState<LoginMessage>();
+  const [needsOnlineRepair, setNeedsOnlineRepair] = useState(false);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setReturnTo(new URLSearchParams(window.location.search).get('returnTo'));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (runtime === undefined) return undefined;
+    let active = true;
+
+    void runtime.db.staff.toArray().then((rows) => {
+      if (!active) return;
+      setStaff(rows.filter((row) => row.active).map((row) => ({
+        staffId: row.id,
+        name: row.name,
+        role: row.role,
+        validUntil: '',
+      })));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [revision, runtime]);
+
+  useEffect(() => {
+    if (!isWaiting) return undefined;
+
+    const timeout = window.setTimeout(() => {
+      setWaiting(false);
+      setMessage(undefined);
+    }, pinDelayMs(failedAttempts));
+
+    return () => window.clearTimeout(timeout);
+  }, [failedAttempts, isWaiting]);
+
+  const lang = locale === 'zh' ? 'zh-Hans' : locale;
+  const isDeviceSetup = runtime !== undefined && staff.length === 0;
+  const activeStaffId = isDeviceSetup ? installerStaffId : selectedStaff?.staffId;
+
+  const clearForFailedPin = () => {
+    setPin('');
+    setNeedsOnlineRepair(false);
+    setFailedAttempts((current) => current + 1);
+    setWaiting(true);
+    setMessage('wrong-pin');
+  };
+
+  const handleSubmit = async () => {
+    if (runtime === undefined || activeStaffId === undefined || activeStaffId === '' || pin.length !== 4 || isBusy || isWaiting) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage(undefined);
+    try {
+      if (isDeviceSetup) {
+        await runtime.provision({ staff_id: activeStaffId, pin });
+      } else if (needsOnlineRepair || await runtime.db.meta.get(authEnvelopeMetaKey(activeStaffId)) === undefined) {
+        await runtime.signInOnline({ staff_id: activeStaffId, pin });
+      } else {
+        await runtime.unlockOffline(activeStaffId, pin);
+      }
+      const destination = returnToAfterSignIn(isDeviceSetup, returnTo);
+      if (destination !== undefined) router.push(destination);
+    } catch (error) {
+      if (error instanceof InvalidStoredEnvelopeError) {
+        setPin('');
+        setNeedsOnlineRepair(true);
+        setMessage('repair');
+      } else if (isDeviceSetup && error instanceof ApiNetworkError) {
+        setMessage('internet-required');
+      } else {
+        clearForFailedPin();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className={styles.root} data-locale={locale} data-testid="login-root" lang={lang}>
+      <div className={styles.cardWrap}>
+        {runtime === undefined ? (
+          <Card className={styles.loadingCard}>
+            <p>{initializationError === undefined ? t('auth.login.loading') : t('auth.setup.repair')}</p>
+            <Skeleton size="line" />
+          </Card>
+        ) : isDeviceSetup ? (
+          <Card className={styles.card} data-testid="device-setup">
+            <header className={styles.header}>
+              <p>{t('brand.name')}</p>
+              <h1>{t('auth.setup.title')}</h1>
+              <span>{t('auth.setup.internetRequired')}</span>
+            </header>
+            <Field htmlFor="installer-staff-id" label={t('auth.setup.staffId')}>
+              <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
+            </Field>
+            <LoginMessage message={message} t={t} />
+            <div className={message === 'wrong-pin' ? styles.shake : undefined}>
+              <PinPad backspaceLabel={t('pin.backspace')} onChange={setPin} onSubmit={handleSubmit} submitLabel={t('pin.submit')} testId="login-pinpad" displayTestId="login-pin-display" value={pin} />
+            </div>
+          </Card>
+        ) : selectedStaff === undefined ? (
+          <Card className={styles.card} data-testid="staff-picker">
+            <header className={styles.header}>
+              <p>{t('brand.name')}</p>
+              <h1>{t('auth.login.who')}</h1>
+            </header>
+            <div className={styles.staffList}>
+              {staff.map((member) => (
+                <Button data-testid={`staff-option-${member.staffId}`} key={member.staffId} onClick={() => {
+                  setSelectedStaff(member);
+                  setMessage(undefined);
+                  setPin('');
+                }} pill variant="ghost">
+                  <span className={styles.staffIdentity}>
+                    <strong>{member.name}</strong>
+                    <small>{member.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}</small>
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </Card>
+        ) : (
+          <Card className={styles.card}>
+            <header className={styles.header}>
+              <p>{selectedStaff.name}</p>
+              <h1>{t('auth.login.pin')}</h1>
+            </header>
+            <LoginMessage message={message} t={t} />
+            <div className={message === 'wrong-pin' ? styles.shake : undefined}>
+              <PinPad backspaceLabel={t('pin.backspace')} onChange={setPin} onSubmit={handleSubmit} submitLabel={t('pin.submit')} testId="login-pinpad" displayTestId="login-pin-display" value={pin} />
+            </div>
+            <Button onClick={() => {
+              setSelectedStaff(undefined);
+              setPin('');
+              setMessage(undefined);
+              setNeedsOnlineRepair(false);
+            }} pill variant="ghost">
+              {t('auth.login.who')}
+            </Button>
+          </Card>
+        )}
+        {showDevelopmentLocaleOverride ? (
+          <>
+            <label className={styles.localeOverride}>
+              <span>{t('locale.label')}</span>
+              <select data-testid="dev-locale-override" onChange={(event) => setLocale(event.target.value as Locale)} value={locale}>
+                <option value="my">{t('locale.my')}</option>
+                <option value="en">{t('locale.en')}</option>
+                <option value="zh">{t('locale.zh')}</option>
+              </select>
+            </label>
+            <p className={styles.devFallback} data-testid="demo-fallback-probe">{t('demo.fallbackProbe')}</p>
+          </>
+        ) : null}
+      </div>
+    </main>
+  );
+}
+
+function LoginMessage({ message, t }: { message: LoginMessage; t(key: Parameters<ReturnType<typeof useT>['t']>[0]): string }) {
+  if (message === undefined) return null;
+  const key = message === 'internet-required'
+    ? 'auth.setup.internetRequired'
+    : message === 'repair'
+      ? 'auth.setup.repair'
+      : message === 'wait'
+        ? 'auth.login.wait'
+        : 'auth.login.wrongPin';
+  return <p className={styles.message} role="status">{t(key)}</p>;
+}

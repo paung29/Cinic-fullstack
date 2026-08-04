@@ -1,0 +1,22 @@
+.backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.modal {
+  width: min(100%, 480px);
+  overflow: hidden;
+  background: var(--panel);
+  border-radius: var(--r-modal);
+  box-shadow: var(--sh-lg);
+}
+
+.header { display: flex; min-height: 56px; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.header h2 { margin: 0; color: var(--ink); font-size: 18px; }
+.close { display: inline-grid; width: 40px; min-width: 40px; min-height: 40px; place-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-input); color: var(--ink); cursor: pointer; }
+.body { padding: 20px; }

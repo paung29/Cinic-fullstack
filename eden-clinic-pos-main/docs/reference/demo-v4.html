@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eden Clinic OS — Demo v4 (behavioral & visual reference for the build spec)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Dock-derived tokens, adapted for POS density */
+    --bg:#faf9f7; --ivory:#fbfaf7; --panel:#ffffff;
+    --ink:#121722; --mut:#777c86; --steel:#a5a5a5;
+    --brand:#0068f9; --brand-dk:#024bb1;
+    --accent:#e8f1fd; --powder:#d6e4f1; --lav:#f4f0ff;
+    --line:#efefef; --chip:#f3f2ef;
+    --red:#c0392b; --redbg:#fdecec; --amber:#a97a10; --amberbg:#faf1dc;
+    --forest:#046645; --forestbg:#e6f2ec;
+    --ai:#6736eb; --aibg:#f4f0ff;
+    --sh-subtle:rgba(0,0,0,0.07) 0px 1px 1px 0px, rgba(0,0,0,0.04) 0px -1px 1px 0px inset, rgba(0,0,0,0.14) 0px 0px 0px 0.5px inset;
+    --sh-lg:rgba(0,0,0,0.04) 0px 20px 20px -8px;
+    --r-card:16px; --r-btn:999px; --r-input:12px;
+  }
+  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Myanmar",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;font-feature-settings:"kern" on}
+  button{font:inherit;border:none;background:none;cursor:pointer;color:inherit}
+  input,select,textarea{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r-input);background:#fff;width:100%;color:var(--ink)}
+  input::placeholder{color:var(--steel)}
+  input:focus,select:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:transparent}
+  .app{display:flex;flex-direction:column;height:100vh}
+
+  /* ---------- split header: white brand bar + cream tab bar ---------- */
+  .top{display:flex;align-items:center;gap:12px;background:#fff;color:var(--ink);padding:0 20px;height:56px;flex:none;border-bottom:1px solid var(--line)}
+  .logo{font-weight:700;letter-spacing:-.2px;font-size:16px;white-space:nowrap}
+  .logo small{display:block;font-weight:500;color:var(--mut);font-size:10.5px;line-height:1.2;letter-spacing:.02em}
+  .top2{display:flex;align-items:center;background:var(--bg);padding:10px 14px 2px;flex:none}
+  .nav{display:flex;gap:4px;overflow-x:auto;flex:1}
+  .nav button{padding:9px 18px;border-radius:var(--r-btn);color:var(--mut);white-space:nowrap;font-weight:500;font-size:14px}
+  .nav button:hover{color:var(--ink)}
+  .nav button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:var(--sh-subtle)}
+  .chip{display:flex;align-items:center;gap:7px;background:var(--chip);border-radius:var(--r-btn);padding:7px 14px;font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer;color:var(--ink)}
+  .dot{width:8px;height:8px;border-radius:50%;background:#0a9e63}
+  .chip.amber{background:var(--amberbg)} .chip.amber .dot{background:#d99a1b}
+  .chip.red{background:var(--redbg);color:var(--red)} .chip.red .dot{background:#e05545}
+  .who{font-size:12px;color:var(--mut);text-align:right;line-height:1.25;white-space:nowrap}
+  .who b,.who:first-line{color:var(--ink)}
+  .main{flex:1;overflow:auto;padding:20px}
+  .main.nopad{padding:0}
+
+  /* ---------- surfaces & primitives ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);padding:20px;box-shadow:var(--sh-subtle)}
+  .h1{font-size:20px;font-weight:650;letter-spacing:-.2px;margin-bottom:12px}
+  .h2{font-size:15px;font-weight:600;margin-bottom:10px}
+  .row{display:flex;gap:10px;align-items:center}
+  .grow{flex:1}
+  .btn{background:var(--brand);color:#fff;font-weight:500;border-radius:var(--r-btn);padding:11px 22px;text-align:center;transition:background .12s}
+  .btn:hover{background:var(--brand-dk)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--ivory)}
+  .btn.red{background:var(--red)} .btn.red:hover{background:#a13122}
+  .btn.ai{background:var(--ai)} .btn.ai:hover{background:#5429c9}
+  .btn.sm{padding:8px 15px;font-size:13.5px}
+  .tag{font-size:11.5px;font-weight:600;border-radius:8px;padding:2.5px 9px;display:inline-block}
+  .tag.ok{background:var(--forestbg);color:var(--forest)} .tag.low{background:var(--redbg);color:var(--red)}
+  .tag.amber{background:var(--amberbg);color:var(--amber)} .tag.blue{background:var(--accent);color:var(--brand)}
+  .tag.ai{background:var(--aibg);color:var(--ai)} .tag.wt{background:var(--accent);color:var(--brand)}
+  .mut{color:var(--mut)} .sm{font-size:13px} .b{font-weight:600}
+  .mm{font-family:'Padauk',"Noto Sans Myanmar",sans-serif;line-height:1.7}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:11px 10px;border-bottom:1px solid #f5f4f1;vertical-align:top}
+  tr.click{cursor:pointer} tr.click:hover{background:var(--ivory)}
+  .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);padding:16px;box-shadow:var(--sh-subtle)}
+  .stat .v{font-size:22px;font-weight:650;letter-spacing:-.3px;margin-top:4px}
+  .stat .l{font-size:11.5px;font-weight:500;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}
+  .alert{background:var(--redbg);border:1px solid #f3d2ce;color:#8c2d20;border-radius:12px;padding:12px 16px;font-weight:500}
+  .aicard{background:var(--aibg);border:1px solid #e5dcf9;border-radius:var(--r-card);padding:18px}
+  .aicard .hdr{display:flex;gap:8px;align-items:center;font-weight:650;color:var(--ai);margin-bottom:8px}
+  .lockband{background:var(--ivory);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--mut)}
+  .lockband b{color:var(--ink)}
+  .trow{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:14px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1d1d1d;color:#fff;padding:12px 22px;border-radius:var(--r-btn);font-weight:500;font-size:14px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:90vw}
+  .ovl{position:fixed;inset:0;background:rgba(18,23,34,.4);display:flex;align-items:center;justify-content:center;z-index:50;padding:14px}
+  .modal{background:#fff;border-radius:20px;padding:24px;width:480px;max-width:96vw;max-height:92vh;overflow:auto;box-shadow:var(--sh-lg)}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:12.5px;font-weight:500;color:var(--mut);margin-bottom:5px}
+  .subtabs{display:flex;gap:4px;margin-bottom:14px}
+  .subtabs button{padding:8px 18px;border-radius:var(--r-btn);background:transparent;color:var(--mut);font-weight:500;font-size:13.5px}
+  .subtabs button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:var(--sh-subtle)}
+  .sw{position:relative;width:42px;height:24px;border-radius:var(--r-btn);background:#dcdad5;transition:.15s;flex:none;cursor:pointer}
+  .sw.on{background:var(--brand)}
+  .sw::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .sw.on::after{left:20px}
+
+  /* ---------- login ---------- */
+  .login{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#faf9f7 30%,#d5ecff 100%)}
+  .lcard{background:#fff;border-radius:24px;padding:32px;width:410px;max-width:94vw;box-shadow:var(--sh-lg);border:1px solid var(--line)}
+  .staffbtn{display:flex;align-items:center;gap:14px;width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--line);margin-bottom:8px;text-align:left;background:#fff}
+  .staffbtn:hover{background:var(--ivory);border-color:var(--powder)}
+  .ava{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+  .pinrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .pinkey{padding:15px;border-radius:14px;background:var(--ivory);border:1px solid var(--line);font-size:19px;font-weight:600;text-align:center}
+  .pinkey:hover{background:#fff}
+  .pindots{display:flex;gap:10px;justify-content:center;margin:16px 0;font-size:20px;min-height:28px;color:var(--brand)}
+
+  /* ---------- calendar ---------- */
+  .cal{display:grid;grid-template-columns:60px repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--sh-subtle)}
+  .cal .hd{background:#fff;padding:11px;font-weight:600;text-align:center;font-size:13.5px}
+  .cal .tm{background:var(--ivory);padding:7px 8px;font-size:11.5px;color:var(--steel);text-align:right}
+  .slot{background:#fff;min-height:48px;padding:3px;cursor:pointer}
+  .slot:hover{background:#f4f8fe}
+  .appt{border-radius:10px;padding:7px 10px;font-size:12.5px;font-weight:600;cursor:pointer;border-left:3px solid var(--brand);background:var(--accent)}
+  .appt.done{opacity:.45;border-left-color:var(--steel)}
+  .appt.here{background:var(--amberbg);border-left-color:#d99a1b}
+  .appt .mut{font-weight:400}
+
+  /* ---------- sale ---------- */
+  .sale{display:flex;height:100%;gap:0}
+  .cartside{width:390px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .cartlines{flex:1;overflow:auto}
+  .cline{display:flex;gap:8px;padding:11px 16px;border-bottom:1px solid #f5f4f1;cursor:pointer}
+  .cline:hover{background:var(--ivory)}
+  .itemside{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+  .tabs{display:flex;gap:4px;padding:12px 16px 0}
+  .tabs button{padding:9px 18px;border-radius:var(--r-btn);font-weight:500;color:var(--mut);font-size:14px}
+  .tabs button.on{color:var(--ink);background:#fff;font-weight:600;box-shadow:var(--sh-subtle)}
+  .searchrow{display:flex;gap:8px;padding:12px 16px 4px}
+  .catchips{display:flex;gap:6px;padding:10px 16px 4px;overflow-x:auto}
+  .catchips button{padding:7px 15px;border-radius:var(--r-btn);background:#fff;border:1px solid var(--line);font-weight:500;font-size:13px;color:var(--mut)}
+  .catchips button.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+  .grid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:10px;padding:14px 16px;align-content:start}
+  .tile{background:#fff;border:1px solid var(--line);border-radius:var(--r-card);padding:12px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;box-shadow:var(--sh-subtle);transition:border-color .12s}
+  .tile:hover{border-color:var(--brand)}
+  .tile .nm{font-weight:550;font-size:13.5px;line-height:1.3}
+  .tile .pr{font-weight:600;color:var(--brand);font-size:13.5px;margin-top:7px}
+  .tile img{width:100%;height:52px;object-fit:cover;border-radius:10px;margin-bottom:6px}
+  .totalbar{border-top:1px solid var(--line);padding:14px 16px;background:#fff}
+  .charge{width:100%;margin-top:10px;padding:15px;font-size:16.5px;font-weight:600}
+  .disc-chips{display:flex;gap:6px;margin-top:10px}
+  .disc-chips button{flex:1;padding:8px 0;border-radius:var(--r-btn);background:var(--ivory);border:1px solid var(--line);font-weight:500;font-size:12.5px;color:var(--mut)}
+  .disc-chips button.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .payg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+  .payg .btn{padding:16px 8px}
+  .cash-quick{display:flex;gap:7px;margin:10px 0}
+  .cash-quick button{flex:1;padding:9px 0;border-radius:var(--r-btn);background:var(--ivory);border:1px solid var(--line);font-weight:600;font-size:12px}
+  .paper{width:300px;margin:0 auto;background:#fff;border:1px solid var(--line);box-shadow:var(--sh-lg);border-radius:4px;padding:18px;font-family:"Courier New",monospace;font-size:12.5px;color:#1d1d1d}
+  .paper .c{text-align:center}
+  .paper hr{border:none;border-top:1px dashed #bbb;margin:8px 0}
+  .paper .r{display:flex;justify-content:space-between}
+
+  /* ---------- charts ---------- */
+  .bars{display:flex;align-items:flex-end;gap:8px;height:110px;margin:12px 0 4px}
+  .bar{flex:1;background:var(--brand);border-radius:6px 6px 2px 2px;position:relative;min-width:14px}
+  .bar .bl{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:10.5px;font-weight:600;color:var(--mut)}
+  .bxl{display:flex;gap:8px}
+  .bxl div{flex:1;text-align:center;font-size:11px;color:var(--steel)}
+
+  /* ---------- phone sim ---------- */
+  .phone{width:270px;background:#121722;border-radius:26px;padding:14px 11px;margin:0 auto;color:#e8edf3;box-shadow:var(--sh-lg)}
+  .phone .ph-h{text-align:center;font-size:12px;color:#8b99ad;margin-bottom:8px}
+  .bub{background:#1e2836;border-radius:14px;padding:10px 12px;font-size:13px;margin-bottom:8px;line-height:1.4}
+  .bub.me{background:#0d4dab;margin-left:34px}
+  .qbtns{display:flex;gap:6px;margin-top:8px}
+  .qbtns button{flex:1;background:#28374c;border-radius:12px;padding:8px 0;font-size:16px}
+  .qbtns button:hover{background:#354a66}
+  .thumb{width:30px;height:30px;border-radius:8px;object-fit:cover;vertical-align:middle;margin-right:6px}
+  @media(max-width:900px){.cartside{width:300px}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* =====================================================================
+   Eden Clinic OS — DEMO v4 · the behavioral & visual reference named in
+   eden-frontend-build-spec.md. Version history folded in:
+   v3.1 horizontal tabs, working booking, full checkout, add-product,
+   weekly/monthly sales · v3.2 split header, AI add-on toggles, new-patient
+   forms, interactive Set-up · v3.3 booking new-patient, buy/sell/margin,
+   Xprinter options, receipt designer · v4 Dock design system (cream canvas,
+   cobalt-only actions, pill components, Inter + Padauk).
+   Verify you have the right file: page background must be #faf9f7 (cream),
+   primary buttons #0068f9 (cobalt), AI surfaces lavender/violet.
+   ===================================================================== */
+let ROUND=500;
+const fm=n=>(n||0).toLocaleString('en-US')+' Ks';
+const uid=()=>'id'+Math.random().toString(36).slice(2,9);
+const todayD=new Date(); const dstr=d=>d.toISOString().slice(0,10);
+const now=()=>new Date().toTimeString().slice(0,5);
+const roundL=n=>Math.round(n/ROUND)*ROUND;
+const TIMES=['09:00','09:30','10:00','10:30','11:00','11:30','12:00','14:00','14:30','15:00','15:30','16:00'];
+
+/* ------------- seed ------------- */
+const staff=[
+  {id:'s1',name:'Dr. Hkawn Mai',role:'admin',pin:'1234',books:true},
+  {id:'s2',name:'Aye Aye',role:'staff',pin:'0000',books:false},
+  {id:'s3',name:'Su Su',role:'staff',pin:'0000',books:true},
+];
+const services=[
+  {id:'v1',cat:'Laser',nm:'Laser hair removal',mm:'လေဆာအမွေးဖယ်',price:45000,fu:30},
+  {id:'v2',cat:'Laser',nm:'Laser acne',mm:'ဝက်ခြံလေဆာ',price:60000,fu:14},
+  {id:'v3',cat:'Laser',nm:'Pigmentation laser',mm:'အသားအရေအစက်',price:80000,fu:30},
+  {id:'v4',cat:'Injectables',nm:'Botox — forehead',mm:'ဗိုတောက်စ်',price:250000,fu:90,lot:true},
+  {id:'v5',cat:'Injectables',nm:'Dermal filler — lips',mm:'ဖီလာ',price:350000,fu:180,lot:true},
+  {id:'v6',cat:'Brows & Lips',nm:'Eyebrow tattoo',mm:'မျက်ခုံးဆေးထိုး',price:120000,fu:30},
+  {id:'v7',cat:'Skin',nm:'Chemical peel',mm:'အသားအရေခွာ',price:55000,fu:14},
+  {id:'v8',cat:'Skin',nm:'Hydra facial',mm:'မျက်နှာသန့်စင်',price:40000,fu:null},
+];
+let products=[
+  {id:'p1',cat:'Aftercare',nm:'Aftercare cream 50g',price:18000,cost:9000,stock:14,low:5,type:'retail',by:'each',barcode:'8850123456789'},
+  {id:'p2',cat:'Sun care',nm:'Sunscreen SPF50+ 50ml',price:32000,cost:19000,stock:3,low:5,type:'retail',by:'each',barcode:'4005900123456',dead:45},
+  {id:'p3',cat:'Skincare',nm:'Vitamin C serum 30ml',price:48000,cost:30000,stock:8,low:3,type:'retail',by:'each',barcode:'8809612345678'},
+  {id:'p4',cat:'Cleansers',nm:'Gentle cleanser 150ml',price:22000,cost:12000,stock:11,low:4,type:'retail',by:'each',barcode:''},
+  {id:'p5',cat:'Skincare',nm:'Herbal scrub (per g)',price:150,cost:60,stock:900,low:200,type:'retail',by:'weight',unit:'g',barcode:''},
+  {id:'p7',cat:'Back bar',nm:'Botox vial 100U',price:0,cost:180000,stock:4,low:2,type:'injectable',by:'each',barcode:'',lots:['BTX-2311 exp 2027-01']},
+  {id:'p8',cat:'Back bar',nm:'Filler syringe 1ml',price:0,cost:220000,stock:6,low:2,type:'injectable',by:'each',barcode:'',lots:['FIL-8842 exp 2026-11']},
+];
+const GLOBAL_DB={
+  '4005900654321':{nm:'NIVEA Soft moisturising cream 100ml',cat:'Skincare'},
+  '8809747912345':{nm:'COSRX Snail mucin essence 100ml',cat:'Skincare'},
+  '8850006330012':{nm:'Vaseline healing jelly 50ml',cat:'Aftercare'},
+};
+const patients=[
+  {id:'c1',code:'P-00001',nm:'Ma Thida',ph:'09 771 234 560',allergy:'Lidocaine — use alternative anaesthetic',
+   history:[{d:'-90',svc:'Botox — forehead',note:'24U forehead · lot BTX-2290 · no reaction'},{d:'-30',svc:'Hydra facial',note:'—'}],
+   fu:dstr(todayD),owes:68000,tg:true},
+  {id:'c2',code:'P-00002',nm:'Ko Zaw Min',ph:'09 425 118 220',allergy:'',history:[{d:'-14',svc:'Laser acne',note:'settings 8J'}],fu:'',owes:0,tg:true},
+  {id:'c3',code:'P-00003',nm:'Nang Seng Pan',ph:'09 262 900 417',allergy:'',history:[{d:'-3',svc:'Chemical peel',note:'20% glycolic'}],fu:dstr(new Date(todayD.getTime()+3*86400000)),owes:0,tg:true},
+  {id:'c4',code:'P-00004',nm:'Ma Khin Lay',ph:'09 796 555 013',allergy:'Pregnant — no botox / peel',history:[],fu:'',owes:0,tg:false},
+];
+let appts=[
+  {id:'a1',t:'09:30',staffId:'s1',pt:'c1',svc:'v4',status:'here'},
+  {id:'a2',t:'10:30',staffId:'s3',pt:'c2',svc:'v2',status:'booked'},
+  {id:'a3',t:'11:30',staffId:'s1',pt:'c4',svc:'v6',status:'booked'},
+  {id:'a4',t:'14:00',staffId:'s3',pt:'c3',svc:'v8',status:'booked'},
+  {id:'a5',t:'09:00',staffId:'s3',pt:'c3',svc:'v7',status:'done'},
+];
+let sales=[
+  {id:uid(),no:'R-1055',time:'09:20',pt:'c3',lines:[{nm:'Chemical peel',qty:1,total:55000}],total:55000,pays:[{m:'kbzpay',amt:55000}],credit:0,status:'completed'},
+];
+let receiptNo=1056;
+let checkins=[
+  {pt:'c3',svc:'Chemical peel',day:'T+3',resp:'better',at:'08:55'},
+  {pt:'c2',svc:'Laser acne',day:'T+3',resp:'better',at:'yesterday'},
+  {pt:'c1',svc:'Hydra facial',day:'T+2',resp:'same',at:'2d ago'},
+];
+let leads=[
+  {id:'l1',nm:'May Phyo',ph:'09 512 …',channel:'telegram',interest:'eyebrow tattoo — asked price',status:'new'},
+  {id:'l2',nm:'(walk-in)',ph:'—',channel:'walk_in',interest:'laser hair removal consult',status:'contacted'},
+];
+let activities=[
+  {t:'09:20',txt:'Sale R-1055 · Chemical peel · KBZPay 55,000 Ks (Aye Aye)'},
+  {t:'08:55',txt:'😊 Check-in: Nang Seng Pan feeling better after Chemical peel (T+3)'},
+  {t:'08:30',txt:'Reminder sent to 4 patients for today (Telegram, template)'},
+];
+/* mock weekly/monthly sales history (deterministic) */
+const WEEK=[{l:'Mon',v:310},{l:'Tue',v:255},{l:'Wed',v:480},{l:'Thu',v:95},{l:'Fri',v:0},{l:'Sat',v:0},{l:'Sun',v:0}]; // ×1000 Ks, Thu = today so far
+const MONTH=[{l:'W1',v:1420},{l:'W2',v:1785},{l:'W3',v:1310},{l:'W4',v:1140}];
+let complication=null, outbox=[], online=true;
+/* AI features are OPTIONAL ADD-ONS — sold separately, toggled in Set-up */
+let addons={brief:true,careloop:true,recall:true,outcomes:true,insights:true};
+let creditLimit=100000;
+/* receipt design — owner-editable in Set-up, one renderer */
+let rc={header:'EDEN AESTHETIC CLINIC',sub:'အလှပြင်ဆေးခန်း · လားရှိုးမြို့',phone:'09 000 000 000',footer:'ကျေးဇူးတင်ပါသည်',logo:true,qr:true,fu:true,width:80};
+
+/* ------------- state ------------- */
+let S={screen:'login',user:null,pick:null,pinIn:'',modal:null,toast:null,
+  hub:'team',ptView:null,elevated:false,phone:null,digestOpen:true,
+  tab:'services',cat:'All',q:'',cart:[],cartPt:null,cartDisc:0,discBy:null,cartFrom:null,
+  tickets:[],salesRange:'week',npPhoto:null};
+
+function toast(t){S.toast=t;render();setTimeout(()=>{S.toast=null;render()},2100)}
+const pt=id=>patients.find(p=>p.id===id);
+const svc=id=>services.find(s=>s.id===id);
+const stf=id=>staff.find(s=>s.id===id);
+
+/* ------------- render ------------- */
+const R=document.getElementById('root');
+function render(){
+  const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selectionStart;
+  if(S.screen==='login'){R.innerHTML=loginView();return}
+  R.innerHTML=`<div class="app">${topbar()}
+    <div class="main ${S.screen==='sale'?'nopad':''}">${({home,calendar,clients,client,sale,stocks,analytics,hub,setup})[S.screen]()}</div>
+  </div>${S.modal?modalView():''}${S.phone?phoneView():''}${S.toast?`<div class="toast">${S.toast}</div>`:''}`;
+  if(aid){const el=document.getElementById(aid);if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
+  else{const bc=document.getElementById('bcin');if(bc&&S.screen==='sale'&&!S.modal)bc.focus()}
+}
+window.go=s=>{S.screen=s;S.modal=null;render()};
+function topbar(){
+  const n=outbox.length;
+  const chip=!online?`<div class="chip red" onclick="netToggle()"><span class="dot"></span>Offline${n?' · '+n:''}</div>`
+    :n?`<div class="chip amber"><span class="dot"></span>Sync ${n}…</div>`
+    :`<div class="chip" onclick="netToggle()"><span class="dot"></span>Synced</div>`;
+  const tabs=[['home','Home'],['calendar','Calendar'],['clients','Clients'],['sale','Sale'],['stocks','Stocks'],['analytics','Analytics'],['hub','Hub'],['setup','Set-up']];
+  return`<div class="top">
+    <div class="logo">Eden Clinic OS<small>Lashio · Myanmar</small></div>
+    <div class="grow"></div>
+    ${complication?`<button class="chip red" onclick="go('home')"><span class="dot"></span>1 complication</button>`:''}
+    ${chip}
+    <div class="who">${S.user.name}<br><span style="opacity:.75">${S.user.role}</span></div>
+    <button class="chip" onclick="logout()">Log out</button>
+  </div>
+  <div class="top2">
+    <div class="nav">${tabs.map(([k,l])=>`<button class="${S.screen===k||(k==='clients'&&S.screen==='client')?'on':''}" onclick="go('${k}')">${l}</button>`).join('')}</div>
+  </div>`;
+}
+window.netToggle=()=>{online=!online;
+  if(online&&outbox.length){toast('Back online — syncing '+outbox.length+'…');
+    const t=setInterval(()=>{outbox.shift();if(!outbox.length){clearInterval(t);toast('All synced ✓')}render()},550)}
+  else render()};
+window.logout=()=>{if(outbox.length){toast('Blocked — '+outbox.length+' unsynced in outbox');return}S.user=null;S.screen='login';render()};
+
+/* ------------- login ------------- */
+function loginView(){
+  if(!S.pick)return`<div class="login"><div class="lcard">
+    <div class="h1">Eden Clinic OS</div>
+    <div class="mut sm" style="margin-bottom:14px">Who is working? · <span class="mm">ဘယ်သူအလုပ်လုပ်နေလဲ</span></div>
+    ${staff.map(s=>`<button class="staffbtn" onclick="S.pick='${s.id}';S.pinIn='';render()"><div class="ava">${s.name[0]}</div><div><div class="b">${s.name}</div><div class="mut sm">${s.role}</div></div></button>`).join('')}
+    <div class="mut" style="font-size:12px;margin-top:8px">Demo PINs — admin 1234 · staff 0000 · clinical password: eden</div>
+  </div></div>`;
+  const s=stf(S.pick);
+  return`<div class="login"><div class="lcard"><div class="h1">${s.name}</div><div class="mut sm">Enter PIN</div>
+  <div class="pindots">${'●'.repeat(S.pinIn.length)||'&nbsp;'}</div>
+  <div class="pinrow">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button class="pinkey" onclick="pk('${k}')">${k}</button>`).join('')}</div>
+  <button class="btn ghost" style="width:100%;margin-top:10px" onclick="S.pick=null;render()">Back</button></div></div>`;
+}
+window.pk=k=>{
+  if(k==='⌫'){S.pinIn=S.pinIn.slice(0,-1);render();return}
+  if(k==='✓'){const s=stf(S.pick);
+    if(S.pinIn===s.pin){S.user=s;S.screen='home';S.pick=null}else S.pinIn='';render();return}
+  if(S.pinIn.length<4){S.pinIn+=k;render()}};
+
+/* ------------- HOME ------------- */
+function digestLines(){
+  const collected=sales.filter(s=>s.status==='completed').reduce((a,s)=>a+s.pays.reduce((x,p)=>x+p.amt,0),0);
+  const credit=sales.filter(s=>s.status==='completed').reduce((a,s)=>a+s.credit,0);
+  const better=checkins.filter(c=>c.resp==='better').length;
+  const L=[
+    `Good morning. ${appts.filter(a=>a.status!=='done').length} appointments remain today; Ma Thida (botox follow-up) is in the clinic now.`,
+    `Collected so far: ${fm(collected)}${credit?` · new credit ${fm(credit)}`:''}.`];
+  if(addons.careloop)L.push(`Care loop: ${checkins.length} check-ins this week — ${better} feeling better${complication?', ⚠ 1 complication needs a human today':', no complications'}.`);
+  if(addons.insights)L.push(`Stock: Sunscreen SPF50+ hasn't sold in 45 days and is low (3 left) — restock or promo?`);
+  L.push(`Ma Thida still owes ${fm(68000)} — she's here now, a good moment to settle.`);
+  return L;
+}
+function home(){
+  const remaining=appts.filter(a=>a.status!=='done');
+  return`
+  ${complication?`<div class="alert" style="margin-bottom:12px">⚠ <b>Complication queue:</b> ${pt(complication.pt).nm} replied 😟 "worse" after ${complication.svc} — a human must contact her today. <button class="btn red sm" style="margin-left:8px" onclick="resolveComp()">I called her — resolve</button></div>`:''}
+  ${addons.brief?`<div class="aicard" style="margin-bottom:12px">
+    <div class="hdr">✦ Morning brief <span class="tag ai">add-on · data + templates — no free generation</span>
+      <div class="grow"></div><button class="btn ghost sm" onclick="S.digestOpen=!S.digestOpen;render()">${S.digestOpen?'Hide':'Show'}</button></div>
+    ${S.digestOpen?digestLines().map(l=>`<div style="padding:3px 0;font-size:14px">• ${l}</div>`).join('')+`<div class="sm mut" style="margin-top:6px">Also sent to Dr. Hkawn Mai on Telegram at 08:00 (Burmese).</div>`:''}
+  </div>`:''}
+  <div class="statgrid">
+    <div class="stat"><div class="l">Collected</div><div class="v">${fm(sales.filter(s=>s.status==='completed').reduce((a,s)=>a+s.pays.reduce((x,p)=>x+p.amt,0),0))}</div></div>
+    <div class="stat"><div class="l">Delivered</div><div class="v">${fm(sales.filter(s=>s.status==='completed').reduce((a,s)=>a+s.total,0))}</div></div>
+    <div class="stat"><div class="l">New credit</div><div class="v">${fm(sales.filter(s=>s.status==='completed').reduce((a,s)=>a+s.credit,0))}</div></div>
+    <div class="stat"><div class="l">Outstanding (all)</div><div class="v" style="color:var(--red)">${fm(patients.reduce((a,p)=>a+p.owes,0))}</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="h2">Today's appointments</div>
+      ${remaining.map(a=>`<div class="trow"><span>${a.t} · <b>${pt(a.pt).nm}</b> — ${svc(a.svc).nm} <span class="mut sm">(${stf(a.staffId).name})</span> ${a.status==='here'?'<span class="tag amber">here now</span>':''}</span>
+        <span><button class="btn ghost sm" onclick="openAppt('${a.id}')">Open</button></span></div>`).join('')||'<div class="mut">Done for today.</div>'}
+      <button class="btn ghost sm" style="margin-top:8px" onclick="bookNew()">＋ Book appointment</button>
+    </div>
+    <div class="card"><div class="h2">Follow-ups due · care loop</div>
+      ${patients.filter(p=>p.fu===dstr(todayD)).map(p=>`<div class="trow"><span>${p.nm} <span class="mut sm">recall due today</span></span><span><button class="btn ghost sm" onclick="toast('Recall template queued to Telegram')">Send recall</button></span></div>`).join('')}
+      ${addons.careloop?`<hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+      ${checkins.slice(0,3).map(c=>`<div class="trow sm"><span>${c.resp==='better'?'😊':c.resp==='same'?'😐':'😟'} ${pt(c.pt).nm} · ${c.svc} (${c.day})</span><span class="mut">${c.at}</span></div>`).join('')}
+      <button class="btn ai sm" style="margin-top:8px" onclick="startCheckin()">▶ Simulate today's T+3 check-in (patient phone)</button>`
+      :`<div class="mut sm" style="margin-top:8px">✦ Automatic post-visit check-ins are an add-on — enable <b>Care loop</b> in Set-up.</div>`}
+    </div>
+  </div>`;
+}
+window.resolveComp=()=>{
+  activities.unshift({t:now(),txt:'Complication resolved — Dr. called '+pt(complication.pt).nm+', reviewed, noted in record'});
+  checkins.unshift({pt:complication.pt,svc:complication.svc,day:'T+3',resp:'worse',at:now()});
+  complication=null;toast('Resolved & logged');render()};
+
+/* ------------- phone sim ------------- */
+window.startCheckin=()=>{S.phone={step:0,pt:'c3',svc:'Chemical peel'};render()};
+function phoneView(){
+  const p=S.phone;const pat=pt(p.pt);
+  return`<div class="ovl" onclick="if(event.target===this){S.phone=null;render()}"><div class="modal" style="width:330px;background:transparent;box-shadow:none;padding:0;border:none">
+  <div class="phone">
+    <div class="ph-h">Telegram — Eden Clinic · ${pat.nm}'s phone</div>
+    <div class="bub"><span class="mm">မင်္ဂလာပါ ${pat.nm} —</span><br>It's been 3 days since your <b>${p.svc}</b>. How are you feeling? <span class="mm">ဘယ်လိုနေလဲ။</span>
+      <div class="qbtns"><button onclick="ciResp('better')">😊</button><button onclick="ciResp('same')">😐</button><button onclick="ciResp('worse')">😟</button></div>
+      <div style="font-size:10.5px;color:#9fb0c4;margin-top:6px">Buttons, not free text — no Burmese NLU needed. Bot never gives medical advice.</div>
+    </div>
+    ${p.step>=1?`<div class="bub me">${p.resp==='better'?'😊':p.resp==='same'?'😐':'😟'}</div>
+      <div class="bub">${p.resp==='better'?`So glad to hear it! <span class="mm">ကျေးဇူးတင်ပါသည်။</span> See you at your next visit 💙`
+        :p.resp==='same'?`Thank you — we'll check in again in 3 days. If anything changes, the clinic is here.`
+        :`Thank you for telling us. <b>Dr. Hkawn Mai will contact you today.</b> <span class="mm">ဆရာဝန်က ဒီနေ့ဆက်သွယ်ပါမည်။</span><div style="font-size:10.5px;color:#9fb0c4;margin-top:5px">No bot advice on "worse" — ever. A human is alerted instantly.</div>`}</div>`:''}
+  </div>
+  <button class="btn" style="width:100%;margin-top:10px" onclick="S.phone=null;render()">Close phone</button>
+  </div></div>`;
+}
+window.ciResp=r=>{
+  S.phone.step=1;S.phone.resp=r;
+  if(r==='worse'){complication={pt:S.phone.pt,svc:S.phone.svc};
+    activities.unshift({t:now(),txt:'⚠ 😟 WORSE reply from '+pt(S.phone.pt).nm+' — complication queue alerted'})}
+  else{checkins.unshift({pt:S.phone.pt,svc:S.phone.svc,day:'T+3',resp:r,at:now()});
+    activities.unshift({t:now(),txt:(r==='better'?'😊':'😐')+' Check-in reply from '+pt(S.phone.pt).nm})}
+  render()};
+
+/* ------------- CALENDAR (booking works) ------------- */
+function calendar(){
+  const cols=staff.filter(s=>s.books);
+  return`<div class="row" style="margin-bottom:10px"><div class="h1" style="margin:0">Today · ${dstr(todayD)}</div><div class="grow"></div>
+    <button class="btn sm" onclick="bookNew()">＋ New appointment</button></div>
+  <div class="cal">
+    <div class="hd"></div>${cols.map(c=>`<div class="hd">${c.name}</div>`).join('')}
+    ${TIMES.map(t=>`<div class="tm">${t}</div>${cols.map(c=>{
+      const a=appts.find(x=>x.t===t&&x.staffId===c.id);
+      return`<div class="slot" onclick="${a?'':`bookNew('${t}','${c.id}')`}">${a?`<div class="appt ${a.status}" onclick="event.stopPropagation();openAppt('${a.id}')">${pt(a.pt).nm}<div class="mut">${svc(a.svc).nm}${a.status==='here'?' · here':a.status==='done'?' · done':''}</div></div>`:''}</div>`;
+    }).join('')}`).join('')}
+  </div>
+  <div class="mut sm" style="margin-top:8px">Tap an empty slot to book it, or an appointment to open it. Columns = staff with <code>takes_bookings</code>.</div>`;
+}
+window.bookNew=(t,st)=>{S.modal={type:'book',t:t||'',staffId:st||'',pt:'',svc:''};render()};
+window.openAppt=id=>{S.modal={type:'appt',id};render()};
+window.doBook=()=>{
+  const m=S.modal;
+  const p=document.getElementById('bk_pt').value, sv=document.getElementById('bk_svc').value,
+        st=document.getElementById('bk_st').value, t=document.getElementById('bk_t').value;
+  if(!p||!sv||!st||!t){toast('Pick patient, service, staff and time');return}
+  if(appts.find(a=>a.t===t&&a.staffId===st&&a.status!=='done')){toast('That slot is taken — double-booking blocked');return}
+  appts.push({id:uid(),t,staffId:st,pt:p,svc:sv,status:'booked'});
+  appts.sort((a,b)=>a.t.localeCompare(b.t));
+  activities.unshift({t:now(),txt:'Booked: '+pt(p).nm+' · '+svc(sv).nm+' · '+t+' with '+stf(st).name});
+  if(!online)outbox.push('appt');
+  S.modal=null;toast('Booked '+pt(p).nm+' at '+t+(online?'':' (queued offline)'));render()};
+
+/* ------------- CLIENTS ------------- */
+function clients(){
+  const q=(S.cq||'').toLowerCase();
+  const list=patients.filter(p=>!q||p.nm.toLowerCase().includes(q)||p.ph.includes(q));
+  return`<div class="card">
+  <div class="row" style="margin-bottom:10px"><div class="h1" style="margin:0">Clients</div><div class="grow"></div>
+  <button class="btn sm" onclick="newPatient(false)">＋ New patient</button></div>
+  <input id="cq" placeholder="Search name / phone — works offline" value="${S.cq||''}" oninput="S.cq=this.value;render()" style="margin-bottom:10px">
+  <table><tr><th>Code</th><th>Name</th><th>Phone</th><th>Owes</th><th>Follow-up</th><th>Last outcome</th></tr>
+  ${list.map(p=>{const c=checkins.find(x=>x.pt===p.id);
+    return`<tr class="click" onclick="S.ptView='${p.id}';S.elevated=false;go('client')">
+    <td>${p.code}</td><td class="b">${p.nm}${p.allergy?' ⚠':''}</td><td>${p.ph}</td>
+    <td>${p.owes?`<span class="b" style="color:var(--red)">${fm(p.owes)}</span>`:'—'}</td>
+    <td>${p.fu?(p.fu===dstr(todayD)?'<span class="tag low">today</span>':p.fu):'—'}</td>
+    <td>${c?(c.resp==='better'?'😊':c.resp==='same'?'😐':'😟')+' '+c.svc:'—'}</td></tr>`}).join('')}
+  </table></div>`;
+}
+function client(){
+  const p=pt(S.ptView);
+  return`<div style="max-width:860px;margin:0 auto">
+  <button class="btn ghost sm" onclick="go('clients')" style="margin-bottom:10px">← All clients</button>
+  <div class="card" style="margin-bottom:12px">
+    <div class="row"><div><div class="h1" style="margin:0">${p.nm} <span class="mut sm">${p.code}</span></div><div class="mut">${p.ph} ${p.tg?'· <span class="tag blue">Telegram ✓</span>':'· <span class="tag amber">no Telegram</span>'}</div></div>
+    <div class="grow"></div>
+    <button class="btn ghost sm" onclick="bookNew()">Book</button>
+    <button class="btn" onclick="S.cartPt='${p.id}';go('sale')">New sale</button></div>
+    ${p.allergy?`<div class="alert" style="margin-top:10px">⚠ ${p.allergy}</div>`:''}
+    <div class="statgrid" style="margin:12px 0 0">
+      <div class="stat"><div class="l">Outstanding</div><div class="v" style="color:${p.owes?'var(--red)':'inherit'}">${fm(p.owes)}</div></div>
+      <div class="stat"><div class="l">Next follow-up</div><div class="v" style="font-size:15px">${p.fu||'—'}</div></div>
+      <div class="stat"><div class="l">Visits</div><div class="v">${p.history.length}</div></div>
+    </div>
+  </div>
+  ${S.elevated?`
+  ${addons.recall?`<div class="aicard" style="margin-bottom:12px">
+    <div class="hdr">✦ Recall card <span class="tag ai">add-on · Level-1 assist — the patient's own record</span></div>
+    ${p.id==='c1'?`<div class="sm" style="line-height:1.5">3rd visit · Last botox <b>90 days ago: 24U forehead, lot BTX-2290, no adverse reaction</b> · bought Aftercare cream · <b style="color:var(--red)">Allergic: lidocaine</b> · Last check-in: 😐 after Hydra facial · Owes ${fm(p.owes)}<br><span class="mut">Dose default at charting: 24U (last visit — editable, never auto-applied)</span></div>`
+    :`<div class="sm">${p.history.map(h=>`${h.svc} (${h.d}d): ${h.note}`).join(' · ')||'First visit — no history yet.'}</div>`}
+  </div>`:''}
+  <div class="card"><div class="h2">Clinical record 🔓 <span class="mut sm">elevated 15 min</span></div>
+    ${p.history.map(h=>`<div class="trow"><span>${h.svc} <span class="mut sm">${h.d} days ago</span></span><span class="mut sm">${h.note}</span></div>`).join('')||'<div class="mut">No visits.</div>'}
+  </div>`
+  :`<div class="card"><div class="h2">Clinical record</div>
+    <div class="lockband">🔒 Notes, photos, consents and the AI recall card are behind the <b>admin password</b>. The counter view above stays visible — that split is a safety rule.
+    <div style="margin-top:9px"><button class="btn sm" onclick="askPwd()">Unlock clinical view</button> <span class="mut sm">demo: eden</span></div></div></div>`}
+  </div>`;
+}
+window.askPwd=()=>{S.modal={type:'pwd'};render()};
+
+/* ------------- SALE (full, from v2) ------------- */
+function lineTotal(l){return roundL(l.qty*l.price*(1-(l.disc||0)/100))}
+function cartSub(){return S.cart.reduce((a,l)=>a+lineTotal(l),0)}
+function cartTotal(){return roundL(cartSub()*(1-S.cartDisc/100))}
+function sale(){
+  const cats=S.tab==='services'?['All',...new Set(services.map(s=>s.cat))]:['All',...new Set(products.filter(p=>p.type==='retail').map(p=>p.cat))];
+  const items=(S.tab==='services'?services:products.filter(p=>p.type==='retail'))
+    .filter(i=>(S.cat==='All'||i.cat===S.cat)&&(!S.q||i.nm.toLowerCase().includes(S.q.toLowerCase())));
+  const p=S.cartPt?pt(S.cartPt):null;
+  return`<div class="sale">
+  <div class="cartside">
+    <div style="padding:10px 12px;border-bottom:1px solid var(--line)">
+      <button class="btn ghost sm" style="width:100%;text-align:left" onclick="S.modal={type:'pickpt',q:''};render()">
+        ${p?`<span class="b">${p.nm}</span> <span class="mut sm">${p.code}</span>${p.owes?` · <span style="color:var(--red)" class="sm b">owes ${fm(p.owes)}</span>`:''}`:'+ Add patient <span class="mut sm">(walk-in)</span>'}
+      </button>
+      ${p&&p.allergy?`<div class="alert sm" style="margin:8px 0 0">⚠ ${p.allergy}</div>`:''}
+    </div>
+    <div class="cartlines">
+      ${S.cart.length?S.cart.map((l,i)=>`
+        <div class="cline" onclick="S.modal={type:'line',i:${i}};render()">
+          <div class="grow"><div class="b" style="font-size:13.5px">${l.nm}</div>
+            <div class="mut sm">${l.by==='weight'?l.qty+' '+l.unit:'× '+l.qty}${l.disc?` · −${l.disc}%`:''}${l.lot?` · lot ${l.lot}`:''}${l.note?` · ${l.note}`:''}</div></div>
+          <div class="b" style="font-size:13.5px">${fm(lineTotal(l))}</div>
+        </div>`).join('')
+      :`<div class="mut" style="padding:26px;text-align:center">Cart is empty<br><span class="sm">Tap items, search, or scan</span></div>`}
+    </div>
+    <div class="totalbar">
+      <div class="trow mut"><span>Subtotal</span><span>${fm(cartSub())}</span></div>
+      ${S.cartDisc?`<div class="trow" style="color:var(--red)"><span>Discount −${S.cartDisc}%${S.discBy?` <span class="sm mut">(${S.discBy})</span>`:''}</span><span>−${fm(cartSub()-cartTotal())}</span></div>`:''}
+      <div class="trow" style="font-size:18px"><span class="b">Total</span><span class="b">${fm(cartTotal())}</span></div>
+      <div class="disc-chips">
+        ${[0,5,10,15,20].map(d=>`<button class="${S.cartDisc===d?'on':''}" onclick="S.cartDisc=${d};if(!${d})S.discBy=null;render()">${d}%</button>`).join('')}
+        <button onclick="customDisc()">Custom</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost sm grow" onclick="saveTicket()" ${!S.cart.length?'disabled':''}>Save ticket</button>
+        <button class="btn ghost sm" onclick="S.modal={type:'tickets'};render()">Tickets${S.tickets.length?' ('+S.tickets.length+')':''}</button>
+        <button class="btn ghost sm" onclick="clearCart()" ${!S.cart.length?'disabled':''}>Clear</button>
+      </div>
+      <button class="btn charge" onclick="S.modal={type:'charge',method:null,tendered:''};render()" ${!S.cart.length?'disabled':''}>Charge ${fm(cartTotal())}</button>
+    </div>
+  </div>
+  <div class="itemside">
+    <div class="tabs">
+      <button class="${S.tab==='services'?'on':''}" onclick="S.tab='services';S.cat='All';render()">Services · <span class="mm">ဝန်ဆောင်မှု</span></button>
+      <button class="${S.tab==='products'?'on':''}" onclick="S.tab='products';S.cat='All';render()">Products · <span class="mm">ကုန်ပစ္စည်း</span></button>
+    </div>
+    <div class="searchrow">
+      <input id="sq" placeholder="Search…" value="${S.q}" oninput="S.q=this.value;render()" style="max-width:250px">
+      <input id="bcin" placeholder="⌗ Scan barcode (try 4005900123456)" onkeydown="if(event.key==='Enter'){scanAdd(this.value);this.value=''}" style="max-width:280px">
+    </div>
+    <div class="catchips">${cats.map(c=>`<button class="${S.cat===c?'on':''}" onclick="S.cat='${c}';render()">${c}</button>`).join('')}</div>
+    <div class="grid">
+      ${items.map(i=>`<button class="tile" onclick="addItem('${i.id}')">
+        ${i.photo?`<img src="${i.photo}">`:''}
+        <div><div class="nm">${i.nm}</div>${i.mm?`<div class="mut sm mm">${i.mm}</div>`:''}</div>
+        <div class="row"><div class="pr grow">${i.by==='weight'?fm(i.price)+' / '+i.unit:fm(i.price)}</div>
+        ${i.stock!==undefined?`<span class="mut sm">${i.stock}${i.by==='weight'?i.unit:''}</span>`:''}
+        ${i.by==='weight'?'<span class="tag wt">weight</span>':''}</div>
+      </button>`).join('')||'<div class="mut" style="padding:10px">Nothing matches.</div>'}
+    </div>
+  </div></div>`;
+}
+window.customDisc=()=>{S.modal={type:'input',title:'Custom discount %',ph:'e.g. 25',cb:v=>{
+  const d=parseInt(v)||0;
+  if(d>20&&S.user.role!=='admin'){askPin('Admin PIN needed','Discount above 20% needs the owner',name=>{S.cartDisc=Math.min(d,100);S.discBy=name;toast('Approved by '+name)})}
+  else{S.cartDisc=Math.min(d,100);render()}}};render()};
+window.addItem=id=>{
+  const it=[...services,...products].find(x=>x.id===id);
+  if(it.by==='weight'){S.modal={type:'weight',it};render();return}
+  if(it.lot){S.modal={type:'lot',it};render();return}
+  const ex=S.cart.find(l=>l.id===it.id);
+  if(ex)ex.qty+=1;else S.cart.push({id:it.id,nm:it.nm,price:it.price,qty:1,fu:it.fu});
+  render()};
+window.scanAdd=code=>{
+  code=code.trim();if(!code)return;
+  const p=products.find(x=>x.barcode===code);
+  if(!p){S.modal={type:'newprod',code,step:'lookup'};render();return}
+  if(p.type!=='retail'){toast('⛔ '+p.nm+' is '+p.type+' stock — not sellable');return}
+  addItem(p.id);toast('Scanned: '+p.nm)};
+window.clearCart=()=>{S.cart=[];S.cartDisc=0;S.discBy=null;S.cartPt=null;S.cartFrom=null;render()};
+window.saveTicket=()=>{S.tickets.push({id:uid(),at:now(),pt:S.cartPt,cart:S.cart,disc:S.cartDisc,by:S.user.name});clearCart();toast('Ticket saved')};
+function askPin(title,why,cb){S.modal={type:'pin',title,why,entered:'',cb};render()}
+
+function finalizeSale(pays,credit,approvedBy){
+  const fu=S.cart.find(l=>l.fu);
+  const s={id:uid(),no:'R-'+(receiptNo++),time:now(),pt:S.cartPt,
+    lines:S.cart.map(l=>({nm:l.nm,qty:l.qty,total:lineTotal(l),lot:l.lot||null,by:l.by,unit:l.unit})),
+    total:cartTotal(),pays,credit,status:'completed',disc:S.cartDisc,discBy:S.discBy,creditBy:approvedBy||null,synced:online,
+    fu:fu&&S.cartPt?dstr(new Date(todayD.getTime()+fu.fu*86400000)):null};
+  sales.unshift(s);
+  S.cart.forEach(l=>{const p=products.find(x=>x.id===l.id);if(p)p.stock=Math.max(0,p.stock-l.qty)});
+  if(S.cartPt&&credit)pt(S.cartPt).owes+=credit;
+  if(s.fu)pt(S.cartPt).fu=s.fu;
+  if(S.cartFrom){const a=appts.find(x=>x.id===S.cartFrom);if(a)a.status='done'}
+  if(!online)outbox.push(s.id);
+  activities.unshift({t:now(),txt:'Sale '+s.no+' · '+fm(s.total)+(credit?' (credit'+(approvedBy?' appr. '+approvedBy:'')+')':'')+(online?'':' · OFFLINE')});
+  clearCart();S.modal={type:'receipt',sale:s};render();
+}
+
+/* ------------- STOCKS ------------- */
+function stocks(){
+  return`<div class="card">
+  <div class="row" style="margin-bottom:10px"><div class="h1" style="margin:0">Stocks</div><div class="grow"></div>
+    <button class="btn ghost sm" onclick="S.modal={type:'receive',pid:products[0].id};render()">📦 Receive</button>
+    <button class="btn sm" onclick="S.npPhoto=null;S.modal={type:'newprod',code:'',step:'scan'};render()">＋ Add product</button></div>
+  <input placeholder="⌗ Scan or search…" style="margin-bottom:10px" onkeydown="if(event.key==='Enter'){invScan(this.value);this.value=''}">
+  <table><tr><th>Product</th><th>Category</th><th>Type</th><th>Buy</th><th>Sell</th><th>Margin</th><th>Stock ${online?'':'(as of '+now()+')'}</th><th>Barcode</th></tr>
+  ${products.map(p=>{const mg=p.price&&p.cost?Math.round((p.price-p.cost)/p.price*100):null;
+    return`<tr>
+    <td class="b">${p.photo?`<img class="thumb" src="${p.photo}">`:''}${p.nm}${p.by==='weight'?' <span class="tag wt">weight</span>':''}${p.dead&&addons.insights?' <span class="tag ai">✦ dead '+p.dead+'d</span>':''}</td>
+    <td>${p.cat}</td>
+    <td>${p.type==='retail'?'<span class="tag ok">retail</span>':'<span class="tag amber">'+p.type+'</span>'}</td>
+    <td class="mut">${p.cost?fm(p.cost)+(p.by==='weight'?' / '+p.unit:''):'—'}</td>
+    <td>${p.price?fm(p.price)+(p.by==='weight'?' / '+p.unit:''):'—'}</td>
+    <td>${mg!==null?`<span class="b" style="color:${mg>=40?'#136c46':mg>=20?'var(--amber)':'var(--red)'}">${mg}%</span>`:'—'}</td>
+    <td>${p.stock}${p.by==='weight'?p.unit:''} ${p.stock<=p.low?'<span class="tag low">low</span>':''}${p.lots?`<div class="mut sm">${p.lots.join('<br>')}</div>`:''}</td>
+    <td class="mut sm">${p.barcode||'—'}</td></tr>`}).join('')}
+  </table>
+  <div class="mut sm" style="margin-top:8px">Front desk can view, add and receive. Price edits & adjustments stay with the owner. Injectables are never sellable at checkout.</div></div>`;
+}
+window.invScan=code=>{code=code.trim();if(!code)return;
+  const p=products.find(x=>x.barcode===code);
+  if(p)toast(p.nm+' — '+p.stock+' in stock');
+  else{S.npPhoto=null;S.modal={type:'newprod',code,step:'lookup'};render()}};
+
+/* ------------- ANALYTICS ------------- */
+function analytics(){
+  if(!S.elevated)return`<div class="card" style="max-width:560px;margin:40px auto">
+    <div class="h1">Analytics 🔑</div>
+    <div class="lockband">Whole-business numbers live behind the <b>admin password</b>.
+    <div style="margin-top:9px"><button class="btn sm" onclick="askPwd()">Unlock</button> <span class="mut sm">demo: eden</span></div></div></div>`;
+  const data=S.salesRange==='week'?WEEK:MONTH;
+  const max=Math.max(...data.map(d=>d.v));
+  const total=data.reduce((a,d)=>a+d.v,0);
+  const rows=[['Chemical peel',12,10,1,1],['Laser acne',9,7,2,0],['Botox — forehead',6,5,0,1],['Hydra facial',14,11,3,0]];
+  return`
+  <div class="grid2">
+  <div class="card">
+    <div class="row"><div class="h2" style="margin:0">Sales</div><div class="grow"></div>
+      <div class="subtabs" style="margin:0">
+        <button class="${S.salesRange==='week'?'on':''}" onclick="S.salesRange='week';render()">Week</button>
+        <button class="${S.salesRange==='month'?'on':''}" onclick="S.salesRange='month';render()">Month</button>
+      </div></div>
+    <div class="bars">${data.map(d=>`<div class="bar" style="height:${d.v?Math.max(6,Math.round(d.v/max*100)):2}%;${d.v?'':'background:#dfe5ec'}"><div class="bl">${d.v?d.v>=1000?(d.v/1000).toFixed(1)+'M':d.v+'k':''}</div></div>`).join('')}</div>
+    <div class="bxl">${data.map(d=>`<div>${d.l}</div>`).join('')}</div>
+    <div class="trow" style="margin-top:10px"><span class="b">Total (${S.salesRange})</span><span class="b">${total>=1000?(total/1000).toFixed(2)+'M':total+'k'} Ks</span></div>
+    <div class="trow"><span>Avg per ${S.salesRange==='week'?'day':'week'}</span><span>${Math.round(total/data.filter(d=>d.v).length)}k Ks</span></div>
+    <div class="mut sm" style="margin-top:4px">${S.salesRange==='week'?'Thu is today so far; Fri–Sun not yet traded.':'Four weeks of July.'}</div>
+  </div>
+  ${addons.outcomes?`<div class="card"><div class="h2">✦ Outcomes — from care-loop check-ins <span class="tag ai">add-on · nobody else has this</span></div>
+    <table><tr><th>Service</th><th>n</th><th>😊</th><th>😐</th><th>😟</th><th>Better-rate</th></tr>
+    ${rows.map(([s,n,b,m,w])=>`<tr><td>${s}</td><td>${n}</td><td>${b}</td><td>${m}</td><td>${w}</td>
+      <td class="b" style="color:${b/n>=.8?'#136c46':'var(--amber)'}">${Math.round(b/n*100)}%</td></tr>`).join('')}
+    </table>
+    <div class="mut sm" style="margin-top:8px">Clustered 😟 on one lot flags here and feeds the lot-trace recall query.</div></div>`
+  :`<div class="card"><div class="h2">Outcomes</div><div class="lockband">✦ Treatment-outcome analytics is an add-on (needs Care loop). Enable it in Set-up → AI add-ons.</div></div>`}
+  <div class="card"><div class="h2">Staff (this week)</div>
+    <div class="trow"><span>Dr. Hkawn Mai</span><span class="b">860,000 Ks · 9 visits</span></div>
+    <div class="trow"><span>Su Su</span><span class="b">380,000 Ks · 11 visits</span></div>
+    <div class="trow"><span>Rebooking rate</span><span class="b">64%</span></div>
+    <div class="trow"><span>Discount overrides</span><span class="b">4</span></div></div>
+  <div class="card"><div class="h2">Export</div>
+    <button class="btn ghost sm" onclick="toast('CSV export — re-prompts password every time')">Export CSV</button>
+    <div class="mut sm" style="margin-top:6px">Your data is always exportable — contractual promise.</div></div>
+  </div>`;
+}
+
+/* ------------- HUB (sub-tabs) ------------- */
+function hub(){
+  const t=S.hub;
+  const sub=`<div class="subtabs">${['team','leads','money','activities'].map(k=>`<button class="${t===k?'on':''}" onclick="S.hub='${k}';render()">${k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</div>`;
+  if(t==='team')return sub+`<div class="card"><div class="h1">Team</div>
+    <table><tr><th>Name</th><th>Role</th><th>Takes bookings</th><th>Today</th></tr>
+    ${staff.map(s=>`<tr><td class="b">${s.name}</td><td>${s.role}</td><td>${s.books?'✅':'—'}</td><td class="sm mut">${appts.filter(a=>a.staffId===s.id).length} appointments</td></tr>`).join('')}</table>
+    <div class="mut sm" style="margin-top:8px">Accounts & PINs live in Set-up behind elevation. Rosters arrive with the calendar phase.</div></div>`;
+  if(t==='leads')return sub+`<div class="card"><div class="h1">Leads</div>
+    <table><tr><th>Name</th><th>Channel</th><th>Interest</th><th>Status</th><th></th></tr>
+    ${leads.map(l=>`<tr><td class="b">${l.nm}</td><td>${l.channel}</td><td>${l.interest}</td>
+      <td><span class="tag ${l.status==='new'?'low':'blue'}">${l.status}</span></td>
+      <td>${l.status!=='converted'?`<button class="btn ghost sm" onclick="convertLead('${l.id}')">Convert → patient</button>`:'✅'}</td></tr>`).join('')}</table>
+    <div class="mut sm" style="margin-top:8px">✦ The AI front desk will file these automatically from Telegram price questions.</div></div>`;
+  if(t==='money'){
+    const cash=sales.filter(s=>s.status==='completed').reduce((a,s)=>a+s.pays.filter(p=>p.m==='cash').reduce((x,p)=>x+p.amt,0),0);
+    return sub+`<div class="grid2">
+    <div class="card"><div class="h2">Shift</div>
+      <div class="trow"><span>Starting cash</span><span class="b">${fm(100000)}</span></div>
+      <div class="trow"><span>Cash sales</span><span class="b">${fm(cash)}</span></div>
+      <div class="trow"><span>Expected in drawer</span><span class="b">${fm(100000+cash)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm" onclick="toast('Pay in / pay out with note')">± Cash</button>
+      <button class="btn red sm" onclick="outbox.length?toast('Blocked — outbox not empty'):toast('Shift close — summary prints & posts to owner Telegram')">Close shift</button></div></div>
+    <div class="card"><div class="h2">Debtors</div>
+      ${patients.filter(p=>p.owes).map(p=>`<div class="trow"><span>${p.nm} <span class="mut sm">${p.ph}</span></span><span class="b" style="color:var(--red)">${fm(p.owes)}</span></div>`).join('')||'<div class="mut">None.</div>'}
+      ${addons.insights?`<button class="btn ghost sm" style="margin-top:8px" onclick="toast('Reminder batch drafted — owner approves before sending')">✦ Draft polite reminders</button>`:''}</div>
+    <div class="card" style="grid-column:1/-1"><div class="h2">Receipts</div>
+      <table><tr><th>#</th><th>Time</th><th>Patient</th><th>Items</th><th>Total</th><th>Paid</th><th>Status</th></tr>
+      ${sales.map(s=>`<tr class="click" onclick="S.modal={type:'receipt',sale:sales.find(x=>x.id==='${s.id}'),reprint:true};render()">
+        <td class="b">${s.no}</td><td>${s.time}${s.synced===false?' <span class="tag low">unsynced</span>':''}</td>
+        <td>${s.pt?pt(s.pt).nm:'Walk-in'}</td><td class="sm">${s.lines.map(l=>l.nm).join(', ')}</td>
+        <td class="b">${fm(s.total)}</td><td class="sm">${s.pays.map(p=>p.m).join('+')||''}${s.credit?' <span style="color:var(--red)">credit</span>':''}</td>
+        <td>${s.status==='voided'?'<span class="tag low">refunded</span>':'<span class="tag ok">done</span>'}</td></tr>`).join('')}
+      </table></div>
+    </div>`;
+  }
+  return sub+`<div class="card"><div class="h1">Activities</div>
+    ${activities.map(a=>`<div class="trow"><span>${a.txt}</span><span class="mut sm">${a.t}</span></div>`).join('')}
+    <div class="mut sm" style="margin-top:8px">Sales, bookings, check-ins, overrides, sync — the audit trail as a feed.</div></div>`;
+}
+window.convertLead=id=>{const l=leads.find(x=>x.id===id);l.status='converted';
+  activities.unshift({t:now(),txt:'Lead converted → patient: '+l.nm});toast(l.nm+' converted');render()};
+
+/* ------------- SETUP ------------- */
+function setup(){
+  const ADDONS=[
+    ['brief','Morning brief','Owner digest to Telegram at 08:00 — data + Burmese templates','$19/mo'],
+    ['careloop','Care loop','T+3 check-ins with 😊😐😟 buttons · complication alerts to a human','$29/mo'],
+    ['recall','Recall card','Patient history assist at charting (Level-1, zero generation)','$39/mo'],
+    ['outcomes','Outcomes analytics','Better-rates per service, provider & lot — needs Care loop','$29/mo'],
+    ['insights','Smart insights','Dead-stock signals, reorder drafts, debtor-reminder drafting','$19/mo'],
+  ];
+  return`<div style="max-width:780px;margin:0 auto;display:grid;gap:12px">
+  <div class="card"><div class="h2">✦ AI add-ons <span class="tag ai">optional — sold separately, core POS works without them</span></div>
+    ${ADDONS.map(([k,nm,desc,pr])=>`<div class="trow" style="align-items:center;padding:7px 0">
+      <span><b>${nm}</b> <span class="tag blue">${pr}</span><br><span class="mut sm">${desc}</span></span>
+      <span class="sw ${addons[k]?'on':''}" onclick="toggleAddon('${k}')"></span></div>`).join('')}
+    <div class="mut sm" style="margin-top:6px">Toggling changes the whole app instantly — that's the pitch: one platform, pay for the intelligence you want. Bundle: all five, $99/mo.</div></div>
+  <div class="card"><div class="h2">Clinic</div>
+    <div class="trow" style="align-items:center"><span>Rounding per line</span>
+      <span style="width:150px"><select onchange="setRound(this.value)">${[100,500,1000].map(r=>`<option ${ROUND===r?'selected':''} value="${r}">${r} Ks</option>`).join('')}</select></span></div>
+    <div class="trow" style="align-items:center"><span>Credit limit (above → owner PIN)</span>
+      <span style="width:150px"><input value="${creditLimit}" inputmode="numeric" onchange="setCredit(this.value)"></span></div>
+    <div class="trow" style="align-items:center"><span>Language</span>
+      <span style="width:150px"><select onchange="toast('Language: '+this.value+' — UI dictionary swaps instantly')"><option>မြန်မာ (default)</option><option>English</option></select></span></div>
+    <div class="trow" style="align-items:center"><span>Receipt footer</span>
+      <span style="width:220px"><input value="ကျေးဇူးတင်ပါသည်" class="mm" onchange="toast('Receipt footer updated')"></span></div></div>
+  <div class="card"><div class="h2">Hardware</div>
+    <div class="trow" style="align-items:center"><span>Receipt printer</span>
+      <span style="width:250px"><select onchange="toast('Printer: '+this.value+' — same ESC/POS raster, different transport')">
+        <option>Sunmi built-in 80mm (SDK)</option>
+        <option>Xprinter 80mm (LAN · ESC/POS)</option>
+        <option>Xprinter 58mm (Bluetooth · bridge)</option>
+        <option>Epson TM-m30 (LAN · ePOS)</option>
+        <option>Generic ESC/POS 58/80mm</option>
+      </select></span></div>
+    <div class="trow" style="align-items:center"><span>Test print</span><span><button class="btn ghost sm" onclick="toast('🖨 Test receipt sent — Burmese renders via canvas raster')">Print test</button></span></div>
+    <div class="trow"><span>Compatibility</span><span class="b sm">One raster renderer → any ESC/POS printer (Xprinter, Sunmi, Epson, generic)</span></div>
+    <div class="trow"><span>Fallback</span><span class="b">Receipt PNG → Viber (printer never blocks a sale)</span></div></div>
+  <div class="card"><div class="h2">Receipt design <span class="mut sm">— owner options, not a developer job</span></div>
+    <div class="row" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:230px">
+        <div class="fld"><label>Header (clinic name)</label><input value="${rc.header}" onchange="rc.header=this.value;render()"></div>
+        <div class="fld"><label>Sub-line (Burmese)</label><input class="mm" value="${rc.sub}" onchange="rc.sub=this.value;render()"></div>
+        <div class="fld"><label>Phone</label><input value="${rc.phone}" onchange="rc.phone=this.value;render()"></div>
+        <div class="fld"><label>Footer</label><input class="mm" value="${rc.footer}" onchange="rc.footer=this.value;render()"></div>
+        <div class="trow" style="align-items:center"><span>Show logo</span><span class="sw ${rc.logo?'on':''}" onclick="rc.logo=!rc.logo;render()"></span></div>
+        <div class="trow" style="align-items:center"><span>QR — join Telegram channel</span><span class="sw ${rc.qr?'on':''}" onclick="rc.qr=!rc.qr;render()"></span></div>
+        <div class="trow" style="align-items:center"><span>Show next-visit date</span><span class="sw ${rc.fu?'on':''}" onclick="rc.fu=!rc.fu;render()"></span></div>
+        <div class="trow" style="align-items:center"><span>Paper width</span>
+          <span style="width:110px"><select onchange="rc.width=parseInt(this.value);render()"><option value="80" ${rc.width===80?'selected':''}>80 mm</option><option value="58" ${rc.width===58?'selected':''}>58 mm</option></select></span></div>
+      </div>
+      <div class="paper" style="width:${rc.width===58?'210':'280'}px;flex:none">
+        ${rc.logo?'<div class="c" style="font-size:20px">✚</div>':''}
+        <div class="c b">${rc.header}</div>
+        <div class="c mm">${rc.sub}</div>
+        <div class="c sm">${rc.phone}</div><hr>
+        <div class="r"><span>Hydra facial</span><span>40,000 Ks</span></div>
+        <div class="r"><span>Sunscreen SPF50+</span><span>32,000 Ks</span></div><hr>
+        <div class="r b"><span>TOTAL</span><span>72,000 Ks</span></div>
+        ${rc.fu?'<hr><div class="c">Next visit: 2026-08-14</div>':''}
+        ${rc.qr?'<div class="c" style="font-size:19px;letter-spacing:-2px">▩▩</div><div class="c sm">Telegram — aftercare & booking</div>':''}
+        <hr><div class="c mm">${rc.footer}</div>
+      </div>
+    </div>
+    <div class="mut sm" style="margin-top:8px">The layout engine is ours (one renderer, correct Burmese, 80/58mm reflow — the part that must never break). What the owner edits is content and toggles — live preview, no drag-and-drop template builder.</div></div>
+  <div class="card"><div class="h2">Owner area 🔑</div>
+    <div class="row" style="flex-wrap:wrap">
+      <button class="btn ghost sm" onclick="ownerGate('Catalogue & pricing')">Catalogue & pricing</button>
+      <button class="btn ghost sm" onclick="ownerGate('Staff accounts & PINs')">Staff accounts</button>
+      <button class="btn ghost sm" onclick="ownerGate('Data export')">Data export</button>
+    </div>
+    <div class="mut sm" style="margin-top:8px">Behind the admin password (15-min elevation). Export re-prompts every time — your data is always exportable, by contract.</div></div>
+  </div>`;
+}
+window.ownerGate=what=>{
+  if(S.elevated){toast(what+' — open (elevated)');return}
+  S.modal={type:'pwd'};render();
+};
+
+/* ------------- modals ------------- */
+function modalView(){
+  const m=S.modal;
+  const close=`<button class="btn ghost" style="width:100%;margin-top:10px" onclick="S.modal=null;render()">Close</button>`;
+  if(m.type==='pwd')return ovl(`<div class="h1">Admin password</div>
+    <input type="password" id="pw" placeholder="demo: eden" onkeydown="if(event.key==='Enter')pwTry()">
+    <button class="btn" style="width:100%;margin-top:10px" onclick="pwTry()">Unlock (15 min)</button>${close}`);
+  if(m.type==='pin')return ovl(`<div class="h1">${m.title}</div><div class="mut sm">${m.why}</div>
+    <div class="pindots">${'●'.repeat(m.entered.length)||'&nbsp;'}</div>
+    <div class="pinrow">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button class="pinkey" onclick="opk('${k}')">${k}</button>`).join('')}</div>
+    <div class="mut sm" style="text-align:center;margin-top:6px">Approval logged; session stays ${S.user.name}'s. (1234)</div>${close}`);
+  if(m.type==='input')return ovl(`<div class="h1">${m.title}</div>
+    <input id="minp" placeholder="${m.ph}" onkeydown="if(event.key==='Enter')inpOk()">
+    <button class="btn" style="width:100%;margin-top:10px" onclick="inpOk()">OK</button>${close}`);
+  /* booking */
+  if(m.type==='book'){
+    const cols=staff.filter(s=>s.books);
+    const freeTimes=st=>TIMES.filter(t=>!appts.find(a=>a.t===t&&a.staffId===(st||m.staffId)&&a.status!=='done'));
+    return ovl(`<div class="h1">New appointment</div>
+    <div class="fld"><label>Patient</label>
+      <div class="row">
+        <select id="bk_pt" class="grow"><option value="">— pick —</option>${patients.map(p=>`<option value="${p.id}" ${m.pt===p.id?'selected':''}>${p.nm} · ${p.ph}${p.allergy?' ⚠':''}</option>`).join('')}</select>
+        <button class="btn ghost sm" style="flex:none" onclick="newPatient('book')">＋ New patient</button>
+      </div></div>
+    <div class="fld"><label>Service</label><select id="bk_svc"><option value="">— pick —</option>${services.map(s=>`<option value="${s.id}">${s.nm} — ${fm(s.price)}</option>`).join('')}</select></div>
+    <div class="row">
+      <div class="fld grow"><label>Staff</label><select id="bk_st">${cols.map(c=>`<option value="${c.id}" ${c.id===m.staffId?'selected':''}>${c.name}</option>`).join('')}</select></div>
+      <div class="fld grow"><label>Time</label><select id="bk_t">${TIMES.map(t=>`<option ${t===m.t?'selected':''}>${t}</option>`).join('')}</select></div>
+    </div>
+    <button class="btn" style="width:100%" onclick="doBook()">Book — confirmation goes to Telegram</button>
+    <div class="mut sm" style="margin-top:8px">Double-booking a staff slot is blocked. Booking works offline (queued).</div>${close}`);
+  }
+  if(m.type==='appt'){const a=appts.find(x=>x.id===m.id);const p=pt(a.pt);const s=svc(a.svc);
+    return ovl(`<div class="h1">${a.t} — ${p.nm}</div>
+    <div class="trow"><span>Service</span><span class="b">${s.nm} <span class="mm mut">${s.mm}</span></span></div>
+    <div class="trow"><span>Staff</span><span class="b">${stf(a.staffId).name}</span></div>
+    ${p.allergy?`<div class="alert" style="margin:8px 0">⚠ ${p.allergy}</div>`:''}
+    ${s.lot?`<div class="mut sm" style="margin:6px 0">Injectable — checkout asks for lot & expiry (DataMatrix prefills).</div>`:''}
+    <div class="row" style="margin-top:10px">
+      ${a.status==='booked'?`<button class="btn ghost grow" onclick="markHere('${m.id}')">Mark arrived</button>`:''}
+      ${a.status!=='done'?`<button class="btn grow" onclick="chargeAppt('${m.id}')">Charge → checkout</button>`:'<span class="tag ok">completed</span>'}
+      ${a.status!=='done'?`<button class="btn ghost" onclick="cancelAppt('${m.id}')">Cancel</button>`:''}
+    </div>${close}`);}
+  if(m.type==='pickpt'){const q=(m.q||'').toLowerCase();
+    const list=patients.filter(p=>!q||p.nm.toLowerCase().includes(q)||p.ph.includes(q));
+    return ovl(`<div class="h1">Attach patient</div>
+    <input id="ppq" placeholder="Search name / phone" oninput="S.modal.q=this.value;render()" value="${m.q}">
+    <div style="margin-top:8px">${list.map(p=>`<button class="staffbtn" onclick="S.cartPt='${p.id}';S.modal=null;render()">
+      <div class="ava">${p.nm.split(' ').pop()[0]}</div><div class="grow"><div class="b">${p.nm} ${p.allergy?'⚠':''}</div>
+      <div class="mut sm">${p.ph}${p.owes?` · owes ${fm(p.owes)}`:''}</div></div></button>`).join('')}</div>
+    <div class="row" style="margin-top:4px">
+      <button class="btn grow" onclick="newPatient(true)">＋ New patient</button>
+      <button class="btn ghost grow" onclick="S.cartPt=null;S.modal=null;render()">Walk-in</button>
+    </div>${close}`);}
+  /* new patient form */
+  if(m.type==='newpt')return ovl(`<div class="h1">New patient</div>
+    <div class="fld"><label>Name *</label><input id="pt_nm" placeholder="e.g. Ma Ei Ei"></div>
+    <div class="fld"><label>Phone *</label><input id="pt_ph" placeholder="09 …"><div class="mut sm" style="margin-top:3px">Server dedupes on phone — a match merges instead of duplicating.</div></div>
+    <div class="row">
+      <div class="fld grow"><label>Sex</label><select id="pt_sx"><option>F</option><option>M</option><option>other</option></select></div>
+      <div class="fld grow"><label>Telegram?</label><select id="pt_tg"><option value="1">yes</option><option value="0">no</option></select></div>
+    </div>
+    <div class="fld"><label>Allergies / alert <span class="mut">(shows as red banner everywhere)</span></label><input id="pt_al" placeholder="e.g. lidocaine"></div>
+    <button class="btn" style="width:100%" onclick="ptSave('${m.fromSale===true?'sale':m.fromSale==='book'?'book':'list'}')">Save patient${m.fromSale===true?' & attach to sale':m.fromSale==='book'?' & continue booking':''}</button>
+    <div class="mut sm" style="margin-top:8px">Works offline — client-generated id, code assigned at sync.</div>${close}`);
+  if(m.type==='weight')return ovl(`<div class="h1">${m.it.nm}</div>
+    <div class="mut sm">${fm(m.it.price)} per ${m.it.unit} · enter quantity</div>
+    <input id="wq" type="number" placeholder="grams" style="margin-top:8px" onkeydown="if(event.key==='Enter')wOk()">
+    <button class="btn" style="width:100%;margin-top:10px" onclick="wOk()">Add</button>${close}`);
+  if(m.type==='lot')return ovl(`<div class="h1">${m.it.nm}</div>
+    <div class="mut sm" style="margin-bottom:8px">Injectable — lot & expiry required for traceability.</div>
+    <div class="fld"><label>Lot number</label><input id="lotno" placeholder="e.g. BTX-2311"></div>
+    <div class="fld"><label>Expiry</label><input id="lotex" placeholder="YYYY-MM"></div>
+    <button class="btn ghost sm" style="width:100%;margin-bottom:8px" onclick="document.getElementById('lotno').value='BTX-2311';document.getElementById('lotex').value='2027-01'">⌗ Scan GS1 DataMatrix (demo prefill)</button>
+    <button class="btn" style="width:100%" onclick="lotOk()">Add to cart</button>${close}`);
+  if(m.type==='line'){const l=S.cart[m.i];return ovl(`<div class="h1">${l.nm}</div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost" onclick="S.cart[${m.i}].qty=Math.max(1,S.cart[${m.i}].qty-1);render()">−</button>
+      <div class="b" style="min-width:70px;text-align:center">${l.by==='weight'?l.qty+' '+l.unit:l.qty}</div>
+      <button class="btn ghost" onclick="S.cart[${m.i}].qty++;render()">＋</button>
+      <div class="grow"></div><div class="b">${fm(lineTotal(l))}</div></div>
+    <div class="fld"><label>Line note (laser settings, units per site…)</label><input id="lnote" value="${l.note||''}"></div>
+    <div class="row">
+      <button class="btn ghost grow" onclick="S.cart.splice(${m.i},1);S.modal=null;render()">Remove</button>
+      <button class="btn grow" onclick="S.cart[${m.i}].note=document.getElementById('lnote').value;S.modal=null;render()">Save</button></div>`);}
+  if(m.type==='tickets')return ovl(`<div class="h1">Open tickets</div>
+    ${S.tickets.length?S.tickets.map((t,i)=>`<div class="trow"><span>${t.at} · ${t.pt?pt(t.pt).nm:'Walk-in'} · ${t.cart.map(l=>l.nm).join(', ')}</span>
+      <span><button class="btn sm" onclick="resumeTicket(${i})">Resume</button></span></div>`).join(''):'<div class="mut">No open tickets.</div>'}${close}`);
+  if(m.type==='charge'){
+    const total=cartTotal();const t=parseInt((m.tendered||'').replace(/\D/g,''))||0;
+    const p=S.cartPt?pt(S.cartPt):null;
+    return ovl(`<div class="h1">Charge · <span style="color:var(--brand-dk)">${fm(total)}</span></div>
+    ${!m.method?`<div class="payg">
+        <button class="btn" onclick="S.modal.method='cash';render()">💵 Cash</button>
+        <button class="btn" onclick="finalizeSale([{m:'kbzpay',amt:${total}}],0)">📱 KBZPay</button>
+        <button class="btn" onclick="finalizeSale([{m:'wave',amt:${total}}],0)">📱 Wave</button>
+        <button class="btn ghost" onclick="payLater()">🕐 Pay later${p?'':' <span class="sm">(needs patient)</span>'}</button>
+      </div>`
+    :`<div class="fld"><label>Cash received</label><input id="tnd" inputmode="numeric" value="${m.tendered}" oninput="S.modal.tendered=this.value;render()" placeholder="0"></div>
+      <div class="cash-quick">${[total,Math.ceil(total/10000)*10000,Math.ceil(total/50000)*50000,Math.ceil(total/100000)*100000]
+        .filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<button onclick="S.modal.tendered='${v}';render()">${fm(v)}</button>`).join('')}</div>
+      ${t>=total?`<div class="trow" style="font-size:17px"><span class="b">Change</span><span class="b" style="color:var(--brand-dk)">${fm(t-total)}</span></div>`:''}
+      <button class="btn charge" ${t<total?'disabled':''} onclick="finalizeSale([{m:'cash',amt:${total}}],0)">Complete — print & open drawer</button>`}
+    ${close}`);}
+  if(m.type==='receipt'){const s=m.sale;
+    return ovl(`<div class="paper" style="width:${rc.width===58?'230':'300'}px">
+      ${rc.logo?'<div class="c" style="font-size:20px">✚</div>':''}
+      <div class="c b">${rc.header}</div>
+      <div class="c mm">${rc.sub}</div>
+      <div class="c sm">${rc.phone}</div><hr>
+      <div class="r"><span>${s.no}</span><span>${dstr(todayD)} ${s.time}</span></div>
+      ${s.pt?`<div class="r"><span>Patient: ${pt(s.pt).nm}</span></div>`:''}<hr>
+      ${s.lines.map(l=>`<div class="r"><span>${l.nm}${l.by==='weight'?` ${l.qty}${l.unit}`:l.qty>1?` ×${l.qty}`:''}</span><span>${fm(l.total)}</span></div>${l.lot?`<div class="sm">&nbsp;&nbsp;lot ${l.lot}</div>`:''}`).join('')}
+      <hr>${s.disc?`<div class="r"><span>Discount</span><span>−${s.disc}%</span></div>`:''}
+      <div class="r b" style="font-size:14px"><span>TOTAL</span><span>${fm(s.total)}</span></div>
+      ${s.pays.map(p=>`<div class="r"><span style="text-transform:capitalize">${p.m}</span><span>${fm(p.amt)}</span></div>`).join('')}
+      ${s.credit?`<div class="r b"><span>Balance due</span><span>${fm(s.credit)}</span></div>`:''}
+      ${rc.fu&&s.fu?`<hr><div class="c">Next visit: ${s.fu}</div>`:''}
+      ${rc.qr?'<div class="c" style="font-size:19px;letter-spacing:-2px">▩▩</div><div class="c sm">Telegram — aftercare & booking</div>':''}
+      <hr><div class="c mm">${rc.footer}</div>
+      <div class="c sm">${s.synced===false?'· captured offline — will sync ·':''}</div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn ghost grow" onclick="toast('Canvas raster → printer (80/58mm)')">🖨 Print</button>
+      <button class="btn ghost grow" onclick="toast('PNG → share to Viber')">📤 Share</button>
+      ${m.reprint&&s.status!=='voided'?`<button class="btn red grow" onclick="refundSale('${s.id}')">Refund</button>`:''}
+    </div>
+    <button class="btn" style="width:100%;margin-top:8px" onclick="S.modal=null;render()">Done</button>`);}
+  /* new product — barcode-first with PHOTO */
+  if(m.type==='newprod'){
+    if(m.step==='scan')return ovl(`<div class="h1">Add product</div>
+      <div class="mut sm" style="margin-bottom:8px">Barcode first — or skip if it has none.</div>
+      <input id="npcode" placeholder="⌗ Barcode… (try 4005900654321)" onkeydown="if(event.key==='Enter')npLookup(this.value)">
+      <div class="row" style="margin-top:10px">
+        <button class="btn grow" onclick="npLookup(document.getElementById('npcode').value)">Look up</button>
+        <button class="btn ghost grow" onclick="S.modal={type:'newprod',code:'',step:'form',hit:null};render()">No barcode — manual</button>
+      </div>${close}`);
+    if(m.step==='lookup'){
+      const hit=online?GLOBAL_DB[m.code]:null;
+      return ovl(`<div class="h1">Barcode ${m.code}</div>
+      ${!online?`<div class="mut sm" style="margin-bottom:8px">Offline — lookup unavailable; manual entry saves and syncs later.</div>`
+        :hit?`<div class="lockband" style="background:#e8f1fd;border-color:#c3d9f5;color:var(--brand-dk);margin-bottom:8px">✓ Found in global barcode database:<br><b>${hit.nm}</b> · category: ${hit.cat}</div>`
+        :`<div class="mut sm" style="margin-bottom:8px">Not in the global DB (normal for local & repacked stock) — manual entry.</div>`}
+      <button class="btn" style="width:100%" onclick='S.modal={type:"newprod",code:"${m.code}",step:"form",hit:${hit?JSON.stringify(hit).replace(/"/g,'&quot;'):'null'}};render()'>Continue</button>${close}`);
+    }
+    const hit=m.hit||{};
+    return ovl(`<div class="h1">New product</div>
+      <div class="fld"><label>Photo</label>
+        <div class="row">
+          ${S.npPhoto?`<img src="${S.npPhoto}" style="width:64px;height:64px;object-fit:cover;border-radius:9px">`:'<div style="width:64px;height:64px;border-radius:9px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:22px">📷</div>'}
+          <input type="file" accept="image/*" id="np_ph" style="padding:6px" onchange="npPhoto(this)">
+        </div>
+        <div class="mut sm" style="margin-top:4px">The thumbnail is how reception finds the right serum among six bottles.</div></div>
+      <div class="fld"><label>Product name</label><input id="np_nm" value="${hit.nm||''}" placeholder="Name"></div>
+      <div class="fld"><label>Barcode</label><input id="np_bc" value="${m.code||''}" placeholder="optional"></div>
+      <div class="row">
+        <div class="fld grow"><label>Category</label><input id="np_cat" value="${hit.cat||''}" placeholder="e.g. Skincare"></div>
+        <div class="fld grow"><label>Sold by</label><select id="np_by"><option value="each">each</option><option value="weight">weight (per g)</option></select></div>
+      </div>
+      <div class="row">
+        <div class="fld grow"><label>Buy price — cost (Ks)</label><input id="np_cost" inputmode="numeric" placeholder="e.g. 15000" oninput="npMargin()"></div>
+        <div class="fld grow"><label>Sell price (Ks)</label><input id="np_pr" inputmode="numeric" placeholder="e.g. 25000" oninput="npMargin()"></div>
+      </div>
+      <div class="mut sm" id="np_mg" style="margin:-4px 0 8px"></div>
+      <div class="fld"><label>Opening stock</label><input id="np_st" inputmode="numeric" placeholder="0"></div>
+      <button class="btn" style="width:100%" onclick="npSave()">Save product</button>
+      <div class="mut sm" style="margin-top:8px">Saves offline too — deduped on barcode at sync; new products flagged on Home for the owner.</div>${close}`);
+  }
+  if(m.type==='receive'){const p=products.find(x=>x.id===m.pid);
+    return ovl(`<div class="h1">Receive stock</div>
+    <div class="fld"><label>Product</label><select onchange="S.modal.pid=this.value;render()">${products.map(x=>`<option value="${x.id}" ${x.id===m.pid?'selected':''}>${x.nm}</option>`).join('')}</select></div>
+    <div class="fld"><label>Quantity received</label><input id="rc_q" inputmode="numeric" placeholder="e.g. 10"></div>
+    <div class="fld"><label>Buy price per unit — if it changed <span class="mut">(current: ${p.cost?fm(p.cost):'—'})</span></label><input id="rc_cost" inputmode="numeric" placeholder="leave empty to keep"></div>
+    ${p.type==='injectable'?`<div class="fld"><label>Lot / expiry (scan the DataMatrix)</label><input id="rc_l" placeholder="e.g. BTX-2450 exp 2027-06"></div>`:''}
+    <button class="btn" style="width:100%" onclick="rcOk()">Receive — writes a stock move</button>
+    <div class="mut sm" style="margin-top:8px">Works offline via the outbox. Corrections (adjust/waste) are admin-only, online.</div>${close}`);}
+  return'';
+}
+function ovl(inner){return`<div class="ovl" onclick="if(event.target===this){S.modal=null;render()}"><div class="modal">${inner}</div></div>`}
+window.pwTry=()=>{const v=document.getElementById('pw').value;if(v.trim()==='eden'){S.elevated=true;S.modal=null;toast('Elevated for 15 minutes');render()}};
+window.newPatient=fromSale=>{S.modal={type:'newpt',fromSale};render()};
+window.ptSave=mode=>{
+  const nm=document.getElementById('pt_nm').value.trim();
+  const ph=document.getElementById('pt_ph').value.trim();
+  if(!nm||!ph){toast('Name and phone are required');return}
+  const dupe=patients.find(p=>p.ph.replace(/\s/g,'')===ph.replace(/\s/g,''));
+  const land=id=>{
+    if(mode==='sale'){S.cartPt=id;S.modal=null}
+    else if(mode==='book'){S.modal={type:'book',t:'',staffId:'',pt:id}}
+    else S.modal=null;
+    render()};
+  if(dupe){toast('Phone matches '+dupe.nm+' — merged, not duplicated');land(dupe.id);return}
+  const np={id:uid(),code:'P-0000'+(patients.length+1),nm,ph,
+    allergy:document.getElementById('pt_al').value.trim(),
+    tg:document.getElementById('pt_tg').value==='1',history:[],fu:'',owes:0};
+  patients.push(np);
+  if(!online)outbox.push('patient');
+  activities.unshift({t:now(),txt:'New patient: '+nm+(online?'':' (offline — will sync)')});
+  toast('Patient saved: '+nm+(online?'':' (queued offline)'));land(np.id)};
+window.toggleAddon=k=>{addons[k]=!addons[k];
+  toast('✦ '+k+' '+(addons[k]?'enabled':'disabled — hidden across the app'));render()};
+window.setRound=v=>{ROUND=parseInt(v);toast('Rounding set to '+ROUND+' Ks per line');render()};
+window.setCredit=v=>{creditLimit=parseInt(v.replace(/\D/g,''))||0;toast('Credit limit: '+fm(creditLimit));render()};
+window.opk=k=>{const m=S.modal;
+  if(k==='⌫'){m.entered=m.entered.slice(0,-1);render();return}
+  if(k==='✓'){if(m.entered==='1234'){const cb=m.cb;S.modal=null;cb('Dr. Hkawn Mai')}else{m.entered='';render()}return}
+  if(m.entered.length<4){m.entered+=k;render()}};
+window.inpOk=()=>{const v=document.getElementById('minp').value;const cb=S.modal.cb;S.modal=null;cb(v)};
+window.wOk=()=>{const q=parseFloat(document.getElementById('wq').value)||0;if(!q)return;
+  const it=S.modal.it;S.cart.push({id:it.id,nm:it.nm,price:it.price,qty:q,by:'weight',unit:it.unit});S.modal=null;render()};
+window.lotOk=()=>{const lot=document.getElementById('lotno').value||'—';const it=S.modal.it;
+  S.cart.push({id:it.id,nm:it.nm,price:it.price,qty:1,lot,fu:it.fu});S.modal=null;render()};
+window.resumeTicket=i=>{const t=S.tickets.splice(i,1)[0];S.cart=t.cart;S.cartPt=t.pt;S.cartDisc=t.disc;S.modal=null;S.screen='sale';render()};
+window.payLater=()=>{
+  if(!S.cartPt){toast('Pay-later needs a named patient');return}
+  const total=cartTotal();
+  askPin('Credit approval','Pay-later above the credit limit needs the owner',name=>finalizeSale([],total,name))};
+window.markHere=id=>{appts.find(x=>x.id===id).status='here';S.modal=null;render()};
+window.cancelAppt=id=>{appts=appts.filter(x=>x.id!==id);S.modal=null;toast('Appointment cancelled — patient notified by template');render()};
+window.chargeAppt=id=>{const a=appts.find(x=>x.id===id);const s=svc(a.svc);
+  S.cart=[{id:s.id,nm:s.nm,price:s.price,qty:1,lot:s.lot?'BTX-2311':null,fu:s.fu}];
+  S.cartPt=a.pt;S.cartFrom=id;S.modal=null;S.screen='sale';render()};
+window.npLookup=code=>{code=(code||'').trim();
+  if(!code){S.modal={type:'newprod',code:'',step:'form',hit:null};render();return}
+  S.modal={type:'newprod',code,step:'lookup'};render()};
+window.npPhoto=inp=>{const f=inp.files&&inp.files[0];if(!f)return;
+  const r=new FileReader();r.onload=e=>{S.npPhoto=e.target.result;render()};r.readAsDataURL(f)};
+window.npMargin=()=>{
+  const c=parseInt(document.getElementById('np_cost').value)||0,pr=parseInt(document.getElementById('np_pr').value)||0;
+  const el=document.getElementById('np_mg');
+  el.textContent=c&&pr?`Margin: ${fm(pr-c)} per unit (${Math.round((pr-c)/pr*100)}%)`:'';};
+window.npSave=()=>{
+  const nm=document.getElementById('np_nm').value.trim();if(!nm){toast('Name required');return}
+  const by=document.getElementById('np_by').value;
+  products.push({id:uid(),cat:document.getElementById('np_cat').value||'Other',nm,
+    price:parseInt(document.getElementById('np_pr').value)||0,
+    cost:parseInt(document.getElementById('np_cost').value)||0,
+    stock:parseInt(document.getElementById('np_st').value)||0,low:3,type:'retail',
+    by,unit:by==='weight'?'g':undefined,barcode:document.getElementById('np_bc').value.trim(),
+    photo:S.npPhoto||null});
+  if(!online)outbox.push('newprod');
+  activities.unshift({t:now(),txt:'Product added at front desk: '+nm+' — flagged for owner review'});
+  S.npPhoto=null;S.modal=null;toast('Product saved'+(online?'':' (queued — offline)'));S.screen='stocks';render()};
+window.rcOk=()=>{
+  const p=products.find(x=>x.id===S.modal.pid);
+  const q=parseInt(document.getElementById('rc_q').value)||0;if(!q)return;
+  p.stock+=q;
+  const nc=parseInt(document.getElementById('rc_cost').value)||0;if(nc)p.cost=nc;
+  const lel=document.getElementById('rc_l');if(lel&&lel.value){p.lots=p.lots||[];p.lots.push(lel.value)}
+  if(!online)outbox.push('receive');
+  S.modal=null;toast('+'+q+' '+p.nm+(online?'':' (queued — offline)'));render()};
+window.refundSale=id=>{
+  askPin('Admin PIN needed','Refund / void writes reversing stock moves',name=>{
+    const s=sales.find(x=>x.id===id);s.status='voided';s.voidBy=name;
+    if(s.pt&&s.credit){pt(s.pt).owes=Math.max(0,pt(s.pt).owes-s.credit)}
+    S.modal=null;activities.unshift({t:now(),txt:'Refund '+s.no+' — approved by '+name});toast('Refunded — approved by '+name);render()})};
+
+render();
+</script>
+</body>
+</html>

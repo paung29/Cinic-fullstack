@@ -1,0 +1,17 @@
+.root { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: var(--bg); }
+.cardWrap { display: grid; width: min(100%, 440px); gap: 16px; }
+.card, .loadingCard { display: grid; gap: 20px; padding: 28px; }
+.header { display: grid; gap: 6px; }
+.header p { margin: 0; color: var(--brand); font-size: 13px; font-weight: 700; }
+.header h1 { margin: 0; color: var(--ink); font-size: 28px; line-height: 1.2; }
+.header span { color: var(--mut); }
+.staffList { display: grid; gap: 10px; }
+.staffList button { display: flex; min-height: 56px; justify-content: space-between; text-align: left; }
+.staffIdentity { display: grid; gap: 2px; }
+.staffIdentity small { color: var(--mut); font-size: 12px; }
+.message { margin: 0; padding: 10px 12px; background: var(--redbg); border-radius: var(--r-input); color: var(--red); font-weight: 700; }
+.shake { animation: shake 180ms ease-in-out; }
+.localeOverride { display: grid; gap: 6px; color: var(--mut); font-size: 13px; }
+.localeOverride select { min-height: 40px; padding: 0 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-input); color: var(--ink); }
+.devFallback { margin: 0; color: var(--mut); font-size: 13px; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }

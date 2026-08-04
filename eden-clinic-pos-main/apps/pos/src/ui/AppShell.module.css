@@ -1,0 +1,16 @@
+.shell { min-height: 100vh; background: var(--bg); }
+.brandBar { display: flex; min-height: 56px; align-items: center; gap: 12px; padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brandLockup, .user { display: grid; gap: 1px; min-width: 0; }
+.brandLockup strong, .user strong { overflow: hidden; color: var(--ink); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.brandLockup span, .user span { color: var(--mut); font-size: 11px; }
+.grow { flex: 1; }
+.tabRail { padding: 10px 14px 2px; background: var(--bg); }
+.attention { padding: 0 14px 10px; background: var(--bg); }
+.storageAttention { margin: 0; padding: 6px 14px; background: var(--amber-bg); border-bottom: 1px solid var(--line); color: var(--ink); font-size: 12px; line-height: 1.35; }
+.content { min-width: 0; }
+
+@media (max-width: 700px) {
+  .brandBar { padding: 0 12px; }
+  .user { display: none; }
+  .logoutText { display: none; }
+}

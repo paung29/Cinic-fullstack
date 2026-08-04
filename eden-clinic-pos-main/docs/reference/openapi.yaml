@@ -1,0 +1,559 @@
+openapi: 3.1.0
+info:
+  title: Eden Clinic OS API — Frontend Contract
+  version: 1.1.0
+  description: >
+    The neutral contract between the PWA and the backend (Spring Boot in production;
+    mock-server.mjs is the executable reference for the behaviors below).
+    THREE GLOBAL RULES the implementation MUST honor and the client MAY rely on:
+    (1) IDEMPOTENCY — every POST that creates a record is idempotent on the client-generated
+    UUID `id`; a replay returns HTTP 200 with the previously stored row, never 409, never a duplicate.
+    (2) NEVER 4XX A COMPLETED SALE — business-rule problems on /sales (odd price, missing lot,
+    stale clock) are accepted and flagged `needs_review`; 4xx is reserved for malformed payloads only.
+    (3) ERROR SHAPE — every non-2xx body is {status, code, message}. The client's outbox branches
+    on status class + code; do not invent alternative shapes.
+servers:
+  - url: http://localhost:4010
+    description: mock server (node mock-server.mjs)
+security:
+  - bearer: []
+tags: [auth, sync, trading, patients, catalogue, inventory, calendar, care, reports, system]
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      security: []
+      summary: Connectivity probe
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean }, server_time: { type: string, format: date-time } } } } } }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      security: []
+      summary: PIN login (rate-limit 5/min in production)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [staff_id, pin]
+              properties: { staff_id: { type: string }, pin: { type: string, pattern: '^[0-9]{4}$' } }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, refresh, staff, clinic, server_time]
+                properties:
+                  token: { type: string }
+                  refresh: { type: string }
+                  staff: { $ref: '#/components/schemas/Staff' }
+                  clinic: { $ref: '#/components/schemas/ClinicConfig' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Err401' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      security: []
+      summary: Exchange refresh token (client MUST single-flight concurrent refreshes)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [refresh], properties: { refresh: { type: string } } } } } }
+      responses:
+        '200': { description: New token pair, content: { application/json: { schema: { type: object, required: [token, refresh], properties: { token: { type: string }, refresh: { type: string } } } } } }
+        '401': { $ref: '#/components/responses/Err401' }
+
+  /auth/elevate:
+    post:
+      tags: [auth]
+      summary: Admin-password elevation (server-tracked 15-minute window)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [password], properties: { password: { type: string }, screen: { type: string } } } } } }
+      responses:
+        '200': { description: Elevated, content: { application/json: { schema: { type: object, required: [elevation_token, expires_at], properties: { elevation_token: { type: string }, expires_at: { type: string, format: date-time } } } } } }
+        '401': { $ref: '#/components/responses/Err401' }
+
+  /bootstrap:
+    get:
+      tags: [sync]
+      summary: Full working set for a device (login/startup)
+      responses:
+        '200':
+          description: Everything a day of trading needs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [clinic, staff, services, products, patients, appointments, server_time, cursor]
+                properties:
+                  clinic: { $ref: '#/components/schemas/ClinicConfig' }
+                  staff: { type: array, items: { $ref: '#/components/schemas/Staff' } }
+                  services: { type: array, items: { $ref: '#/components/schemas/Service' } }
+                  products: { type: array, items: { $ref: '#/components/schemas/Product' } }
+                  patients: { type: array, items: { $ref: '#/components/schemas/Patient' } }
+                  appointments: { type: array, items: { $ref: '#/components/schemas/Appointment' } }
+                  recent_sales: { type: array, items: { $ref: '#/components/schemas/Sale' } }
+                  server_time: { type: string, format: date-time }
+                  cursor: { type: integer, description: Delta cursor — pass to /delta?since= }
+
+  /delta:
+    get:
+      tags: [sync]
+      summary: Incremental changes since cursor
+      parameters: [{ name: since, in: query, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Ordered change list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changes, cursor, server_time]
+                properties:
+                  changes:
+                    type: array
+                    items:
+                      type: object
+                      required: [entity, op, row]
+                      properties:
+                        entity: { type: string, enum: [service, product, patient, appointment, sale, clinic, staff, contact] }
+                        op: { type: string, enum: [upsert, delete] }
+                        row: { type: object }
+                  cursor: { type: integer }
+                  server_time: { type: string, format: date-time }
+
+  /sales:
+    post:
+      tags: [trading]
+      summary: THE endpoint — sale + lines + payments, one transaction. Idempotent on id. NEVER rejects a completed sale.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SaleCreate' } } }
+      responses:
+        '200':
+          description: Stored (fresh or replay). Business-rule issues arrive as needs_review=true, never as 4xx.
+          content: { application/json: { schema: { type: object, required: [sale], properties: { sale: { $ref: '#/components/schemas/Sale' }, replayed: { type: boolean } } } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /sales/{id}/payments:
+    post:
+      tags: [trading]
+      summary: Debt paydown. Idempotent on payment id. Offline-capable.
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Payment' } } } }
+      responses:
+        '200': { description: Stored, content: { application/json: { schema: { type: object, properties: { payment: { $ref: '#/components/schemas/Payment' }, replayed: { type: boolean } } } } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /sales/{id}/void:
+    post:
+      tags: [trading]
+      summary: Void/refund — elevation-gated, online-only, writes reversing stock moves
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string }, approved_by: { type: string } } } } } }
+      responses:
+        '200': { description: Voided, content: { application/json: { schema: { type: object, properties: { sale: { $ref: '#/components/schemas/Sale' } } } } } }
+        '403': { $ref: '#/components/responses/Err403' }
+
+  /patients:
+    post:
+      tags: [patients]
+      summary: Idempotent on id. Dedupes on normalized phone — a match returns 200 with merged_into and does NOT create a row.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Patient' } } } }
+      responses:
+        '200':
+          description: Created, replayed, or merged
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [patient]
+                properties:
+                  patient: { $ref: '#/components/schemas/Patient' }
+                  merged_into: { type: string, description: Set when phone matched an existing patient — client MUST rewrite queued references to this id }
+                  replayed: { type: boolean }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /patients/{id}:
+    patch:
+      tags: [patients]
+      summary: Online-only edit
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Patient' } } } }
+        '404': { $ref: '#/components/responses/Err404' }
+
+  /clinic:
+    patch:
+      tags: [system]
+      summary: >
+        Online-only elevated clinic configuration update. It is never queued:
+        money and receipt semantics must be server-confirmed before use.
+      parameters:
+        - { $ref: '#/components/parameters/ElevationHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClinicPatch' }
+      responses:
+        '200':
+          description: Updated complete clinic row; also emitted as a normal clinic delta upsert.
+          content: { application/json: { schema: { $ref: '#/components/schemas/ClinicConfig' } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+
+  /products:
+    post:
+      tags: [catalogue]
+      summary: Staff-allowed create. Idempotent on id. Dedupes on barcode → merged_into (same pattern as patients).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+      responses:
+        '200': { description: Created / replayed / merged, content: { application/json: { schema: { type: object, required: [product], properties: { product: { $ref: '#/components/schemas/Product' }, merged_into: { type: string }, replayed: { type: boolean } } } } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /products/{id}:
+    patch:
+      tags: [catalogue]
+      summary: >
+        Online-only elevated catalogue update. It is never queued. stock_qty is
+        movement-derived and never PATCHable; id and clinic_id are immutable;
+        retirement uses active:false because sale history prevents deletion.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/ElevationHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductPatch' }
+      responses:
+        '200':
+          description: Updated complete product row; also emitted as a normal product delta upsert.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } }
+        '400':
+          description: Structurally malformed request or an interactive duplicate barcode refusal.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                malformed: { value: { status: 400, code: MALFORMED, message: 'unknown field' } }
+                duplicateBarcode: { value: { status: 400, code: DUPLICATE_BARCODE, message: 'barcode already belongs to product p2' } }
+        '401': { $ref: '#/components/responses/Err401' }
+        '403': { $ref: '#/components/responses/Err403' }
+        '404': { $ref: '#/components/responses/Err404' }
+
+  /stock/receive:
+    post:
+      tags: [inventory]
+      summary: Receive stock — idempotent on id, offline-capable, staff-allowed. Optionally updates product cost.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, product_id, qty]
+              properties:
+                id: { type: string }
+                product_id: { type: string }
+                qty: { type: number }
+                cost: { type: integer, description: New buy price per unit (whole MMK); omit to keep }
+                lot_no: { type: string }
+                lot_expiry: { type: string }
+      responses:
+        '200': { description: Stored, content: { application/json: { schema: { type: object, properties: { product: { $ref: '#/components/schemas/Product' }, replayed: { type: boolean } } } } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /stock/adjust:
+    post:
+      tags: [inventory]
+      summary: Correction — admin, online-only, requires elevation token
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [product_id, delta, reason], properties: { product_id: { type: string }, delta: { type: number }, reason: { type: string, enum: [adjust, waste, expiry] } } } } } }
+      responses:
+        '200': { description: Adjusted }
+        '403': { $ref: '#/components/responses/Err403' }
+
+  /barcode-lookup:
+    get:
+      tags: [catalogue]
+      summary: Global barcode proxy (server chains OFF/OBF → UPCitemdb, caches). Online-only; a miss is 200 found=false, not an error.
+      parameters: [{ name: code, in: query, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Hit or miss
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [found]
+                properties:
+                  found: { type: boolean }
+                  name: { type: string }
+                  brand: { type: string }
+                  category: { type: string }
+                  image_url: { type: string }
+                  source: { type: string }
+
+  /appointments:
+    post:
+      tags: [calendar]
+      summary: Book — idempotent on id, offline-capable. A staff/time conflict is ACCEPTED and flagged, never rejected (offline devices can race).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Appointment' } } } }
+      responses:
+        '200': { description: Stored, content: { application/json: { schema: { type: object, required: [appointment], properties: { appointment: { $ref: '#/components/schemas/Appointment' }, conflict: { type: boolean }, replayed: { type: boolean } } } } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /appointments/{id}:
+    patch:
+      tags: [calendar]
+      summary: Status change (here/done/cancelled) — idempotent by nature
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { status: { type: string, enum: [booked, here, done, cancelled] } } } } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Appointment' } } } }
+        '404': { $ref: '#/components/responses/Err404' }
+
+  /contact-log:
+    post:
+      tags: [care]
+      summary: Care-loop / contact entry — idempotent on id, offline-capable
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Contact' } } } }
+      responses:
+        '200': { description: Stored, content: { application/json: { schema: { type: object, properties: { contact: { $ref: '#/components/schemas/Contact' }, replayed: { type: boolean } } } } } }
+        '400': { $ref: '#/components/responses/ErrMalformed' }
+
+  /followups:
+    get:
+      tags: [care]
+      summary: Recall list
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Due follow-ups, content: { application/json: { schema: { type: array, items: { type: object, properties: { patient_id: { type: string }, date: { type: string, format: date }, service: { type: string } } } } } } }
+
+  /reports/daily:
+    get:
+      tags: [reports]
+      summary: Collected · Delivered · New credit · Outstanding + breakdowns. Requires elevation token.
+      parameters: [{ name: date, in: query, required: true, schema: { type: string, format: date } }]
+      responses:
+        '200': { description: Daily report, content: { application/json: { schema: { type: object } } } }
+        '403': { $ref: '#/components/responses/Err403' }
+
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+  parameters:
+    ElevationHeader:
+      name: X-Elevation
+      in: header
+      required: true
+      description: Active memory-only elevation token from POST /auth/elevate.
+      schema: { type: string }
+  responses:
+    Err401: { description: Unauthenticated / expired, content: { application/json: { schema: { $ref: '#/components/schemas/Error' }, example: { status: 401, code: TOKEN_EXPIRED, message: Token expired } } } }
+    Err403: { description: Missing elevation or role, content: { application/json: { schema: { $ref: '#/components/schemas/Error' }, example: { status: 403, code: ELEVATION_REQUIRED, message: Admin elevation required } } } }
+    Err404: { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    ErrMalformed: { description: Structurally malformed ONLY — never a business-rule rejection, content: { application/json: { schema: { $ref: '#/components/schemas/Error' }, example: { status: 400, code: MALFORMED, message: 'missing field: id' } } } }
+    ErrDuplicateBarcode: { description: Interactive catalogue edit conflict; message names the existing product id, content: { application/json: { schema: { $ref: '#/components/schemas/Error' }, example: { status: 400, code: DUPLICATE_BARCODE, message: 'barcode already belongs to product p2' } } } }
+  schemas:
+    Error:
+      type: object
+      required: [status, code, message]
+      properties: { status: { type: integer }, code: { type: string }, message: { type: string } }
+    ClinicConfig:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        rounding_step: { type: integer, enum: [1, 100, 500, 1000] }
+        credit_limit_mmk: { type: integer }
+        receipt_footer: { type: string }
+        logo_url: { type: string }
+        receipt_qr: { type: boolean }
+        receipt_next_visit: { type: boolean }
+        receipt_template: { type: string, enum: [classic, modern, minimal, boxed], default: classic }
+        receipt_header_font: { type: string, enum: [sans, serif, display], default: sans }
+        receipt_divider: { type: string, enum: [line, dots, none], default: line }
+        consent_mode: { type: string, enum: [off, warn, block] }
+        receipt: { type: object, description: 'header/sub/phone/footer/logo/qr/fu/width(80|58)' }
+        addons: { type: object, description: 'brief/careloop/recall/outcomes/insights booleans' }
+        feature_flags: { type: object }
+    ClinicPatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        receipt_footer: { type: string }
+        logo_url: { type: string }
+        rounding_step: { type: integer, enum: [1, 100, 500, 1000] }
+        credit_limit_mmk: { type: integer, minimum: 0 }
+        consent_mode: { type: string, enum: [off, warn, block] }
+        receipt_qr: { type: boolean }
+        receipt_next_visit: { type: boolean }
+        receipt_template: { type: string, enum: [classic, modern, minimal, boxed], default: classic }
+        receipt_header_font: { type: string, enum: [sans, serif, display], default: sans }
+        receipt_divider: { type: string, enum: [line, dots, none], default: line }
+    Staff:
+      type: object
+      required: [id, name, role]
+      properties: { id: { type: string }, name: { type: string }, role: { type: string, enum: [admin, staff] }, takes_bookings: { type: boolean } }
+    Service:
+      type: object
+      required: [id, name_mm, price]
+      properties:
+        id: { type: string }
+        category: { type: string }
+        name_mm: { type: string }
+        name_en: { type: string }
+        price: { type: integer, description: whole MMK }
+        duration_min: { type: integer }
+        requires_lot: { type: boolean }
+        default_followup_days: { type: [integer, 'null'] }
+        active: { type: boolean }
+    Product:
+      type: object
+      required: [id, name, price, stock_type, sold_by]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category: { type: string }
+        subcategory: { type: [string, 'null'] }
+        sort_order: { type: integer }
+        barcode: { type: [string, 'null'] }
+        cost: { type: integer, description: buy price, whole MMK }
+        price: { type: integer, description: sell price, whole MMK }
+        stock_qty: { type: number }
+        low_stock_at: { type: number }
+        reorder_at: { type: number }
+        stock_type: { type: string, enum: [retail, professional, injectable] }
+        sold_by: { type: string, enum: [each, weight] }
+        requires_lot: { type: boolean }
+        requires_consent: { type: boolean }
+        unit_label: { type: [string, 'null'] }
+        photo_key: { type: [string, 'null'] }
+        active: { type: boolean }
+    ProductPatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        category: { type: string }
+        subcategory: { type: [string, 'null'] }
+        sort_order: { type: integer }
+        price: { type: integer, description: sell price, whole MMK }
+        cost: { type: integer, description: buy price, whole MMK }
+        low_stock_at: { type: number }
+        reorder_at: { type: number }
+        stock_type: { type: string, enum: [retail, professional, injectable] }
+        sold_by: { type: string, enum: [each, weight] }
+        requires_lot: { type: boolean }
+        requires_consent: { type: boolean }
+        unit_label: { type: [string, 'null'] }
+        barcode: { type: [string, 'null'] }
+        photo_key: { type: [string, 'null'] }
+        active: { type: boolean }
+    Patient:
+      type: object
+      required: [id, name, phone]
+      properties:
+        id: { type: string, description: client-generated UUID }
+        code: { type: [string, 'null'], description: P-00001 — assigned server-side }
+        name: { type: string }
+        phone: { type: string }
+        sex: { type: [string, 'null'] }
+        allergies: { type: [string, 'null'] }
+        alert_note: { type: [string, 'null'] }
+        telegram_linked: { type: boolean }
+        followup_date: { type: [string, 'null'], format: date }
+    SaleLine:
+      type: object
+      required: [id, kind, item_id, name_snapshot, qty, unit_price, line_total]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [service, product] }
+        item_id: { type: string }
+        name_snapshot: { type: string }
+        qty: { type: number }
+        unit_price: { type: integer }
+        line_total: { type: integer, description: client-computed per LAW-5; server re-checks, flags mismatch, never rejects }
+        discount_pct: { type: [number, 'null'] }
+        note: { type: [string, 'null'] }
+        lot_no: { type: [string, 'null'] }
+        lot_expiry: { type: [string, 'null'] }
+    Payment:
+      type: object
+      required: [id, method, amount]
+      properties:
+        id: { type: string }
+        method: { type: string, enum: [cash, kbzpay, wave, bank, other, writeoff] }
+        amount: { type: integer }
+        at: { type: string, format: date-time }
+    SaleCreate:
+      type: object
+      required: [id, staff_id, at, lines, total]
+      properties:
+        id: { type: string, description: client UUID = idempotency key }
+        patient_id: { type: [string, 'null'] }
+        staff_id: { type: string }
+        practitioner_id: { type: [string, 'null'] }
+        appointment_id: { type: [string, 'null'] }
+        at: { type: string, format: date-time, description: client business time — accepted up to 90 days old; older or >1h future ⇒ needs_review, NEVER rejected }
+        lines: { type: array, minItems: 1, items: { $ref: '#/components/schemas/SaleLine' } }
+        payments: { type: array, items: { $ref: '#/components/schemas/Payment' } }
+        subtotal: { type: integer }
+        discount_pct: { type: [number, 'null'] }
+        discount_approved_by: { type: [string, 'null'] }
+        total: { type: integer }
+        credit: { type: integer, description: total − Σ payments, client-computed }
+        credit_approved_by: { type: [string, 'null'] }
+        followup_date: { type: [string, 'null'], format: date }
+        device_id: { type: string }
+        created_offline: { type: boolean }
+    Sale:
+      allOf:
+        - { $ref: '#/components/schemas/SaleCreate' }
+        - type: object
+          properties:
+            no: { type: string, description: R-1234 — assigned server-side }
+            status: { type: string, enum: [completed, voided] }
+            needs_review: { type: boolean }
+            review_reason: { type: [string, 'null'] }
+            received_at: { type: string, format: date-time }
+    Appointment:
+      type: object
+      required: [id, date, time, staff_id, patient_id, service_id]
+      properties:
+        id: { type: string }
+        date: { type: string, format: date }
+        time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        staff_id: { type: string }
+        patient_id: { type: string }
+        service_id: { type: string }
+        status: { type: string, enum: [booked, here, done, cancelled] }
+    Contact:
+      type: object
+      required: [id, patient_id, channel, direction]
+      properties:
+        id: { type: string }
+        patient_id: { type: string }
+        sale_id: { type: [string, 'null'] }
+        at: { type: string, format: date-time }
+        channel: { type: string, enum: [telegram, viber, phone, sms, in_person, other] }
+        direction: { type: string, enum: [out, in] }
+        outcome: { type: [string, 'null'], enum: [no_answer, reached, rescheduled, booked, complication, better, same, worse, null] }
+        note: { type: [string, 'null'] }
+        automated: { type: boolean }

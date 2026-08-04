@@ -1,0 +1,4 @@
+.field { display: grid; gap: 6px; }
+.label { color: var(--ink); font-size: 13px; font-weight: 700; }
+.hint { color: var(--mut); font-size: 12px; }
+.error { color: var(--red); font-size: 12px; }

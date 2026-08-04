@@ -1,0 +1,15 @@
+{
+  // Eden Clinic OS — TEST deployment (eden.fluffyswag.com). Not the production origin.
+  // Deploy: node deploy/cloudflare/stamp-worker.mjs && npx wrangler deploy --config deploy/cloudflare/wrangler.jsonc
+  "name": "eden-clinic-pos-test",
+  "compatibility_date": "2026-08-03",
+  "main": "./worker.generated.js",
+  "assets": {
+    "directory": "../../apps/pos/out",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  },
+  "routes": [{ "pattern": "eden.fluffyswag.com", "custom_domain": true }]
+}

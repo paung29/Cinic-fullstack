@@ -1,0 +1,15 @@
+.profile { display: grid; gap: 16px; }
+.hero { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.hero h1, .hero p, .clinical h2, .clinical p { margin: 0; }
+.hero h1 { color: var(--ink); font-size: 22px; }
+.hero p { color: var(--mut); }
+.code { color: var(--brand) !important; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.alert { display: grid; gap: 4px; background: var(--redbg); color: var(--red); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.clinical { display: grid; gap: 14px; }
+.sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sectionHeading p { color: var(--mut); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.recall { display: grid; gap: 8px; background: var(--aibg); }
+.unlockForm { display: grid; gap: 12px; }
+@media (max-width: 640px) { .hero { display: grid; } .stats { grid-template-columns: 1fr; } }

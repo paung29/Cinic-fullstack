@@ -1,0 +1,16 @@
+.tile {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-subtle);
+}
+
+.label { color: var(--mut); font-size: 12px; font-weight: 600; }
+.value { color: var(--ink); font-size: 24px; line-height: 1.2; }
+.ok { color: var(--forest); }
+.danger { color: var(--red); }
+.ai { color: var(--ai); }

@@ -1,0 +1,13 @@
+:root{
+  --bg:#faf9f7; --ivory:#fbfaf7; --panel:#ffffff;
+  --ink:#121722; --mut:#777c86; --steel:#a5a5a5;
+  --brand:#0068f9; --brand-dk:#024bb1;
+  --accent:#e8f1fd; --powder:#d6e4f1; --lav:#f4f0ff;
+  --line:#efefef; --chip:#f3f2ef;
+  --red:#c0392b; --redbg:#fdecec; --amber:#a97a10; --amberbg:#faf1dc;
+  --forest:#046645; --forestbg:#e6f2ec;
+  --ai:#6736eb; --aibg:#f4f0ff;
+  --sh-subtle:rgba(0,0,0,.07) 0 1px 1px 0, rgba(0,0,0,.04) 0 -1px 1px 0 inset, rgba(0,0,0,.14) 0 0 0 .5px inset;
+  --sh-lg:rgba(0,0,0,.04) 0 20px 20px -8px;
+  --r-card:16px; --r-btn:999px; --r-input:12px; --r-modal:20px;
+}

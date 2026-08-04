@@ -1,0 +1,5 @@
+.chip { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 5px 9px; background: var(--chip); border: 0; border-radius: var(--r-btn); color: var(--mut); font-size: 12px; font-weight: 700; white-space: nowrap; }
+button.chip { cursor: pointer; }
+.chip strong { display: inline-grid; min-width: 18px; min-height: 18px; place-items: center; background: var(--amberbg); border-radius: var(--r-btn); color: var(--amber); }
+.chip progress { width: 42px; accent-color: var(--brand); }
+.spinning { color: var(--brand); }

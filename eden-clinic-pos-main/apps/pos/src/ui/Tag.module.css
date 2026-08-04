@@ -1,0 +1,6 @@
+.tag { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.ok { background: var(--forestbg); color: var(--forest); }
+.low { background: var(--redbg); color: var(--red); }
+.amber { background: var(--amberbg); color: var(--amber); }
+.blue { background: var(--accent); color: var(--brand-dk); }
+.ai { background: var(--aibg); color: var(--ai); }

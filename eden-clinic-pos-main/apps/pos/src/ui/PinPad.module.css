@@ -1,0 +1,5 @@
+.pinpad { display: grid; justify-items: center; gap: 12px; }
+.display { display: flex; min-height: 28px; align-items: center; justify-content: center; gap: 8px; color: var(--ink); font-size: 20px; letter-spacing: 4px; }
+.keys { display: grid; grid-template-columns: repeat(3, 48px); gap: 8px; }
+.key { display: inline-grid; width: 48px; min-height: 48px; place-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-input); color: var(--ink); cursor: pointer; font-weight: 700; }
+.submit { background: var(--brand); border-color: var(--brand); color: var(--panel); }

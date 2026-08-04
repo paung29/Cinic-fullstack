@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "Eden Clinic OS",
+  "short_name": "Eden",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "prefer_related_applications": false,
+  "background_color": "#faf9f7",
+  "theme_color": "#0068f9",
+  "icons": [
+    { "src": "/icons/eden-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/eden-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/eden-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/eden-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

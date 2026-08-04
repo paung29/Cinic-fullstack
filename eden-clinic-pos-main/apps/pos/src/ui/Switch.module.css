@@ -1,0 +1,4 @@
+.switch { display: inline-flex; width: 42px; min-width: 42px; height: 24px; align-items: center; padding: 2px; background: var(--steel); border: 0; border-radius: var(--r-btn); cursor: pointer; transition: background-color 160ms ease; }
+.checked { background: var(--brand); }
+.knob { width: 20px; height: 20px; background: var(--panel); border-radius: var(--r-btn); box-shadow: var(--sh-subtle); transform: translateX(0); transition: transform 160ms ease; }
+.checked .knob { transform: translateX(18px); }
