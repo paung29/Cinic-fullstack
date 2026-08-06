@@ -74,6 +74,7 @@ function deltaPayload(patientName = 'Server delta name'): DeltaWire {
 
 function createApi(overrides: Partial<ApiClient>): ApiClient {
   return {
+    health: async () => ({ ok: true, server_time: '1970-01-01T00:00:02.500Z' }),
     login: async () => {
       throw new Error('not used by bootstrap tests');
     },
@@ -85,9 +86,27 @@ function createApi(overrides: Partial<ApiClient>): ApiClient {
     updateClinic: async () => {
       throw new Error('not used by bootstrap tests');
     },
+    updatePatient: async () => {
+      throw new Error('not used by bootstrap tests');
+    },
     updateProduct: async () => {
       throw new Error('not used by bootstrap tests');
     },
+    adjustStock: async () => {
+      throw new Error('not used by bootstrap tests');
+    },
+    voidSale: async () => {
+      throw new Error('not used by bootstrap tests');
+    },
+    followups: async () => [],
+    dailyReport: async (date) => ({
+      date,
+      collected: 0,
+      delivered: 0,
+      new_credit: 0,
+      outstanding: 0,
+      sales: 0,
+    }),
     lookupBarcode: async () => {
       throw new Error('not used by bootstrap tests');
     },

@@ -4,6 +4,7 @@ import {
   appointmentSchema,
   bootstrapSchema,
   paymentSchema,
+  patientResponseSchema,
   productSchema,
   saleLineSchema,
   toLocalStaff,
@@ -53,6 +54,13 @@ const patient = {
 };
 
 describe('data schemas', () => {
+  test('accepts a null merge target when the backend creates a patient without deduplication', () => {
+    expect(patientResponseSchema.parse({ patient, merged_into: null, replayed: false })).toMatchObject({
+      patient: { id: 'patient-1' },
+      merged_into: null,
+    });
+  });
+
   test('accepts only documented, non-empty clinic and product patch fields', () => {
     const { clinicPatchSchema, productPatchSchema } = dataTypes as typeof dataTypes & {
       clinicPatchSchema: { parse(value: unknown): unknown };

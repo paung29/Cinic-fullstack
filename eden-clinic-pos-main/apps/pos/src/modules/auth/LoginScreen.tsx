@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ApiNetworkError } from '@/data/api';
+import { ApiHttpError, ApiNetworkError } from '@/data/api';
 import { authEnvelopeMetaKey } from '@/data/db';
 import { returnToAfterSignIn } from '@/data/returnTo';
 import { useClinicRuntimeStatus } from '@/app/providers';
@@ -17,7 +17,7 @@ import styles from './LoginScreen.module.css';
 
 const showDevelopmentLocaleOverride = process.env.NODE_ENV === 'development';
 
-type LoginMessage = 'internet-required' | 'repair' | 'wrong-pin' | 'wait' | undefined;
+type LoginMessage = 'internet-required' | 'repair' | 'sign-in-failed' | 'wrong-pin' | 'wait' | undefined;
 
 export function LoginScreen() {
   const router = useRouter();
@@ -106,10 +106,13 @@ export function LoginScreen() {
         setPin('');
         setNeedsOnlineRepair(true);
         setMessage('repair');
-      } else if (isDeviceSetup && error instanceof ApiNetworkError) {
+      } else if (error instanceof ApiNetworkError) {
         setMessage('internet-required');
-      } else {
+      } else if (error instanceof ApiHttpError && error.status === 401 && error.code === 'TOKEN_INVALID') {
         clearForFailedPin();
+      } else {
+        setPin('');
+        setMessage('sign-in-failed');
       }
     } finally {
       setBusy(false);
@@ -206,6 +209,8 @@ function LoginMessage({ message, t }: { message: LoginMessage; t(key: Parameters
       ? 'auth.setup.repair'
       : message === 'wait'
         ? 'auth.login.wait'
-        : 'auth.login.wrongPin';
+        : message === 'sign-in-failed'
+          ? 'auth.login.signInFailed'
+          : 'auth.login.wrongPin';
   return <p className={styles.message} role="status">{t(key)}</p>;
 }

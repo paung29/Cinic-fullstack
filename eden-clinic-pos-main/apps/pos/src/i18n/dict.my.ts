@@ -157,6 +157,7 @@ export const dictMy = {
   'auth.login.pin': 'PIN ထည့်ပါ',
   // TODO(native-review)
   'auth.login.wrongPin': 'PIN မမှန်ပါ',
+  'auth.login.signInFailed': 'PIN ကို လက်ခံခဲ့သော်လည်း အကောင့်ဝင်ခြင်း မပြီးဆုံးနိုင်ပါ။ ထပ်မံကြိုးစားပါ။',
   // TODO(native-review)
   'auth.login.wait': 'ထပ်မံမကြိုးစားမီ စောင့်ပါ',
   // TODO(native-review)

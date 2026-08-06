@@ -11,7 +11,10 @@ import {
   contactResponseSchema,
   contactSchema,
   deltaSchema,
+  dailyReportSchema,
   elevationResponseSchema,
+  followupsSchema,
+  healthSchema,
   loginResponseSchema,
   loginSchema,
   patientResponseSchema,
@@ -25,6 +28,7 @@ import {
   saleSchema,
   stockReceiveResponseSchema,
   stockReceiveSchema,
+  stockAdjustSchema,
   type AppointmentResponseWire,
   type AppointmentStatus,
   type AppointmentWire,
@@ -35,7 +39,10 @@ import {
   type ContactResponseWire,
   type ContactWire,
   type DeltaWire,
+  type DailyReportWire,
   type ElevationResponseWire,
+  type FollowupWire,
+  type HealthWire,
   type LoginResponseWire,
   type LoginWire,
   type PatientResponseWire,
@@ -49,6 +56,7 @@ import {
   type SaleWire,
   type StockReceiveResponseWire,
   type StockReceiveWire,
+  type StockAdjustWire,
 } from '@/data/types';
 
 export interface SessionProvider {
@@ -77,12 +85,18 @@ export type OutboxDispatchResult =
   | PaymentResponseWire;
 
 export interface ApiClient {
+  health(): Promise<HealthWire>;
   login(input: LoginWire): Promise<LoginResponseWire>;
   bootstrap(): Promise<BootstrapWire>;
   delta(since: number): Promise<DeltaWire>;
   elevate(input: { password: string; screen: string }): Promise<ElevationResponseWire>;
   updateClinic(input: ClinicPatchWire, elevationToken: string): Promise<ClinicWire>;
+  updatePatient(id: string, input: PatientWire): Promise<PatientWire>;
   updateProduct(id: string, input: ProductPatchWire, elevationToken: string): Promise<ProductWire>;
+  adjustStock(input: StockAdjustWire, elevationToken: string): Promise<ProductWire>;
+  voidSale(id: string, reason: string, elevationToken: string): Promise<SaleResponseWire>;
+  followups(from?: string, to?: string): Promise<FollowupWire[]>;
+  dailyReport(date: string, elevationToken: string): Promise<DailyReportWire>;
   lookupBarcode(code: string): Promise<BarcodeLookupWire>;
   dispatch(item: OutboxDispatch): Promise<OutboxDispatchResult>;
 }
@@ -227,6 +241,9 @@ export function createApiClient(options: {
   }
 
   return {
+    health(): Promise<HealthWire> {
+      return request({ method: 'GET', path: '/health', schema: healthSchema, protected: false });
+    },
     login(input): Promise<LoginResponseWire> {
       return request({
         method: 'POST',
@@ -261,12 +278,57 @@ export function createApiClient(options: {
         elevationToken,
       });
     },
+    updatePatient(id, input): Promise<PatientWire> {
+      return request({
+        method: 'PATCH',
+        path: `/patients/${encodeURIComponent(id)}`,
+        body: patientSchema.parse(input),
+        schema: patientSchema,
+        protected: true,
+      });
+    },
     updateProduct(id, input, elevationToken): Promise<ProductWire> {
       return request({
         method: 'PATCH',
         path: `/products/${encodeURIComponent(id)}`,
         body: productPatchSchema.parse(input),
         schema: productSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    adjustStock(input, elevationToken): Promise<ProductWire> {
+      return request({
+        method: 'POST',
+        path: '/stock/adjust',
+        body: stockAdjustSchema.parse(input),
+        schema: productSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    voidSale(id, reason, elevationToken): Promise<SaleResponseWire> {
+      return request({
+        method: 'POST',
+        path: `/sales/${encodeURIComponent(id)}/void`,
+        body: { reason },
+        schema: saleResponseSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    followups(from, to): Promise<FollowupWire[]> {
+      const params = new URLSearchParams();
+      if (from !== undefined) params.set('from', from);
+      if (to !== undefined) params.set('to', to);
+      const query = params.size === 0 ? '' : `?${params.toString()}`;
+      return request({ method: 'GET', path: `/followups${query}`, schema: followupsSchema, protected: true });
+    },
+    dailyReport(date, elevationToken): Promise<DailyReportWire> {
+      return request({
+        method: 'GET',
+        path: `/reports/daily?date=${encodeURIComponent(date)}`,
+        schema: dailyReportSchema,
         protected: true,
         elevationToken,
       });

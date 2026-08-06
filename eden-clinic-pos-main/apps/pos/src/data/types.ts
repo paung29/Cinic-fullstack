@@ -14,6 +14,11 @@ export const apiErrorSchema = z.object({
   message: z.string(),
 });
 
+export const healthSchema = z.object({
+  ok: z.boolean(),
+  server_time: dateTimeSchema,
+});
+
 export const clinicSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -221,6 +226,28 @@ export const stockReceiveSchema = z.object({
   lot_expiry: z.string().optional(),
 });
 
+export const stockAdjustSchema = z.object({
+  product_id: z.string(),
+  delta: z.number(),
+  reason: z.enum(['adjust', 'waste', 'expiry']),
+});
+
+export const followupSchema = z.object({
+  patient_id: z.string(),
+  date: dateSchema,
+  service: z.string(),
+});
+
+export const followupsSchema = z.array(followupSchema);
+export const dailyReportSchema = z.object({
+  date: dateSchema,
+  collected: z.number().int().nonnegative(),
+  delivered: z.number().int().nonnegative(),
+  new_credit: z.number().int().nonnegative(),
+  outstanding: z.number().int().nonnegative(),
+  sales: z.number().int().nonnegative(),
+});
+
 export const loginSchema = z.object({
   staff_id: z.string(),
   pin: z.string().regex(/^\d{4}$/),
@@ -290,13 +317,13 @@ export const saleResponseSchema = z.object({
 
 export const patientResponseSchema = z.object({
   patient: patientSchema,
-  merged_into: z.string().optional(),
+  merged_into: z.string().nullable().optional(),
   replayed: z.boolean().optional(),
 });
 
 export const productResponseSchema = z.object({
   product: productSchema,
-  merged_into: z.string().optional(),
+  merged_into: z.string().nullable().optional(),
   replayed: z.boolean().optional(),
 });
 
@@ -322,6 +349,7 @@ export const paymentResponseSchema = z.object({
 });
 
 export type ApiError = z.infer<typeof apiErrorSchema>;
+export type HealthWire = z.infer<typeof healthSchema>;
 export type ClinicWire = z.infer<typeof clinicSchema>;
 export type ClinicPatchWire = z.infer<typeof clinicPatchSchema>;
 export type StaffWire = z.infer<typeof staffSchema>;
@@ -338,6 +366,9 @@ export type AppointmentStatus = z.infer<typeof appointmentStatusSchema>;
 export type AppointmentStatusUpdateWire = z.infer<typeof appointmentStatusUpdateSchema>;
 export type ContactWire = z.infer<typeof contactSchema>;
 export type StockReceiveWire = z.infer<typeof stockReceiveSchema>;
+export type StockAdjustWire = z.infer<typeof stockAdjustSchema>;
+export type FollowupWire = z.infer<typeof followupSchema>;
+export type DailyReportWire = z.infer<typeof dailyReportSchema>;
 export type LoginWire = z.infer<typeof loginSchema>;
 export type LoginResponseWire = z.infer<typeof loginResponseSchema>;
 export type RefreshRequestWire = z.infer<typeof refreshRequestSchema>;

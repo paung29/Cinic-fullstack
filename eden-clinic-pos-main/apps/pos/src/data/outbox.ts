@@ -323,13 +323,13 @@ async function applySuccess(db: ClinicDb, row: OutboxRow, result: OutboxDispatch
     db.services,
     db.staff,
   ], async () => {
-    if ('patient' in result && 'merged_into' in result && result.merged_into !== undefined) {
+    if ('patient' in result && 'merged_into' in result && result.merged_into != null) {
       const source = sourceEntityRef(row.payloadRef, 'patients');
       if (source !== undefined) {
         await rewriteEntityMerge(db, source, { table: 'patients', id: result.merged_into });
       }
     }
-    if ('product' in result && 'merged_into' in result && result.merged_into !== undefined) {
+    if ('product' in result && 'merged_into' in result && result.merged_into != null) {
       const source = sourceEntityRef(row.payloadRef, 'products');
       if (source !== undefined) {
         await rewriteEntityMerge(db, source, { table: 'products', id: result.merged_into });

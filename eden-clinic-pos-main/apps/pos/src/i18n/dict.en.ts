@@ -79,6 +79,7 @@ export const dictEn = {
   'auth.login.who': 'Who is working?',
   'auth.login.pin': 'Enter PIN',
   'auth.login.wrongPin': 'Incorrect PIN',
+  'auth.login.signInFailed': 'The PIN was accepted, but sign-in could not finish. Please try again.',
   'auth.login.wait': 'Please wait before trying again',
   'auth.login.loading': 'Preparing this device',
   'auth.logout.blocked': 'Sync the queued work before logging out',

@@ -339,6 +339,57 @@ describe('createApiClient', () => {
     expect(new Headers(fetchFn.mock.calls[0]?.[1]?.headers).get('x-elevation')).toBeNull();
   });
 
+  test('connects the remaining health, patient, stock, void, follow-up, and report contract routes', async () => {
+    const patient = { id: 'patient-1', name: 'Mya', phone: '09777' };
+    const product = { id: 'product-1', name: 'Cream', price: 5_000, stock_type: 'retail', sold_by: 'each' };
+    const sale = {
+      id: 'sale-1', staff_id: 'staff-1', at: '2026-08-01T10:00:00.000Z', total: 5_000,
+      lines: [{ id: 'line-1', kind: 'product', item_id: 'product-1', name_snapshot: 'Cream', qty: 1, unit_price: 5_000, line_total: 5_000 }],
+      status: 'voided',
+    };
+    const fetchFn = vi.fn<typeof fetch>(async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === '/health') return Response.json({ ok: true, server_time: '2026-08-01T10:00:00.000Z' });
+      if (path.startsWith('/patients/')) return Response.json(patient);
+      if (path === '/stock/adjust') return Response.json(product);
+      if (path.endsWith('/void')) return Response.json({ sale, replayed: false });
+      if (path === '/followups') return Response.json([{ patient_id: 'patient-1', date: '2026-08-10', service: 'Consultation' }]);
+      return Response.json({
+        date: '2026-08-01',
+        collected: 5_000,
+        delivered: 5_000,
+        new_credit: 0,
+        outstanding: 0,
+        sales: 1,
+      });
+    });
+    const session: SessionProvider = {
+      getAccessToken: () => 'token-1',
+      refresh: async () => undefined,
+      onAuthFailure: async () => undefined,
+    };
+    const client = createApiClient({ baseUrl: 'https://api.example.test', fetchFn, session });
+
+    await expect(client.health()).resolves.toMatchObject({ ok: true });
+    await expect(client.updatePatient('patient-1', patient)).resolves.toEqual(patient);
+    await expect(client.adjustStock({ product_id: 'product-1', delta: -1, reason: 'waste' }, 'elevation-1')).resolves.toMatchObject({ id: 'product-1' });
+    await expect(client.voidSale('sale-1', 'mistake', 'elevation-1')).resolves.toMatchObject({ sale: { status: 'voided' } });
+    await expect(client.followups('2026-08-01', '2026-08-31')).resolves.toHaveLength(1);
+    await expect(client.dailyReport('2026-08-01', 'elevation-1')).resolves.toMatchObject({ collected: 5_000 });
+
+    expect(fetchFn.mock.calls.map(([input]) => String(input))).toEqual([
+      'https://api.example.test/health',
+      'https://api.example.test/patients/patient-1',
+      'https://api.example.test/stock/adjust',
+      'https://api.example.test/sales/sale-1/void',
+      'https://api.example.test/followups?from=2026-08-01&to=2026-08-31',
+      'https://api.example.test/reports/daily?date=2026-08-01',
+    ]);
+    expect(new Headers(fetchFn.mock.calls[2]?.[1]?.headers).get('x-elevation')).toBe('elevation-1');
+    expect(new Headers(fetchFn.mock.calls[3]?.[1]?.headers).get('x-elevation')).toBe('elevation-1');
+    expect(new Headers(fetchFn.mock.calls[5]?.[1]?.headers).get('x-elevation')).toBe('elevation-1');
+  });
+
   test('keeps staff activity explicit and limits recall/offboarding controls to mock fixtures', async () => {
     await mock.reset({ addons: { recall: false } });
     const loginResponse = await fetch(`${mock.baseUrl}/auth/login`, {
