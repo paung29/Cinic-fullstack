@@ -1,0 +1,806 @@
+{
+  "info": {
+    "_postman_id": "8eb54a70-9f5e-4cc7-b332-08f62946e1ac",
+    "name": "Clinic POS REST API",
+    "description": "Complete collection for the Clinic POS Spring Boot API. Run Setup once on a fresh database, then run the remaining folders in order. IDs returned by create requests are saved automatically as collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is successful', function () {",
+          "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "admin@clinic.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "admin12345",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin12345",
+      "type": "string"
+    },
+    {
+      "key": "staffPin",
+      "value": "4321",
+      "type": "string"
+    },
+    {
+      "key": "clinicId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "serviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "staffId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accountId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientSaleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "elevationToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Setup",
+      "description": "Run only once while the database has no accounts.",
+      "item": [
+        {
+          "name": "Initial clinic setup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('clinicId', body.clinicId);",
+                  "pm.collectionVariables.set('accountId', body.accountId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clinicName\": \"Eden Aesthetic Clinic\",\n  \"clinicPhone\": \"091234567\",\n  \"clinicAddress\": \"Lashio\",\n  \"timeZone\": \"Asia/Yangon\",\n  \"adminName\": \"Clinic Admin\",\n  \"adminPhone\": \"091234567\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"pin\": \"1234\"\n}"
+            },
+            "url": "{{baseUrl}}/api/setup",
+            "description": "Creates the first clinic, administrator, staff identity, and annual license."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - JWT Authentication",
+      "description": "Login saves both JWTs. Refresh rotates the refresh token and replaces both saved variables.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "pm.collectionVariables.set('clinicId', body.clinicId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Refresh tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/refresh"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Clinic",
+      "item": [
+        {
+          "name": "Get clinic",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Patients",
+      "item": [
+        {
+          "name": "Create patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('patientId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"name\": \"May Thu\",\n  \"phone\": \"09 222 333 444\",\n  \"allergies\": \"Penicillin\",\n  \"alertNote\": \"Latex sensitivity\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/patients"
+          }
+        },
+        {
+          "name": "List patients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/patients"
+          }
+        },
+        {
+          "name": "Get patient",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/patients/{{patientId}}"
+          }
+        },
+        {
+          "name": "Update patient",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{patientId}}\",\n  \"name\": \"May Thu Updated\",\n  \"phone\": \"09222333444\",\n  \"allergies\": \"Penicillin\",\n  \"alertNote\": \"Confirm allergy before treatment\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/patients/{{patientId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Catalogue",
+      "item": [
+        {
+          "name": "Create service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('serviceId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Consultation\",\n  \"sku\": null,\n  \"price\": 30.00,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/catalog/services"
+          }
+        },
+        {
+          "name": "Update service",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Consultation - Standard\",\n  \"sku\": null,\n  \"price\": 35.00,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/catalog/services/{{serviceId}}"
+          }
+        },
+        {
+          "name": "Create product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('productId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Skin Serum\",\n  \"sku\": \"SER-001\",\n  \"price\": 25.00,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/catalog/products"
+          }
+        },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Skin Serum 30ml\",\n  \"sku\": \"SER-001\",\n  \"price\": 25.00,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/catalog/products/{{productId}}"
+          }
+        },
+        {
+          "name": "List catalogue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/catalog"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Staff",
+      "item": [
+        {
+          "name": "Create staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('staffId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nurse Su\",\n  \"phone\": \"09987654321\",\n  \"pin\": \"{{staffPin}}\",\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/staff"
+          }
+        },
+        {
+          "name": "List staff",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/staff"
+          }
+        },
+        {
+          "name": "Update staff",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nurse Su Updated\",\n  \"phone\": \"09987654321\",\n  \"pin\": \"{{staffPin}}\",\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/staff/{{staffId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Accounts",
+      "item": [
+        {
+          "name": "Create staff account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accountId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@clinic.com\",\n  \"password\": \"staff12345\",\n  \"role\": \"STAFF\",\n  \"staffId\": \"{{staffId}}\",\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/accounts"
+          }
+        },
+        {
+          "name": "List accounts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/accounts"
+          }
+        },
+        {
+          "name": "Update staff account",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@clinic.com\",\n  \"password\": \"staff12345\",\n  \"role\": \"STAFF\",\n  \"staffId\": \"{{staffId}}\",\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/accounts/{{accountId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Inventory",
+      "item": [
+        {
+          "name": "Receive product stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delta\": 100,\n  \"reason\": \"RECEIVE\",\n  \"note\": \"Opening stock\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/inventory/products/{{productId}}/moves"
+          }
+        },
+        {
+          "name": "List product stock moves",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/inventory/products/{{productId}}/moves"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Clinical Authorization",
+      "item": [
+        {
+          "name": "Verify staff PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staffId\": \"{{staffId}}\",\n  \"pin\": \"{{staffPin}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/auth/pin/verify"
+          }
+        },
+        {
+          "name": "Create clinical elevation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('elevationToken', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminPassword\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/auth/elevate",
+            "description": "Returns a clinical elevation token valid for 15 minutes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Clinical Records",
+      "item": [
+        {
+          "name": "Create clinical record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Elevation-Token",
+                "value": "{{elevationToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staffId\": \"{{staffId}}\",\n  \"visitNotes\": \"Initial consultation completed\",\n  \"prescriptions\": \"Apply prescribed cream once daily\",\n  \"injectionMap\": \"{\\\"forehead\\\":[10,12,10]}\",\n  \"consents\": \"Treatment consent signed\",\n  \"mediaKeys\": \"patients/{{patientId}}/before-photo.jpg\",\n  \"contactLog\": \"Follow-up call requested\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/patients/{{patientId}}/clinical-records"
+          }
+        },
+        {
+          "name": "List clinical records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Elevation-Token",
+                "value": "{{elevationToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/patients/{{patientId}}/clinical-records"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Sales and Offline Sync",
+      "item": [
+        {
+          "name": "Sync completed sale",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('clientSaleId')) {",
+                  "  pm.collectionVariables.set('clientSaleId', pm.variables.replaceIn('{{$guid}}'));",
+                  "}",
+                  "if (!pm.collectionVariables.get('idempotencyKey')) {",
+                  "  pm.collectionVariables.set('idempotencyKey', 'outbox-' + pm.variables.replaceIn('{{$guid}}'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('saleId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{clientSaleId}}\",\n  \"idempotencyKey\": \"{{idempotencyKey}}\",\n  \"saleNumber\": \"POS-{{clientSaleId}}\",\n  \"patient\": {\n    \"id\": \"{{patientId}}\",\n    \"name\": \"May Thu Updated\",\n    \"phone\": \"09222333444\",\n    \"allergies\": \"Penicillin\",\n    \"alertNote\": \"Confirm allergy before treatment\"\n  },\n  \"staffId\": \"{{staffId}}\",\n  \"followUpDate\": \"2026-08-15\",\n  \"createdOffline\": true,\n  \"createdAt\": \"{{$isoTimestamp}}\",\n  \"lines\": [\n    {\n      \"kind\": \"PRODUCT\",\n      \"catalogId\": \"{{productId}}\",\n      \"nameSnapshot\": \"Skin Serum 30ml\",\n      \"unitPrice\": 25.00,\n      \"quantity\": 1\n    }\n  ],\n  \"payments\": [\n    {\n      \"method\": \"CASH\",\n      \"amount\": 25.00,\n      \"referenceNumber\": null,\n      \"paidAt\": \"{{$isoTimestamp}}\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/sync/sales",
+            "description": "Run twice without clearing clientSaleId/idempotencyKey to verify idempotent replay. Clear those two collection variables before creating a different sale."
+          }
+        },
+        {
+          "name": "List sales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/sales"
+          }
+        },
+        {
+          "name": "Get sale",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/sales/{{saleId}}"
+          }
+        },
+        {
+          "name": "Void sale",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/sales/{{saleId}}/void?note=Customer%20refund"
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - License",
+      "item": [
+        {
+          "name": "Get license",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/license"
+          }
+        },
+        {
+          "name": "Update license",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\",\n  \"termEndsOn\": \"2027-07-31\",\n  \"graceEndsOn\": \"2027-10-29\",\n  \"note\": \"Annual renewal\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/license"
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Export",
+      "item": [
+        {
+          "name": "Export clinic data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminPassword\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/clinics/{{clinicId}}/export",
+            "description": "Export always requires the admin password and remains available in every license state."
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Logout",
+      "description": "Run after all other requests. Logout revokes the current refresh token.",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/logout"
+          }
+        }
+      ]
+    }
+  ]
+}
