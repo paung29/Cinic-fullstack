@@ -82,6 +82,11 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [lotExpiry, setLotExpiry] = useState('');
   const [syncStatus, setSyncStatus] = useState<OutboxStatusView>({ state: 'synced', pendingCount: 0, attentionCount: 0, drainProgress: 0 });
   const [hasAdminEnvelope, setHasAdminEnvelope] = useState(true);
+  // The HID scanner types into whichever element is focused. The scan input stays
+  // armed with inputMode "none" so programmatic focus never raises the tablet's
+  // on-screen keyboard; an explicit tap switches to manual typing.
+  const [scannerManualEntry, setScannerManualEntry] = useState(false);
+  const scannerRef = useRef<HTMLInputElement>(null);
   const prefillChecked = useRef(false);
 
   const refreshLocal = async () => {
@@ -173,6 +178,19 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     };
   }, [enqueue, receipt, runtime, t]);
 
+  const anyModalOpen = pendingLot !== undefined || pendingWeight !== undefined || unknownCode !== undefined
+    || tenderOpen || approvalRequest !== undefined || receipt !== undefined;
+
+  useEffect(() => {
+    // Demo-v4 parity: keep the scanner armed between actions so a hardware scan
+    // lands without a preceding tap. Never steal focus from an element the
+    // cashier is actually editing, and never while a modal is open.
+    if (anyModalOpen) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return;
+    scannerRef.current?.focus({ preventScroll: true });
+  }, [anyModalOpen, draft.lines.length, catalogueTab]);
+
   const sessionState = runtime.session.state();
   const activeIdentity = sessionState.kind === 'active' || sessionState.kind === 'auth-required'
     ? sessionState.identity
@@ -226,6 +244,12 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   };
 
   const addProduct = (product: ProductRow) => {
+    // Back-bar stock (professional | injectable) is never sellable — the demo
+    // refuses it on scan and keeps it out of the grid entirely.
+    if (product.stockType !== 'retail') {
+      enqueue(t('sale.restricted'));
+      return;
+    }
     if (product.soldBy === 'weight') {
       setPendingWeight(product);
       setWeightQuantity('1');
@@ -354,16 +378,19 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     { id: 'Brows & Lips', label: t('sale.category.browsLips') },
     { id: 'Skin', label: t('sale.category.skin') },
   ];
+  // Demo-v4 parity: the sale catalogue only ever offers retail stock — back-bar
+  // (professional | injectable) items are consumed through treatments, not sold.
+  const retailProducts = products.filter((product) => product.stockType === 'retail');
   const productCategories: ReadonlyArray<{ id: CatalogueCategory; label: string }> = [
     { id: 'all', label: t('sale.category.all') },
-    ...Array.from(new Set(products.map((product) => product.category))).map((category) => ({ id: category, label: category })),
+    ...Array.from(new Set(retailProducts.map((product) => product.category))).map((category) => ({ id: category, label: category })),
   ];
   const categories = catalogueTab === 'services' ? serviceCategories : productCategories;
   const visibleServices = services.filter((service) => (
     (catalogueCategory === 'all' || service.category === catalogueCategory)
     && `${service.nameMm} ${service.nameEn ?? ''}`.toLowerCase().includes(search.toLowerCase())
   ));
-  const visibleProducts = products.filter((product) => (
+  const visibleProducts = retailProducts.filter((product) => (
     (catalogueCategory === 'all' || product.category === catalogueCategory)
     && product.name.toLowerCase().includes(search.toLowerCase())
   ));
@@ -380,7 +407,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}
         onLogout={() => { void runtime.outbox.status().then((status) => {
           if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
-          else { runtime.session.logout(); router.push('/login'); }
+          else { void runtime.session.logout(); router.push('/login'); }
         }); }}
         onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'clients' ? '/clients' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/sale')}
         sync={{ label: syncLabel, state: syncStatus.state, count: syncStatus.pendingCount, onClick: () => { void runtime.refreshSync().then(refreshLocal); } }}
@@ -435,7 +462,18 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
               {categories.map((category) => <Button aria-pressed={catalogueCategory === category.id} className={catalogueCategory === category.id ? styles.categoryChipActive : undefined} data-testid={`category-chip-${category.id.toLowerCase().replaceAll(' ', '-')}`} key={category.id} onClick={() => setCatalogueCategory(category.id)} pill size="sm" variant="ghost">{category.label}</Button>)}
             </div>
             <Input data-testid="catalogue-search" onChange={(event) => setSearch(event.target.value)} placeholder={t('sale.search')} value={search} />
-            <Input className={styles.scannerInput} data-testid="scanner-input" onChange={(event) => setScannerValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') scan(); }} placeholder={t('sale.scanner')} value={scannerValue} />
+            <Input
+            className={styles.scannerInput}
+            data-testid="scanner-input"
+            inputMode={scannerManualEntry ? 'numeric' : 'none'}
+            onBlur={() => setScannerManualEntry(false)}
+            onChange={(event) => setScannerValue(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') scan(); }}
+            onPointerDown={() => setScannerManualEntry(true)}
+            placeholder={t('sale.scanner')}
+            ref={scannerRef}
+            value={scannerValue}
+          />
             <div className={styles.catalogueList}>
               {catalogueTab === 'services' ? visibleServices.map((service) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${service.id}`} key={service.id} onClick={() => addService(service)} variant="ghost"><span>{service.nameEn ?? service.nameMm}</span><strong>{fmtMMK(service.price)}</strong></Button>) : visibleProducts.map((product) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${product.id}`} key={product.id} onClick={() => addProduct(product)} variant="ghost"><span>{product.name}</span><strong>{fmtMMK(product.price)}</strong></Button>)}
             </div>

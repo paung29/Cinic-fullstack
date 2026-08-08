@@ -116,7 +116,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         onLogout={() => { void runtime.outbox.status().then((status) => {
           if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
-          else { runtime.session.logout(); router.push('/login'); }
+          else { void runtime.session.logout(); router.push('/login'); }
         }); }}
         onTabChange={(id) => { router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/clients'); }}
         sync={{ label: t('sync.synced'), state: 'synced', onClick: () => { void runtime.refreshSync().then(refreshLocal, refreshLocal); } }}

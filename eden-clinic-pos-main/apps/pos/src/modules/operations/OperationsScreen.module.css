@@ -1,11 +1,24 @@
 .root, .loading { min-height: 100vh; background: var(--bg); }
 .loading { display: grid; place-items: center; }
-.content { display: grid; gap: 20px; padding: 24px; }
-.content header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.content header h1, .content header p, .grid h2, .grid p { margin: 0; }
-.content header p { color: var(--brand); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.grid section, .stack { display: grid; gap: 12px; }
-.grid dl { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0; }
-.grid dd { margin: 0; font-weight: 700; }
-@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+.content { display: grid; gap: 16px; padding: 20px; }
+.pageHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pageHeader h1 { margin: 0; color: var(--ink); font-size: 20px; font-weight: 650; }
+.eyebrow { margin: 0 0 2px; color: var(--brand); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.card { display: grid; align-content: start; gap: 12px; }
+.card h2 { margin: 0; color: var(--ink); font-size: 16px; font-weight: 650; }
+.body { margin: 0; color: var(--mut); font-size: 13px; }
+.field { display: grid; gap: 6px; }
+.field > span { color: var(--mut); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.fieldRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cardActions { display: flex; justify-content: flex-end; gap: 8px; }
+.kv { display: grid; margin: 0; border-top: 1px solid var(--line); }
+.kvRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.kvRow dt { color: var(--mut); font-size: 13px; }
+.kvRow dd { margin: 0; color: var(--ink); font-weight: 650; }
+.followups { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.followups li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.followups li span { color: var(--mut); font-size: 13px; }
+.emptyLine { margin: 0; color: var(--mut); font-size: 13px; }
+.stack { display: grid; gap: 12px; }
+@media (max-width: 840px) { .grid, .fieldRow { grid-template-columns: 1fr; } .content { padding: 12px; } }

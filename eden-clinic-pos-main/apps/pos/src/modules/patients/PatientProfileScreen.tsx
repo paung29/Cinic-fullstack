@@ -6,7 +6,7 @@ import { fmtMMK, patientOutstanding } from '@/data/money';
 import { updatePatient } from '@/data/patientRecords';
 import { useClinicAddon } from '@/flags/useClinicAddon';
 import { useT } from '@/i18n';
-import { Button, Card, Input, Modal, StatTile, Tag } from '@/ui';
+import { Button, Card, Input, Modal, StatTile, Tag, useToast } from '@/ui';
 import type { ClinicalRecordWire, PatientRow, SaleRow } from '@/data/types';
 import { counterAlertText } from './patientSelectors';
 import styles from './PatientProfileScreen.module.css';
@@ -26,6 +26,7 @@ export function PatientProfileScreen({
 }) {
   const runtime = useClinicRuntime();
   const { t } = useT();
+  const { enqueue } = useToast();
   const recallEnabled = useClinicAddon('recall');
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -73,15 +74,23 @@ export function PatientProfileScreen({
       setClinicalRecords((current) => [created, ...current]);
       setVisitNotes('');
       setPrescriptions('');
+      enqueue(t('clients.profile.recordSaved'));
+    } catch {
+      enqueue(t('clients.profile.saveFailed'));
     } finally {
       setClinicalBusy(false);
     }
   };
 
   const savePatient = async () => {
-    await updatePatient({ db: runtime.db, api: runtime.api, patient: { ...patient, name: editName.trim(), phone: editPhone.trim(), allergies: editAllergies.trim() || null } });
-    setEditOpen(false);
-    onUpdated();
+    try {
+      await updatePatient({ db: runtime.db, api: runtime.api, patient: { ...patient, name: editName.trim(), phone: editPhone.trim(), allergies: editAllergies.trim() || null } });
+      setEditOpen(false);
+      enqueue(t('clients.profile.updated'));
+      onUpdated();
+    } catch {
+      enqueue(t('clients.profile.saveFailed'));
+    }
   };
 
   return (
@@ -95,7 +104,7 @@ export function PatientProfileScreen({
         <div className={styles.actions}>
           <Button data-testid="patient-profile-book" onClick={onBook} pill size="sm" variant="ghost">{t('clients.profile.book')}</Button>
           <Button data-testid="patient-profile-new-sale" onClick={onNewSale} pill size="sm">{t('clients.profile.newSale')}</Button>
-          <Button data-testid="patient-profile-edit" onClick={() => setEditOpen(true)} pill size="sm" variant="ghost">Edit</Button>
+          <Button data-testid="patient-profile-edit" onClick={() => { setEditName(patient.name); setEditPhone(patient.phone); setEditAllergies(patient.allergies ?? ''); setEditOpen(true); }} pill size="sm" variant="ghost">{t('clients.profile.edit')}</Button>
         </div>
       </Card>
       {alert === undefined ? null : <Card className={styles.alert} data-testid="allergy-banner"><strong>{t('clients.profile.alert')}</strong><span>{alert}</span></Card>}
@@ -111,9 +120,9 @@ export function PatientProfileScreen({
         </div>
         {unlocked ? <div className={styles.clinicalRecords} data-testid="clinical-record">
           {clinicalRecords.length === 0 ? <p>{t('clients.profile.noVisits')}</p> : clinicalRecords.map((record) => <Card compact key={record.id}><strong>{new Date(record.created_at).toLocaleString()}</strong><p>{record.visit_notes}</p>{record.prescriptions ? <small>{record.prescriptions}</small> : null}</Card>)}
-          <label><span>Visit notes</span><Input data-testid="clinical-visit-notes" onChange={(event) => setVisitNotes(event.target.value)} value={visitNotes} /></label>
-          <label><span>Prescriptions</span><Input data-testid="clinical-prescriptions" onChange={(event) => setPrescriptions(event.target.value)} value={prescriptions} /></label>
-          <Button data-testid="clinical-record-save" disabled={clinicalBusy || visitNotes.trim() === ''} onClick={() => { void addClinicalRecord(); }}>Save clinical record</Button>
+          <label><span>{t('clients.profile.visitNotes')}</span><Input data-testid="clinical-visit-notes" onChange={(event) => setVisitNotes(event.target.value)} value={visitNotes} /></label>
+          <label><span>{t('clients.profile.prescriptions')}</span><Input data-testid="clinical-prescriptions" onChange={(event) => setPrescriptions(event.target.value)} value={prescriptions} /></label>
+          <Button data-testid="clinical-record-save" disabled={clinicalBusy || visitNotes.trim() === ''} onClick={() => { void addClinicalRecord(); }}>{t('clients.profile.saveRecord')}</Button>
         </div> : <p data-testid="clinical-locked">{t('clients.profile.locked')}</p>}
         {unlocked && recallEnabled ? <Card className={styles.recall} data-testid="recall-card"><Tag tone="ai">{t('clients.profile.recall')}</Tag><p>{t('clients.profile.recallBody')}</p></Card> : null}
       </Card>
@@ -124,12 +133,12 @@ export function PatientProfileScreen({
           <Button data-testid="clinical-elevation-confirm" onClick={() => { void unlockClinical(); }}>{t('clients.profile.unlock')}</Button>
         </div>
       </Modal>
-      <Modal closeLabel={t('modal.close')} onClose={() => setEditOpen(false)} open={editOpen} testId="patient-edit-modal" title="Edit patient">
+      <Modal closeLabel={t('modal.close')} onClose={() => setEditOpen(false)} open={editOpen} testId="patient-edit-modal" title={t('clients.profile.editTitle')}>
         <div className={styles.unlockForm}>
-          <label><span>Name</span><Input data-testid="patient-edit-name" onChange={(event) => setEditName(event.target.value)} value={editName} /></label>
-          <label><span>Phone</span><Input data-testid="patient-edit-phone" onChange={(event) => setEditPhone(event.target.value)} value={editPhone} /></label>
-          <label><span>Allergies</span><Input onChange={(event) => setEditAllergies(event.target.value)} value={editAllergies} /></label>
-          <Button data-testid="patient-edit-save" disabled={editName.trim() === '' || editPhone.trim() === ''} onClick={() => { void savePatient(); }}>Save</Button>
+          <label><span>{t('clients.form.name')}</span><Input data-testid="patient-edit-name" onChange={(event) => setEditName(event.target.value)} value={editName} /></label>
+          <label><span>{t('clients.form.phone')}</span><Input data-testid="patient-edit-phone" onChange={(event) => setEditPhone(event.target.value)} value={editPhone} /></label>
+          <label><span>{t('clients.form.allergies')}</span><Input onChange={(event) => setEditAllergies(event.target.value)} value={editAllergies} /></label>
+          <Button data-testid="patient-edit-save" disabled={editName.trim() === '' || editPhone.trim() === ''} onClick={() => { void savePatient(); }}>{t('clients.form.save')}</Button>
         </div>
       </Modal>
     </section>

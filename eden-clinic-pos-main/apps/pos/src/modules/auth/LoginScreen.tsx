@@ -160,16 +160,16 @@ export function LoginScreen() {
               <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
             </Field>
             <Button data-testid="create-clinic-toggle" onClick={() => setShowClinicSetup((current) => !current)} pill variant="ghost">
-              {showClinicSetup ? 'Use an existing clinic' : 'Create a new clinic'}
+              {showClinicSetup ? t('auth.setup.useExisting') : t('auth.setup.createClinic')}
             </Button>
             {showClinicSetup ? <div className={styles.setupFields}>
-              <Field htmlFor="clinic-name" label="Clinic name"><Input data-testid="clinic-name" id="clinic-name" onChange={(event) => setClinicName(event.target.value)} value={clinicName} /></Field>
-              <Field htmlFor="clinic-phone" label="Clinic phone"><Input id="clinic-phone" onChange={(event) => setClinicPhone(event.target.value)} value={clinicPhone} /></Field>
-              <Field htmlFor="clinic-address" label="Clinic address"><Input id="clinic-address" onChange={(event) => setClinicAddress(event.target.value)} value={clinicAddress} /></Field>
-              <Field htmlFor="admin-name" label="Administrator name"><Input data-testid="admin-name" id="admin-name" onChange={(event) => setAdminName(event.target.value)} value={adminName} /></Field>
-              <Field htmlFor="admin-phone" label="Administrator phone"><Input id="admin-phone" onChange={(event) => setAdminPhone(event.target.value)} value={adminPhone} /></Field>
-              <Field htmlFor="admin-email" label="Administrator email"><Input id="admin-email" onChange={(event) => setAdminEmail(event.target.value)} type="email" value={adminEmail} /></Field>
-              <Field htmlFor="admin-password" label="Administrator password"><Input id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} type="password" value={adminPassword} /></Field>
+              <Field htmlFor="clinic-name" label={t('auth.setup.clinicName')}><Input data-testid="clinic-name" id="clinic-name" onChange={(event) => setClinicName(event.target.value)} value={clinicName} /></Field>
+              <Field htmlFor="clinic-phone" label={t('auth.setup.clinicPhone')}><Input id="clinic-phone" onChange={(event) => setClinicPhone(event.target.value)} value={clinicPhone} /></Field>
+              <Field htmlFor="clinic-address" label={t('auth.setup.clinicAddress')}><Input id="clinic-address" onChange={(event) => setClinicAddress(event.target.value)} value={clinicAddress} /></Field>
+              <Field htmlFor="admin-name" label={t('auth.setup.adminName')}><Input data-testid="admin-name" id="admin-name" onChange={(event) => setAdminName(event.target.value)} value={adminName} /></Field>
+              <Field htmlFor="admin-phone" label={t('auth.setup.adminPhone')}><Input id="admin-phone" onChange={(event) => setAdminPhone(event.target.value)} value={adminPhone} /></Field>
+              <Field htmlFor="admin-email" label={t('auth.setup.adminEmail')}><Input id="admin-email" onChange={(event) => setAdminEmail(event.target.value)} type="email" value={adminEmail} /></Field>
+              <Field htmlFor="admin-password" label={t('auth.setup.adminPassword')}><Input id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} type="password" value={adminPassword} /></Field>
             </div> : null}
             <LoginMessage message={message} t={t} />
             <div className={message === 'wrong-pin' ? styles.shake : undefined}>
