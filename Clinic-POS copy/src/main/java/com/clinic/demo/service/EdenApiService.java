@@ -278,7 +278,9 @@ public class EdenApiService {
         if (member == null) issues.add("staff record is missing");
         Patient patient = input.patientId() == null ? null : patients.findByIdAndClinicId(input.patientId(), clinicId).orElse(null);
         if (input.patientId() != null && patient == null) issues.add("patient record is missing");
-        String saleNo = "R-" + String.format("%06d", sales.count() + 1);
+        // Receipt numbers are a per-clinic sequence — a global count would leak
+        // volume across tenants and drift after another clinic trades.
+        String saleNo = "R-" + String.format("%06d", sales.countByClinicId(clinicId) + 1);
         Sale sale = Sale.builder().id(input.id()).clinic(account.getClinic()).patient(patient).staff(member)
                 .saleNumber(saleNo).idempotencyKey(input.id().toString()).followUpDate(input.followupDate())
                 .createdOffline(Boolean.TRUE.equals(input.createdOffline())).createdAt(local(input.at()))
@@ -352,8 +354,13 @@ public class EdenApiService {
     @Transactional(readOnly = true)
     public Map<String,Object> dailyReport(Account account, LocalDate date, UUID elevationToken) {
         requireElevation(account, elevationToken);
+        // Sale timestamps are stored in UTC; the clinic's report day runs on its
+        // own wall clock (Asia/Yangon is UTC+6:30 — a UTC day boundary would put
+        // every early-morning sale on yesterday's report).
+        ZoneId clinicZone = clinicZone(account.getClinic());
         List<Sale> day = sales.findAllByClinicIdOrderByCreatedAtDesc(account.getClinic().getId()).stream()
-                .filter(s -> s.getCreatedAt().toLocalDate().equals(date) && s.getStatus() != SaleStatus.VOIDED).toList();
+                .filter(s -> s.getCreatedAt().atOffset(ZoneOffset.UTC).atZoneSameInstant(clinicZone).toLocalDate().equals(date)
+                        && s.getStatus() != SaleStatus.VOIDED).toList();
         long delivered = day.stream().mapToLong(s -> whole(s.getTotal())).sum();
         long collected = day.stream().flatMap(s -> s.getPayments().stream()).mapToLong(p -> whole(p.getAmount())).sum();
         Map<String,Object> report = new LinkedHashMap<>(); report.put("date", date); report.put("collected", collected);
@@ -419,7 +426,19 @@ public class EdenApiService {
         return new ClinicDto(c.getId(), c.getName(), or(c.getPhone(), ""), or(c.getAddress(), ""), or(c.getRoundingStep(), 500),
                 or(c.getCreditLimitMmk(), 0), receipt, or(c.getReceiptFooter(), ""), or(c.getLogoUrl(), ""),
                 Boolean.TRUE.equals(c.getReceiptQr()), Boolean.TRUE.equals(c.getReceiptNextVisit()), or(c.getReceiptTemplate(), "classic"),
-                or(c.getReceiptHeaderFont(), "sans"), or(c.getReceiptDivider(), "line"), or(c.getConsentMode(), "warn"), Map.of(), Map.of());
+                or(c.getReceiptHeaderFont(), "sans"), or(c.getReceiptDivider(), "line"), or(c.getConsentMode(), "warn"),
+                DEFAULT_ADDONS, DEFAULT_FEATURE_FLAGS);
+    }
+
+    // Empty maps read as "every add-on off" in the PWA and silently hide the
+    // recall card and other billable surfaces. Until per-tenant toggles get
+    // their own columns, mirror the executable contract (mock-server seed).
+    private static final Map<String,Object> DEFAULT_ADDONS = Map.of(
+            "brief", true, "careloop", true, "recall", true, "outcomes", true, "insights", true);
+    private static final Map<String,Object> DEFAULT_FEATURE_FLAGS = Map.of("calendar", true, "leads", true);
+
+    private static ZoneId clinicZone(Clinic clinic) {
+        try { return ZoneId.of(clinic.getTimeZone()); } catch (Exception ignored) { return ZoneOffset.UTC; }
     }
     private StaffDto staffDto(Staff s) {
         String role = accounts.findByStaffId(s.getId()).map(a -> a.getRole().name().toLowerCase()).orElse("staff");
@@ -437,7 +456,7 @@ public class EdenApiService {
         boolean review = s.getStatus() == SaleStatus.NEEDS_REVIEW;
         return new SaleDto(s.getId(), s.getPatient() == null ? null : s.getPatient().getId(), s.getStaff() == null ? s.getStaffIdSnapshot() : s.getStaff().getId(), s.getPractitionerId(), s.getAppointmentId(), utc(s.getCreatedAt()), lines, paid, nullableWhole(s.getSubtotal()), s.getDiscountPct(), s.getDiscountApprovedBy(), whole(s.getTotal()), nullableWhole(s.getCredit()), s.getCreditApprovedBy(), s.getFollowUpDate(), s.getDeviceId(), s.getCreatedOffline(), s.getSaleNumber(), s.getStatus() == SaleStatus.VOIDED ? "voided" : "completed", review, s.getValidationMessage(), or(s.getReceivedAt(), utc(s.getCreatedAt())));
     }
-    private Payment paymentEntity(Clinic clinic, Sale sale, PaymentDto item) { return Payment.builder().id(item.id()).clinic(clinic).sale(sale).method(paymentMethod(item.method())).amount(money(item.amount())).paidAt(item.at() == null ? LocalDateTime.now() : local(item.at())).build(); }
+    private Payment paymentEntity(Clinic clinic, Sale sale, PaymentDto item) { return Payment.builder().id(item.id()).clinic(clinic).sale(sale).method(paymentMethod(item.method())).amount(money(item.amount())).paidAt(item.at() == null ? local(now()) : local(item.at())).build(); }
     private PaymentMethod paymentMethod(String value) { return switch (value) { case "cash" -> PaymentMethod.CASH; case "kbzpay" -> PaymentMethod.KBZPAY; case "wave" -> PaymentMethod.WAVE; case "bank" -> PaymentMethod.BANK; case "writeoff" -> PaymentMethod.WRITEOFF; default -> PaymentMethod.OTHER; }; }
     private String paymentName(PaymentMethod value) { return switch (value) { case WAVEPAY, WAVE -> "wave"; case BANK_TRANSFER, BANK -> "bank"; default -> value.name().toLowerCase(); }; }
 

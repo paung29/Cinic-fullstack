@@ -149,6 +149,21 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { staff: publicStaff(staff) });
   }
 
+  if (path === '/api/setup' && req.method === 'POST') {
+    // First-run clinic install: mirrors the backend's /api/setup so the
+    // "create a new clinic" login flow is exercisable against the contract.
+    const b = await body(req); if (!b) return err(res, 400, 'MALFORMED', 'bad json');
+    if (!b.clinic_name || !b.admin_name || !b.admin_phone || !b.email || String(b.password || '').length < 8 || !/^\d{4}$/.test(b.pin || '')) {
+      return err(res, 400, 'MALFORMED', 'setup fields are invalid');
+    }
+    db.clinic.name = b.clinic_name;
+    if (b.clinic_phone) db.clinic.phone = b.clinic_phone;
+    if (b.clinic_address) db.clinic.address = b.clinic_address;
+    const admin = { id: uid(), name: b.admin_name, role: 'admin', takes_bookings: true, active: true, pin: b.pin, password: b.password };
+    db.staff.push(admin); bump('staff', admin);
+    return send(res, 201, { clinic_id: db.clinic.id, staff_id: admin.id, account_id: uid(), email: String(b.email).toLowerCase() });
+  }
+
   if (path === '/auth/login' && req.method === 'POST') {
     const b = await body(req); if (!b) return err(res, 400, 'MALFORMED', 'bad json');
     const s = db.staff.find(x => x.id === b.staff_id && x.active !== false && x.pin === b.pin);

@@ -280,13 +280,15 @@ const stf=id=>staff.find(s=>s.id===id);
 /* ------------- render ------------- */
 const R=document.getElementById('root');
 function render(){
-  const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selectionStart;
+  const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selectionStart,aim=ae&&ae.getAttribute?ae.getAttribute('inputmode'):null;
   if(S.screen==='login'){R.innerHTML=loginView();return}
   R.innerHTML=`<div class="app">${topbar()}
     <div class="main ${S.screen==='sale'?'nopad':''}">${({home,calendar,clients,client,sale,stocks,analytics,hub,setup})[S.screen]()}</div>
   </div>${S.modal?modalView():''}${S.phone?phoneView():''}${S.toast?`<div class="toast">${S.toast}</div>`:''}`;
-  if(aid){const el=document.getElementById(aid);if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
+  if(aid){const el=document.getElementById(aid);if(el){if(aim)el.setAttribute('inputmode',aim);el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
   else{const bc=document.getElementById('bcin');if(bc&&S.screen==='sale'&&!S.modal)bc.focus()}
+  /* bcin ships inputmode="none": the scanner stays armed after every render without
+     raising the on-screen keyboard on tablets; an explicit tap re-enables it. */
 }
 window.go=s=>{S.screen=s;S.modal=null;render()};
 function topbar(){
@@ -534,7 +536,7 @@ function sale(){
     </div>
     <div class="searchrow">
       <input id="sq" placeholder="Search…" value="${S.q}" oninput="S.q=this.value;render()" style="max-width:250px">
-      <input id="bcin" placeholder="⌗ Scan barcode (try 4005900123456)" onkeydown="if(event.key==='Enter'){scanAdd(this.value);this.value=''}" style="max-width:280px">
+      <input id="bcin" inputmode="none" placeholder="⌗ Scan barcode (try 4005900123456)" onkeydown="if(event.key==='Enter'){scanAdd(this.value);this.value=''}" onpointerdown="const e=this;setTimeout(()=>{e.blur();e.setAttribute('inputmode','numeric');e.focus()},0)" onblur="this.setAttribute('inputmode','none')" style="max-width:280px">
     </div>
     <div class="catchips">${cats.map(c=>`<button class="${S.cat===c?'on':''}" onclick="S.cat='${c}';render()">${c}</button>`).join('')}</div>
     <div class="grid">

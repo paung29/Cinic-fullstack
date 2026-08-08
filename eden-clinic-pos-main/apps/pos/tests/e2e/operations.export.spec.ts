@@ -27,7 +27,10 @@ test('operations connects license, reports, and elevated stock adjustment', asyn
   await page.getByTestId('report-load').click();
   await page.getByTestId('operations-password').fill('eden');
   await page.getByTestId('operations-elevation-submit').click();
-  await expect(page.getByTestId('daily-report')).toContainText('Sales');
+  // Locale-blind: assert the money formatting and the sales-count value slot
+  // rather than an English label (the screen renders in the build locale).
+  await expect(page.getByTestId('daily-report')).toContainText('Ks');
+  await expect(page.getByTestId('report-sales-count')).toBeVisible();
 
   await page.getByTestId('adjust-product-select').selectOption('p1');
   await page.getByTestId('adjust-delta').fill('2');

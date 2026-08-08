@@ -11,4 +11,5 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
     Optional<Sale> findByIdAndClinicId(UUID id, UUID clinicId);
     Optional<Sale> findByClinicIdAndIdempotencyKey(UUID clinicId, String idempotencyKey);
     List<Sale> findAllByClinicIdOrderByCreatedAtDesc(UUID clinicId);
+    long countByClinicId(UUID clinicId);
 }

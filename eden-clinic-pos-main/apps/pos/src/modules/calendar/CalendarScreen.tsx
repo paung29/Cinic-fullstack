@@ -135,7 +135,7 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
   const logout = () => {
     void runtime.outbox.status().then((status) => {
       if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
-      else { runtime.session.logout(); router.push('/login'); }
+      else { void runtime.session.logout(); router.push('/login'); }
     });
   };
 
