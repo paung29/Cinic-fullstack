@@ -39,7 +39,7 @@ export type SessionController = {
   beginCaptureBoundary(): () => void;
   requestRevocation(staffId: string): void;
   switchUser(): void;
-  logout(): void;
+  logout(): Promise<void>;
 };
 
 export class IdentityExpiredError extends Error {
@@ -293,10 +293,18 @@ export function createSessionController(options: {
       clearMemory();
       setState({ kind: 'signed-out' });
     },
-    logout() {
+    async logout() {
       pendingRevocationStaffId = undefined;
+      const refreshToken = activeSecret?.credential.refreshToken;
       clearMemory();
       setState({ kind: 'signed-out' });
+      if (refreshToken !== undefined && options.auth.logout !== undefined) {
+        try {
+          await options.auth.logout(refreshToken);
+        } catch {
+          // Local logout must succeed even when the server is unavailable.
+        }
+      }
     },
   };
 }

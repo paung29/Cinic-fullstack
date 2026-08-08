@@ -88,4 +88,36 @@ class EdenFrontendContractTests {
         assertThat(api.delta(account, 0).changes()).extracting(EdenApi.DeltaChange::entity)
                 .contains("patient", "product", "appointment", "sale");
     }
+
+    @Test
+    void logoutAndClinicalRecordsCompleteTheFrontendSecurityContract() throws Exception {
+        accountService.setup(new SetupRequest("Clinical Eden", "09123", "Yangon", "Asia/Yangon",
+                "Owner", "09456", "clinical@eden.test", "safe-password", "1234"));
+        Account account = accounts.findByEmail("clinical@eden.test").orElseThrow();
+        var login = api.login(new EdenApi.LoginRequest(account.getStaff().getId(), "1234"), "127.0.0.1");
+        UUID patientId = UUID.randomUUID();
+        api.createPatient(account, new EdenApi.PatientDto(patientId, null, "Mya", "09 888", null, null, null, false, null));
+        var elevation = api.elevate(account, new EdenApi.ElevationRequest("safe-password", "clinical"));
+
+        mvc.perform(post("/patients/{id}/clinical-records", patientId)
+                        .header("Authorization", "Bearer " + login.token())
+                        .header("X-Elevation", elevation.elevationToken())
+                        .contentType("application/json")
+                        .content("{\"staff_id\":\"" + account.getStaff().getId() + "\",\"visit_notes\":\"Consulted\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.visit_notes").value("Consulted"));
+
+        mvc.perform(get("/patients/{id}/clinical-records", patientId)
+                        .header("Authorization", "Bearer " + login.token())
+                        .header("X-Elevation", elevation.elevationToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].visit_notes").value("Consulted"));
+
+        mvc.perform(post("/auth/logout").contentType("application/json")
+                        .content("{\"refresh\":\"" + login.refresh() + "\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/auth/refresh").contentType("application/json")
+                        .content("{\"refresh\":\"" + login.refresh() + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
 }

@@ -27,6 +27,14 @@ export function LoginScreen() {
   const [staff, setStaff] = useState<SessionIdentity[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<SessionIdentity | undefined>();
   const [installerStaffId, setInstallerStaffId] = useState('');
+  const [showClinicSetup, setShowClinicSetup] = useState(false);
+  const [clinicName, setClinicName] = useState('');
+  const [clinicPhone, setClinicPhone] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
+  const [adminName, setAdminName] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [pin, setPin] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isWaiting, setWaiting] = useState(false);
@@ -85,19 +93,33 @@ export function LoginScreen() {
   };
 
   const handleSubmit = async () => {
-    if (runtime === undefined || activeStaffId === undefined || activeStaffId === '' || pin.length !== 4 || isBusy || isWaiting) {
+    const invalidExistingClinic = !showClinicSetup && (activeStaffId === undefined || activeStaffId === '');
+    const invalidNewClinic = showClinicSetup && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
+    if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy || isWaiting) {
       return;
     }
 
     setBusy(true);
     setMessage(undefined);
     try {
-      if (isDeviceSetup) {
-        await runtime.provision({ staff_id: activeStaffId, pin });
-      } else if (needsOnlineRepair || await runtime.db.meta.get(authEnvelopeMetaKey(activeStaffId)) === undefined) {
-        await runtime.signInOnline({ staff_id: activeStaffId, pin });
+      if (isDeviceSetup && showClinicSetup) {
+        await runtime.install({
+          clinic_name: clinicName.trim(),
+          clinic_phone: clinicPhone.trim(),
+          clinic_address: clinicAddress.trim(),
+          time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Yangon',
+          admin_name: adminName.trim(),
+          admin_phone: adminPhone.trim(),
+          email: adminEmail.trim(),
+          password: adminPassword,
+          pin,
+        });
+      } else if (isDeviceSetup) {
+        await runtime.provision({ staff_id: activeStaffId!, pin });
+      } else if (needsOnlineRepair || await runtime.db.meta.get(authEnvelopeMetaKey(activeStaffId!)) === undefined) {
+        await runtime.signInOnline({ staff_id: activeStaffId!, pin });
       } else {
-        await runtime.unlockOffline(activeStaffId, pin);
+        await runtime.unlockOffline(activeStaffId!, pin);
       }
       const destination = returnToAfterSignIn(isDeviceSetup, returnTo);
       if (destination !== undefined) router.push(destination);
@@ -137,6 +159,18 @@ export function LoginScreen() {
             <Field htmlFor="installer-staff-id" label={t('auth.setup.staffId')}>
               <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
             </Field>
+            <Button data-testid="create-clinic-toggle" onClick={() => setShowClinicSetup((current) => !current)} pill variant="ghost">
+              {showClinicSetup ? 'Use an existing clinic' : 'Create a new clinic'}
+            </Button>
+            {showClinicSetup ? <div className={styles.setupFields}>
+              <Field htmlFor="clinic-name" label="Clinic name"><Input data-testid="clinic-name" id="clinic-name" onChange={(event) => setClinicName(event.target.value)} value={clinicName} /></Field>
+              <Field htmlFor="clinic-phone" label="Clinic phone"><Input id="clinic-phone" onChange={(event) => setClinicPhone(event.target.value)} value={clinicPhone} /></Field>
+              <Field htmlFor="clinic-address" label="Clinic address"><Input id="clinic-address" onChange={(event) => setClinicAddress(event.target.value)} value={clinicAddress} /></Field>
+              <Field htmlFor="admin-name" label="Administrator name"><Input data-testid="admin-name" id="admin-name" onChange={(event) => setAdminName(event.target.value)} value={adminName} /></Field>
+              <Field htmlFor="admin-phone" label="Administrator phone"><Input id="admin-phone" onChange={(event) => setAdminPhone(event.target.value)} value={adminPhone} /></Field>
+              <Field htmlFor="admin-email" label="Administrator email"><Input id="admin-email" onChange={(event) => setAdminEmail(event.target.value)} type="email" value={adminEmail} /></Field>
+              <Field htmlFor="admin-password" label="Administrator password"><Input id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} type="password" value={adminPassword} /></Field>
+            </div> : null}
             <LoginMessage message={message} t={t} />
             <div className={message === 'wrong-pin' ? styles.shake : undefined}>
               <PinPad backspaceLabel={t('pin.backspace')} onChange={setPin} onSubmit={handleSubmit} submitLabel={t('pin.submit')} testId="login-pinpad" displayTestId="login-pin-display" value={pin} />

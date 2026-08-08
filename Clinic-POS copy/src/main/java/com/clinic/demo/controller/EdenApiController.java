@@ -3,6 +3,10 @@ package com.clinic.demo.controller;
 import com.clinic.demo.controller.dto.EdenApi.*;
 import com.clinic.demo.entity.Account;
 import com.clinic.demo.service.EdenApiService;
+import com.clinic.demo.service.ClinicalRecordService;
+import com.clinic.demo.service.LicenseService;
+import com.clinic.demo.service.ExportService;
+import com.clinic.demo.controller.dto.ClinicApi.LicenseResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,10 +20,14 @@ import java.util.*;
 @RequiredArgsConstructor
 public class EdenApiController {
     private final EdenApiService api;
+    private final ClinicalRecordService clinicalRecords;
+    private final LicenseService licenses;
+    private final ExportService exports;
 
     @GetMapping("/health") public HealthResponse health() { return new HealthResponse(true, OffsetDateTime.now(ZoneOffset.UTC)); }
     @PostMapping("/auth/login") public LoginResponse login(@Valid @RequestBody LoginRequest input, HttpServletRequest request) { return api.login(input, request.getRemoteAddr()); }
     @PostMapping("/auth/refresh") public TokenPair refresh(@Valid @RequestBody RefreshRequest input, HttpServletRequest request) { return api.refresh(input.refresh(), request.getRemoteAddr()); }
+    @PostMapping("/auth/logout") public void logout(@Valid @RequestBody LogoutRequest input) { api.logout(input.refresh()); }
     @PostMapping("/auth/elevate") public ElevationResponse elevate(Authentication auth, @Valid @RequestBody ElevationRequest input) { return api.elevate(account(auth), input); }
     @GetMapping("/bootstrap") public Bootstrap bootstrap(Authentication auth) { return api.bootstrap(account(auth)); }
     @GetMapping("/delta") public Delta delta(Authentication auth, @RequestParam long since) { return api.delta(account(auth), since); }
@@ -36,9 +44,14 @@ public class EdenApiController {
     @PostMapping("/contact-log") public ContactEnvelope contact(Authentication auth, @Valid @RequestBody ContactDto input) { return api.createContact(account(auth), input); }
     @PostMapping("/sales") public SaleEnvelope sale(Authentication auth, @Valid @RequestBody SaleDto input) { return api.createSale(account(auth), input); }
     @PostMapping("/sales/{id}/payments") public PaymentEnvelope payment(Authentication auth, @PathVariable UUID id, @Valid @RequestBody PaymentDto input) { return api.addPayment(account(auth), id, input); }
-    @PostMapping("/sales/{id}/void") public SaleEnvelope voidSale(Authentication auth, @PathVariable UUID id, @RequestHeader("X-Elevation") UUID elevation) { return api.voidSale(account(auth), id, elevation); }
+    @PostMapping("/sales/{id}/void") public SaleEnvelope voidSale(Authentication auth, @PathVariable UUID id, @RequestHeader("X-Elevation") UUID elevation, @RequestBody(required = false) VoidSaleRequest input) { return api.voidSale(account(auth), id, elevation, input == null ? null : input.reason()); }
+    @GetMapping("/patients/{id}/clinical-records") public List<ClinicalRecordDto> clinicalRecords(Authentication auth, @PathVariable UUID id, @RequestHeader("X-Elevation") UUID elevation) { Account account = account(auth); return clinicalRecords.listForFrontend(account.getClinic().getId(), id, auth.getName(), elevation); }
+    @PostMapping("/patients/{id}/clinical-records") public ClinicalRecordDto clinicalRecord(Authentication auth, @PathVariable UUID id, @RequestHeader("X-Elevation") UUID elevation, @Valid @RequestBody ClinicalRecordInput input) { Account account = account(auth); return clinicalRecords.createForFrontend(account.getClinic().getId(), id, auth.getName(), elevation, input); }
     @GetMapping("/followups") public List<Map<String,Object>> followups(Authentication auth, @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to) { return api.followups(account(auth), from, to); }
     @GetMapping("/reports/daily") public Map<String,Object> daily(Authentication auth, @RequestParam LocalDate date, @RequestHeader("X-Elevation") UUID elevation) { return api.dailyReport(account(auth), date, elevation); }
+    @PostMapping("/admin/staff-account") public StaffDto createStaffAccount(Authentication auth, @Valid @RequestBody StaffAccountInput input) { return api.createStaffAccount(account(auth), input); }
+    @GetMapping("/license") public LicenseResponse license(Authentication auth) { Account account = account(auth); return licenses.get(account.getClinic().getId()); }
+    @PostMapping("/export") public Map<String,Object> export(Authentication auth, @RequestBody Map<String,String> input) { Account account = account(auth); return exports.export(account.getClinic().getId(), input.getOrDefault("password", "")); }
 
     private Account account(Authentication auth) { return api.account(auth.getName()); }
 }

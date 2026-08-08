@@ -1,0 +1,11 @@
+.root, .loading { min-height: 100vh; background: var(--bg); }
+.loading { display: grid; place-items: center; }
+.content { display: grid; gap: 20px; padding: 24px; }
+.content header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.content header h1, .content header p, .grid h2, .grid p { margin: 0; }
+.content header p { color: var(--brand); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid section, .stack { display: grid; gap: 12px; }
+.grid dl { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0; }
+.grid dd { margin: 0; font-weight: 700; }
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }

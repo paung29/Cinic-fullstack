@@ -8,6 +8,8 @@
 .alert { display: grid; gap: 4px; background: var(--redbg); color: var(--red); }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .clinical { display: grid; gap: 14px; }
+.clinicalRecords { display: grid; gap: 12px; }
+.clinicalRecords label { display: grid; gap: 6px; color: var(--mut); }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sectionHeading p { color: var(--mut); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .recall { display: grid; gap: 8px; background: var(--aibg); }

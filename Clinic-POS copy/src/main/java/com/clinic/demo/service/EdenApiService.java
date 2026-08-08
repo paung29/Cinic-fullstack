@@ -38,6 +38,8 @@ public class EdenApiService {
     private final JwtService jwtService;
     private final ElevationService elevationService;
     private final ObjectMapper objectMapper;
+    private final BarcodeLookupService barcodeLookupService;
+    private final LicenseService licenseService;
 
     @Transactional
     public LoginResponse login(LoginRequest input, String clientIp) {
@@ -56,6 +58,10 @@ public class EdenApiService {
     public TokenPair refresh(String refresh, String clientIp) {
         TokenResponse pair = jwtService.rotateRefreshToken(refresh, clientIp);
         return new TokenPair(pair.accessToken(), pair.refreshToken());
+    }
+
+    public void logout(String refresh) {
+        jwtService.revokeRefreshToken(refresh);
     }
 
     @Transactional
@@ -318,7 +324,7 @@ public class EdenApiService {
     }
 
     @Transactional
-    public SaleEnvelope voidSale(Account account, UUID id, UUID elevationToken) {
+    public SaleEnvelope voidSale(Account account, UUID id, UUID elevationToken, String reason) {
         requireElevation(account, elevationToken);
         Sale sale = sales.findByIdAndClinicId(id, account.getClinic().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sale", "id", id.toString()));
@@ -329,7 +335,9 @@ public class EdenApiService {
                     .delta(line.getQuantity()).reason(StockMoveReason.VOID).build());
             emit(account.getClinic(), "product", productDto(p));
         }
-        sale.setStatus(SaleStatus.VOIDED); SaleDto result = saleDto(sale); emit(account.getClinic(), "sale", result);
+        sale.setStatus(SaleStatus.VOIDED);
+        sale.setVoidReason(reason == null || reason.isBlank() ? "No reason supplied" : reason.trim());
+        SaleDto result = saleDto(sale); emit(account.getClinic(), "sale", result);
         return new SaleEnvelope(result, false);
     }
 
@@ -369,11 +377,29 @@ public class EdenApiService {
     public BarcodeLookup barcode(Account account, String code) {
         return products.findByClinicIdAndBarcode(account.getClinic().getId(), code)
                 .map(p -> new BarcodeLookup(true, p.getName(), null, p.getCategory(), null, "clinic"))
-                .orElseGet(() -> new BarcodeLookup(false, null, null, null, null, null));
+                .orElseGet(() -> barcodeLookupService.lookup(code));
     }
 
     public Account account(String email) {
         return accounts.findByEmail(email).orElseThrow(() -> new TokenInvalidException("Account does not exist."));
+    }
+
+    @Transactional
+    public StaffDto createStaffAccount(Account requester, StaffAccountInput input) {
+        if (requester.getRole() != Role.ADMIN) throw new AccessDeniedException("Administrator role is required.");
+        UUID clinicId = requester.getClinic().getId();
+        licenseService.requireAdministrativeWrite(clinicId);
+        String email = input.email().trim().toLowerCase();
+        if (accounts.existsByEmail(email)) throw new AppBusinessException("An account with this email already exists.");
+        Staff member = staff.save(Staff.builder().clinic(requester.getClinic()).name(input.name().trim())
+                .phone(input.phone().trim()).pinHash(passwordEncoder.encode(input.pin()))
+                .takesBookings(Boolean.TRUE.equals(input.takesBookings())).active(true).build());
+        accounts.save(Account.builder().clinic(requester.getClinic()).staff(member).email(email)
+                .passwordHash(passwordEncoder.encode(input.password()))
+                .role("admin".equals(input.role()) ? Role.ADMIN : Role.STAFF).active(true).build());
+        StaffDto result = staffDto(member);
+        emit(requester.getClinic(), "staff", result);
+        return result;
     }
 
     private void requireElevation(Account account, UUID token) {

@@ -235,6 +235,23 @@ describe('createApiClient', () => {
     expect(patientResult).toMatchObject({ merged_into: 'c1', patient: { id: 'c1' } });
   });
 
+  test('accepts the backend license response contract', async () => {
+    const auth = { token: undefined as string | undefined };
+    const session: SessionProvider = {
+      getAccessToken: () => auth.token,
+      refresh: async () => undefined,
+      onAuthFailure: async () => undefined,
+    };
+    const client = createApiClient({ baseUrl: mock.baseUrl, session });
+    const login = await client.login({ staff_id: 's1', pin: '1234' });
+    auth.token = login.token;
+
+    await expect(client.license?.()).resolves.toMatchObject({
+      stored_status: 'ACTIVE',
+      effective_status: 'ACTIVE',
+    });
+  });
+
   test('sends an appointment status change to the documented PATCH route with its status-only body', async () => {
     const fetchFn = vi.fn<typeof fetch>(async () => Response.json({
       id: 'appointment-1',

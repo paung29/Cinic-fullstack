@@ -11,7 +11,7 @@ import { createOutbox, type OutboxStatusView } from '@/data/outbox';
 import { readApiBaseUrl } from '@/data/runtimeConfig';
 import { createStorageDiagnostics, type StorageDiagnostics } from '@/data/storageDiagnostics';
 import { readLocalePreference, saveLocalePreference } from '@/data/printerProfile';
-import type { LoginWire } from '@/data/types';
+import type { LoginWire, SetupRequestWire } from '@/data/types';
 import { useLocaleControl, useT } from '@/i18n';
 import { createSessionController, type SessionController, type SessionIdentity } from '@/modules/auth/sessionController';
 import { createWebCryptoSessionCrypto } from '@/modules/auth/sessionEnvelope';
@@ -30,6 +30,7 @@ export type ClinicRuntime = {
   beginCaptureBoundary(): () => void;
   refreshSync(): Promise<OutboxStatusView>;
   provision(input: LoginWire): Promise<SessionIdentity>;
+  install(input: SetupRequestWire): Promise<SessionIdentity>;
   signInOnline(input: LoginWire): Promise<SessionIdentity>;
   unlockOffline(staffId: string, pin: string): Promise<SessionIdentity>;
   verifyOfflineAdmin(staffId: string, pin: string): Promise<SessionIdentity>;
@@ -128,6 +129,11 @@ export function ClinicRuntimeProvider({ children }: { children: ReactNode }) {
           },
           refreshSync,
           provision: completeOnlineSignIn,
+          async install(input) {
+            if (auth.setup === undefined) throw new Error('Clinic setup is unavailable.');
+            const created = await auth.setup(input);
+            return completeOnlineSignIn({ staff_id: created.staff_id, pin: input.pin });
+          },
           signInOnline: completeOnlineSignIn,
           async unlockOffline(staffId, pin) {
             const identity = await session.unlockOffline(staffId, pin);

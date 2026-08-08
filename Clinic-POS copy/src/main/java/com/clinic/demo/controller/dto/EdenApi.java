@@ -14,6 +14,7 @@ public final class EdenApi {
 
     public record LoginRequest(@NotNull UUID staffId, @NotBlank @Pattern(regexp = "\\d{4}") String pin) {}
     public record RefreshRequest(@NotBlank String refresh) {}
+    public record LogoutRequest(@NotBlank String refresh) {}
     public record ElevationRequest(@NotBlank String password, String screen) {}
     public record TokenPair(String token, String refresh) {}
     public record LoginResponse(String token, String refresh, StaffDto staff, ClinicDto clinic, OffsetDateTime serverTime) {}
@@ -27,6 +28,10 @@ public final class EdenApi {
             Integer roundingStep, @Min(0) Integer creditLimitMmk, String consentMode, Boolean receiptQr,
             Boolean receiptNextVisit, String receiptTemplate, String receiptHeaderFont, String receiptDivider) {}
     public record StaffDto(UUID id, String name, String role, boolean takesBookings, boolean active) {}
+    public record StaffAccountInput(@NotBlank String name, @NotBlank String phone,
+            @NotBlank @Pattern(regexp = "\\d{4}") String pin, @Email @NotBlank String email,
+            @NotBlank @Size(min = 8) String password, @NotBlank @Pattern(regexp = "admin|staff") String role,
+            Boolean takesBookings) {}
     public record ServiceDto(UUID id, String category, String nameMm, String nameEn, long price,
             Integer durationMin, boolean requiresLot, Integer defaultFollowupDays, boolean active) {}
     public record ProductDto(UUID id, String name, String category, String subcategory, int sortOrder,
@@ -62,6 +67,7 @@ public final class EdenApi {
             LocalDate followupDate, String deviceId, Boolean createdOffline, String no, String status,
             Boolean needsReview, String reviewReason, OffsetDateTime receivedAt) {}
     public record SaleEnvelope(SaleDto sale, boolean replayed) {}
+    public record VoidSaleRequest(String reason) {}
     public record PaymentEnvelope(PaymentDto payment, boolean replayed) {}
 
     public record StockReceive(@NotNull UUID id, @NotNull UUID productId, @NotNull BigDecimal qty,
@@ -77,6 +83,12 @@ public final class EdenApi {
     public record ContactDto(@NotNull UUID id, @NotNull UUID patientId, UUID saleId, OffsetDateTime at,
             @NotBlank String channel, @NotBlank String direction, String outcome, String note, Boolean automated) {}
     public record ContactEnvelope(ContactDto contact, boolean replayed) {}
+
+    public record ClinicalRecordInput(@NotNull UUID staffId, String visitNotes, String prescriptions,
+            String injectionMap, String consents, String mediaKeys, String contactLog) {}
+    public record ClinicalRecordDto(UUID id, UUID patientId, UUID staffId, String visitNotes,
+            String prescriptions, String injectionMap, String consents, String mediaKeys,
+            String contactLog, OffsetDateTime createdAt) {}
 
     public record Bootstrap(ClinicDto clinic, List<StaffDto> staff, List<ServiceDto> services,
             List<ProductDto> products, List<PatientDto> patients, List<AppointmentDto> appointments,

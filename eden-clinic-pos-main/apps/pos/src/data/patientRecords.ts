@@ -1,6 +1,7 @@
 import type { ClinicDb } from '@/data/db';
 import { enqueueOutbox } from '@/data/outbox';
-import type { PatientRow } from '@/data/types';
+import type { ApiClient } from '@/data/api';
+import { toLocalPatient, toWirePatient, type PatientRow } from '@/data/types';
 
 export type CreatePatientInput = {
   id: string;
@@ -47,4 +48,11 @@ export async function createPatient(db: ClinicDb, input: CreatePatientInput): Pr
   });
 
   return { patient, outboxUuid };
+}
+
+export async function updatePatient(input: { db: ClinicDb; api: Pick<ApiClient, 'updatePatient'>; patient: PatientRow }): Promise<PatientRow> {
+  const confirmed = await input.api.updatePatient(input.patient.id, toWirePatient(input.patient));
+  const row = toLocalPatient(confirmed);
+  await input.db.patients.put(row);
+  return row;
 }

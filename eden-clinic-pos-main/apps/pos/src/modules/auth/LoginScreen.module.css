@@ -1,5 +1,6 @@
 .root { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: var(--bg); }
 .cardWrap { display: grid; width: min(100%, 440px); gap: 16px; }
+.setupFields { display: grid; gap: 12px; width: 100%; }
 .card, .loadingCard { display: grid; gap: 20px; padding: 28px; }
 .header { display: grid; gap: 6px; }
 .header p { margin: 0; color: var(--brand); font-size: 13px; font-weight: 700; }

@@ -85,6 +85,22 @@ export async function updateExistingProduct(input: {
   return existing === undefined ? row : { ...row, lots: existing.lots };
 }
 
+export async function adjustExistingStock(input: {
+  db: ClinicDb;
+  api: Pick<ApiClient, 'adjustStock'>;
+  productId: string;
+  delta: number;
+  reason: 'adjust' | 'waste' | 'expiry';
+  elevationToken: string;
+}): Promise<ProductRow> {
+  const confirmed = await input.api.adjustStock({ product_id: input.productId, delta: input.delta, reason: input.reason }, input.elevationToken);
+  const row = toLocalProduct(confirmed);
+  const existing = await input.db.products.get(input.productId);
+  const saved = existing === undefined ? row : { ...row, lots: existing.lots };
+  await input.db.products.put(saved);
+  return saved;
+}
+
 export async function hasPendingProductCreate(db: Pick<ClinicDb, 'outbox'>, productId: string): Promise<boolean> {
   const rows = await db.outbox.toArray();
   return rows.some((row) => row.status !== 'done'

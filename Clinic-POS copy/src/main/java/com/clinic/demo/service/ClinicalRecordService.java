@@ -2,6 +2,7 @@ package com.clinic.demo.service;
 
 import com.clinic.demo.controller.dto.ClinicApi.ClinicalRecordInput;
 import com.clinic.demo.controller.dto.ClinicApi.ClinicalRecordResponse;
+import com.clinic.demo.controller.dto.EdenApi.ClinicalRecordDto;
 import com.clinic.demo.entity.*;
 import com.clinic.demo.exception.ResourceNotFoundException;
 import com.clinic.demo.repo.*;
@@ -46,6 +47,31 @@ public class ClinicalRecordService {
         return response(record);
     }
 
+    @Transactional
+    public List<ClinicalRecordDto> listForFrontend(UUID clinicId, UUID patientId, String email, UUID token) {
+        Account account = elevationService.requireValid(clinicId, email, token);
+        Patient patient = requirePatient(clinicId, patientId);
+        log(account, patient, "READ_CLINICAL_RECORDS");
+        return clinicalRecordRepository.findAllByClinicIdAndPatientIdOrderByCreatedAtDesc(clinicId, patientId)
+                .stream().map(this::frontendResponse).toList();
+    }
+
+    @Transactional
+    public ClinicalRecordDto createForFrontend(UUID clinicId, UUID patientId, String email, UUID token,
+                                                com.clinic.demo.controller.dto.EdenApi.ClinicalRecordInput input) {
+        Account account = elevationService.requireValid(clinicId, email, token);
+        Patient patient = requirePatient(clinicId, patientId);
+        Staff staff = staffRepository.findByIdAndClinicId(input.staffId(), clinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", input.staffId().toString()));
+        ClinicalRecord record = clinicalRecordRepository.save(ClinicalRecord.builder()
+                .clinic(patient.getClinic()).patient(patient).staff(staff)
+                .visitNotes(input.visitNotes()).prescriptions(input.prescriptions())
+                .injectionMap(input.injectionMap()).consents(input.consents())
+                .mediaKeys(input.mediaKeys()).contactLog(input.contactLog()).build());
+        log(account, patient, "CREATE_CLINICAL_RECORD");
+        return frontendResponse(record);
+    }
+
     private Patient requirePatient(UUID clinicId, UUID id) {
         return patientRepository.findByIdAndClinicId(id, clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", id.toString()));
@@ -60,5 +86,11 @@ public class ClinicalRecordService {
         return new ClinicalRecordResponse(r.getId(), r.getPatient().getId(), r.getStaff().getId(),
                 r.getVisitNotes(), r.getPrescriptions(), r.getInjectionMap(), r.getConsents(),
                 r.getMediaKeys(), r.getContactLog(), r.getCreatedAt());
+    }
+
+    private ClinicalRecordDto frontendResponse(ClinicalRecord r) {
+        return new ClinicalRecordDto(r.getId(), r.getPatient().getId(), r.getStaff().getId(),
+                r.getVisitNotes(), r.getPrescriptions(), r.getInjectionMap(), r.getConsents(),
+                r.getMediaKeys(), r.getContactLog(), r.getCreatedAt().atOffset(java.time.ZoneOffset.UTC));
     }
 }

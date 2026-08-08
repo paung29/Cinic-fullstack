@@ -20,6 +20,7 @@ import com.clinic.demo.repo.AccountRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableMethodSecurity
@@ -27,6 +28,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final AppUserDetailsService appUserDetailsService;
+
+    @Value("${app.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}")
+    private String allowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -54,7 +58,7 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PathRequest.toH2Console()).permitAll()
-                        .requestMatchers("/api/setup", "/api/auth/login", "/api/auth/refresh", "/health", "/auth/login", "/auth/refresh").permitAll()
+                        .requestMatchers("/api/setup", "/api/auth/login", "/api/auth/refresh", "/health", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(securityExceptionHandler)
@@ -67,7 +71,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(java.util.List.of("http://localhost:*", "http://127.0.0.1:*", "https://*"));
+        config.setAllowedOriginPatterns(java.util.Arrays.stream(allowedOrigins.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList());
         config.setAllowedMethods(java.util.List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "X-Elevation"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

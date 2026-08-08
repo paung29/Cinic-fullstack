@@ -61,7 +61,7 @@ function seed() {
       { id: 'c1', code: 'P-00001', name: 'Ma Thida', phone: '09 771 234 560', sex: 'F', allergies: 'Lidocaine', alert_note: null, telegram_linked: true, followup_date: null },
       { id: 'c2', code: 'P-00002', name: 'Ko Zaw Min', phone: '09 425 118 220', sex: 'M', allergies: null, alert_note: null, telegram_linked: true, followup_date: null },
     ],
-    appointments: [], sales: {}, payments: {}, contacts: {}, receives: {},
+    appointments: [], sales: {}, payments: {}, contacts: {}, receives: {}, clinicalRecords: {},
     patientSeq: 3, receiptSeq: 1056,
   };
   db.products = db.products.map((product, index) => ({
@@ -163,6 +163,12 @@ const server = http.createServer(async (req, res) => {
     refreshes.delete(b.refresh);
     return send(res, 200, issue(staffId));
   }
+  if (path === '/auth/logout' && req.method === 'POST') {
+    const b = await body(req);
+    if (b?.refresh) refreshes.delete(b.refresh);
+    res.writeHead(204, { 'access-control-allow-origin': '*' });
+    return res.end();
+  }
 
   /* ---- bearer wall ---- */
   const auth = (req.headers.authorization || '').replace(/^Bearer /, '');
@@ -177,6 +183,24 @@ const server = http.createServer(async (req, res) => {
     const t = 'elev_' + uid(); const exp = Date.now() + 15 * 60 * 1000;
     elevations.set(t, exp);
     return send(res, 200, { elevation_token: t, expires_at: new Date(exp).toISOString() });
+  }
+  if (path === '/license' && req.method === 'GET') {
+    const term = new Date(); term.setFullYear(term.getFullYear() + 1);
+    const grace = new Date(term); grace.setDate(grace.getDate() + 90);
+    return send(res, 200, { id: 'license-1', clinic_id: db.clinic.id, stored_status: 'ACTIVE', effective_status: 'ACTIVE', term_ends_on: term.toISOString().slice(0, 10), grace_ends_on: grace.toISOString().slice(0, 10), changed_at: now(), changed_by: 'admin', note: null });
+  }
+  if (path === '/admin/staff-account' && req.method === 'POST') {
+    if (me.role !== 'admin') return err(res, 403, 'ELEVATION_REQUIRED', 'administrator role required');
+    const b = await body(req);
+    if (!b?.name || !/^\d{4}$/.test(b.pin || '') || !b.email || String(b.password || '').length < 8) return err(res, 400, 'MALFORMED', 'staff account fields are invalid');
+    const member = { id: uid(), name: b.name, role: b.role || 'staff', takes_bookings: b.takes_bookings === true, active: true, pin: b.pin, password: b.password };
+    db.staff.push(member); bump('staff', member);
+    return send(res, 200, publicStaff(member));
+  }
+  if (path === '/export' && req.method === 'POST') {
+    const b = await body(req);
+    if (b?.password !== 'eden') return err(res, 400, 'BUSINESS_RULE', 'Admin password is incorrect.');
+    return send(res, 200, { clinicId: db.clinic.id, patients: db.patients, staff: db.staff.map(publicStaff), catalogue: [...db.services, ...db.products], sales: Object.values(db.sales) });
   }
 
   if (path === '/clinic' && req.method === 'PATCH') {
@@ -268,6 +292,18 @@ const server = http.createServer(async (req, res) => {
     Object.assign(p, await body(req) || {}); bump('patient', p);
     return send(res, 200, p);
   }
+  if ((m = path.match(/^\/patients\/([^/]+)\/clinical-records$/)) && req.method === 'GET') {
+    if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
+    return send(res, 200, db.clinicalRecords[m[1]] || []);
+  }
+  if ((m = path.match(/^\/patients\/([^/]+)\/clinical-records$/)) && req.method === 'POST') {
+    if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
+    const b = await body(req);
+    if (!b?.staff_id) return err(res, 400, 'MALFORMED', 'staff_id is required');
+    const record = { id: uid(), patient_id: m[1], created_at: now(), ...b };
+    db.clinicalRecords[m[1]] = [record, ...(db.clinicalRecords[m[1]] || [])];
+    return send(res, 200, record);
+  }
 
   /* ---- PRODUCTS: idempotent + barcode merge ---- */
   if (path === '/products' && req.method === 'POST') {
@@ -320,7 +356,7 @@ const server = http.createServer(async (req, res) => {
     const b = await body(req);
     const p = db.products.find(x => x.id === b?.product_id); if (!p) return err(res, 404, 'NOT_FOUND', 'unknown product');
     p.stock_qty = Math.max(0, p.stock_qty + b.delta); bump('product', p);
-    return send(res, 200, { product: p });
+    return send(res, 200, p);
   }
 
   /* ---- BARCODE LOOKUP (miss = 200 found:false) ---- */
@@ -369,10 +405,14 @@ const server = http.createServer(async (req, res) => {
     if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
     const sales = Object.values(db.sales).filter(s => s.status === 'completed');
     const collected = sales.reduce((a, s) => a + (s.payments || []).reduce((x, p) => x + p.amount, 0), 0);
+    const delivered = sales.reduce((a, s) => a + s.total, 0);
+    const newCredit = Math.max(0, delivered - collected);
     return send(res, 200, {
       date: url.searchParams.get('date'), collected,
-      delivered: sales.reduce((a, s) => a + s.total, 0),
-      new_credit: sales.reduce((a, s) => a + (s.credit || 0), 0),
+      delivered,
+      new_credit: newCredit,
+      outstanding: newCredit,
+      sales: sales.length,
       needs_review_count: sales.filter(s => s.needs_review).length,
     });
   }

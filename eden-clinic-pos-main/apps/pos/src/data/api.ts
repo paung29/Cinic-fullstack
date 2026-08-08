@@ -10,11 +10,15 @@ import {
   clinicSchema,
   contactResponseSchema,
   contactSchema,
+  clinicalRecordInputSchema,
+  clinicalRecordSchema,
+  clinicalRecordsSchema,
   deltaSchema,
   dailyReportSchema,
   elevationResponseSchema,
   followupsSchema,
   healthSchema,
+  licenseSchema,
   loginResponseSchema,
   loginSchema,
   patientResponseSchema,
@@ -29,6 +33,9 @@ import {
   stockReceiveResponseSchema,
   stockReceiveSchema,
   stockAdjustSchema,
+  staffAccountInputSchema,
+  staffSchema,
+  serverExportSchema,
   type AppointmentResponseWire,
   type AppointmentStatus,
   type AppointmentWire,
@@ -38,11 +45,14 @@ import {
   type ClinicWire,
   type ContactResponseWire,
   type ContactWire,
+  type ClinicalRecordInputWire,
+  type ClinicalRecordWire,
   type DeltaWire,
   type DailyReportWire,
   type ElevationResponseWire,
   type FollowupWire,
   type HealthWire,
+  type LicenseWire,
   type LoginResponseWire,
   type LoginWire,
   type PatientResponseWire,
@@ -57,6 +67,9 @@ import {
   type StockReceiveResponseWire,
   type StockReceiveWire,
   type StockAdjustWire,
+  type StaffAccountInputWire,
+  type StaffWire,
+  type JsonValue,
 } from '@/data/types';
 
 export interface SessionProvider {
@@ -98,6 +111,11 @@ export interface ApiClient {
   followups(from?: string, to?: string): Promise<FollowupWire[]>;
   dailyReport(date: string, elevationToken: string): Promise<DailyReportWire>;
   lookupBarcode(code: string): Promise<BarcodeLookupWire>;
+  clinicalRecords?(patientId: string, elevationToken: string): Promise<ClinicalRecordWire[]>;
+  createClinicalRecord?(patientId: string, input: ClinicalRecordInputWire, elevationToken: string): Promise<ClinicalRecordWire>;
+  createStaffAccount?(input: StaffAccountInputWire): Promise<StaffWire>;
+  license?(): Promise<LicenseWire>;
+  exportData?(password: string): Promise<Record<string, JsonValue>>;
   dispatch(item: OutboxDispatch): Promise<OutboxDispatchResult>;
 }
 
@@ -340,6 +358,34 @@ export function createApiClient(options: {
         schema: barcodeLookupSchema,
         protected: true,
       });
+    },
+    clinicalRecords(patientId, elevationToken): Promise<ClinicalRecordWire[]> {
+      return request({
+        method: 'GET',
+        path: `/patients/${encodeURIComponent(patientId)}/clinical-records`,
+        schema: clinicalRecordsSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    createClinicalRecord(patientId, input, elevationToken): Promise<ClinicalRecordWire> {
+      return request({
+        method: 'POST',
+        path: `/patients/${encodeURIComponent(patientId)}/clinical-records`,
+        body: clinicalRecordInputSchema.parse(input),
+        schema: clinicalRecordSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    createStaffAccount(input): Promise<StaffWire> {
+      return request({ method: 'POST', path: '/admin/staff-account', body: staffAccountInputSchema.parse(input), schema: staffSchema, protected: true });
+    },
+    license(): Promise<LicenseWire> {
+      return request({ method: 'GET', path: '/license', schema: licenseSchema, protected: true });
+    },
+    exportData(password): Promise<Record<string, JsonValue>> {
+      return request({ method: 'POST', path: '/export', body: { password }, schema: serverExportSchema, protected: true });
     },
     dispatch(item): Promise<OutboxDispatchResult> {
       switch (item.kind) {

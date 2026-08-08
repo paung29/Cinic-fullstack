@@ -68,6 +68,9 @@ public class Sale {
     @Column(name = "validation_message", columnDefinition = "TEXT")
     private String validationMessage;
 
+    @Column(name = "void_reason", columnDefinition = "TEXT")
+    private String voidReason;
+
     @Column(name = "created_offline", nullable = false)
     @Builder.Default
     private Boolean createdOffline = false;

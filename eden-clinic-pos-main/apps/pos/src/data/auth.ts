@@ -4,15 +4,21 @@ import {
   loginSchema,
   refreshRequestSchema,
   refreshResponseSchema,
+  setupRequestSchema,
+  setupResponseSchema,
   type LoginResponseWire,
   type LoginWire,
   type RefreshResponseWire,
+  type SetupRequestWire,
+  type SetupResponseWire,
 } from '@/data/types';
 import { ApiHttpError, ApiNetworkError } from '@/data/api';
 
 export type AuthClient = {
   login(input: LoginWire): Promise<LoginResponseWire>;
   refresh(refreshToken: string): Promise<RefreshResponseWire>;
+  setup?(input: SetupRequestWire): Promise<SetupResponseWire>;
+  logout?(refreshToken: string): Promise<void>;
 };
 
 export function createAuthClient(options: { baseUrl: string; fetchFn?: typeof fetch }): AuthClient {
@@ -42,12 +48,35 @@ export function createAuthClient(options: { baseUrl: string; fetchFn?: typeof fe
     return parse(payload);
   }
 
+  async function requestNoContent(path: string, body: unknown): Promise<void> {
+    let response: Response;
+    try {
+      response = await fetchFn(`${baseUrl}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      throw new ApiNetworkError('Network request failed.', { cause: error });
+    }
+    if (!response.ok) {
+      const error = apiErrorSchema.parse(await response.json());
+      throw new ApiHttpError(error.status, error.code, error.message);
+    }
+  }
+
   return {
     login(input) {
       return request('/auth/login', loginSchema.parse(input), loginResponseSchema.parse);
     },
     refresh(refreshToken) {
       return request('/auth/refresh', refreshRequestSchema.parse({ refresh: refreshToken }), refreshResponseSchema.parse);
+    },
+    setup(input) {
+      return request('/api/setup', setupRequestSchema.parse(input), setupResponseSchema.parse);
+    },
+    logout(refreshToken) {
+      return requestNoContent('/auth/logout', { refresh: refreshToken });
     },
   };
 }

@@ -63,6 +63,30 @@ export const staffSchema = z.object({
   active: z.boolean().optional(),
 });
 
+export const staffAccountInputSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().min(1),
+  pin: z.string().regex(/^\d{4}$/),
+  email: z.email(),
+  password: z.string().min(8),
+  role: z.enum(['admin', 'staff']),
+  takes_bookings: z.boolean().optional(),
+});
+
+export const licenseSchema = z.object({
+  id: z.string(),
+  clinic_id: z.string(),
+  stored_status: z.string(),
+  effective_status: z.string(),
+  term_ends_on: dateSchema,
+  grace_ends_on: dateSchema,
+  changed_at: z.string(),
+  changed_by: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+});
+
+export const serverExportSchema = jsonObjectSchema;
+
 export const serviceSchema = z.object({
   id: z.string(),
   category: z.string().optional(),
@@ -270,6 +294,43 @@ export const refreshResponseSchema = z.object({
   refresh: z.string(),
 });
 
+export const setupRequestSchema = z.object({
+  clinic_name: z.string().min(1),
+  clinic_phone: z.string().default(''),
+  clinic_address: z.string().default(''),
+  time_zone: z.string().min(1),
+  admin_name: z.string().min(1),
+  admin_phone: z.string().min(1),
+  email: z.email(),
+  password: z.string().min(8),
+  pin: z.string().regex(/^\d{4}$/),
+});
+
+export const setupResponseSchema = z.object({
+  clinic_id: z.string(),
+  staff_id: z.string(),
+  account_id: z.string(),
+  email: z.string(),
+});
+
+export const clinicalRecordInputSchema = z.object({
+  staff_id: z.string(),
+  visit_notes: z.string().nullable().optional(),
+  prescriptions: z.string().nullable().optional(),
+  injection_map: z.string().nullable().optional(),
+  consents: z.string().nullable().optional(),
+  media_keys: z.string().nullable().optional(),
+  contact_log: z.string().nullable().optional(),
+});
+
+export const clinicalRecordSchema = clinicalRecordInputSchema.extend({
+  id: z.string(),
+  patient_id: z.string(),
+  created_at: dateTimeSchema,
+});
+
+export const clinicalRecordsSchema = z.array(clinicalRecordSchema);
+
 export const elevationResponseSchema = z.object({
   elevation_token: z.string(),
   expires_at: dateTimeSchema,
@@ -353,6 +414,8 @@ export type HealthWire = z.infer<typeof healthSchema>;
 export type ClinicWire = z.infer<typeof clinicSchema>;
 export type ClinicPatchWire = z.infer<typeof clinicPatchSchema>;
 export type StaffWire = z.infer<typeof staffSchema>;
+export type StaffAccountInputWire = z.infer<typeof staffAccountInputSchema>;
+export type LicenseWire = z.infer<typeof licenseSchema>;
 export type ServiceWire = z.infer<typeof serviceSchema>;
 export type ProductWire = z.infer<typeof productSchema>;
 export type ProductPatchWire = z.infer<typeof productPatchSchema>;
@@ -373,6 +436,10 @@ export type LoginWire = z.infer<typeof loginSchema>;
 export type LoginResponseWire = z.infer<typeof loginResponseSchema>;
 export type RefreshRequestWire = z.infer<typeof refreshRequestSchema>;
 export type RefreshResponseWire = z.infer<typeof refreshResponseSchema>;
+export type SetupRequestWire = z.input<typeof setupRequestSchema>;
+export type SetupResponseWire = z.infer<typeof setupResponseSchema>;
+export type ClinicalRecordInputWire = z.infer<typeof clinicalRecordInputSchema>;
+export type ClinicalRecordWire = z.infer<typeof clinicalRecordSchema>;
 export type ElevationResponseWire = z.infer<typeof elevationResponseSchema>;
 export type BootstrapWire = z.infer<typeof bootstrapSchema>;
 export type DeltaChangeWire = z.infer<typeof deltaChangeSchema>;

@@ -136,7 +136,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
                 return <button className={styles.patientRow} data-testid={`client-row-${patient.id}`} key={patient.id} onClick={() => selectPatient(patient.id)} type="button"><span><strong>{patient.name}</strong><small>{patient.code ?? t('clients.profile.localCode')} · {patient.phone}</small></span><strong className={outstanding > 0 ? styles.outstanding : undefined}>{outstanding === 0 ? t('clients.profile.none') : fmtMMK(outstanding)}</strong></button>;
               })}</div>}
             </>
-          ) : <PatientProfileScreen onBook={() => router.push(`/calendar?patient=${encodeURIComponent(selectedPatient.id)}`)} onNewSale={() => router.push(`/sale?patient=${encodeURIComponent(selectedPatient.id)}`)} patient={selectedPatient} sales={sales.filter((sale) => sale.patientId === selectedPatient.id)} />}
+          ) : <PatientProfileScreen onBook={() => router.push(`/calendar?patient=${encodeURIComponent(selectedPatient.id)}`)} onNewSale={() => router.push(`/sale?patient=${encodeURIComponent(selectedPatient.id)}`)} onUpdated={() => { void refreshLocal(); }} patient={selectedPatient} sales={sales.filter((sale) => sale.patientId === selectedPatient.id)} />}
         </div>
       </AppShell>
       <Modal closeLabel={t('modal.close')} onClose={() => setNewPatientOpen(false)} open={newPatientOpen} testId="new-patient-modal" title={t('clients.new')}>

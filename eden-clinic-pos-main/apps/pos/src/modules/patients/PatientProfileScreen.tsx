@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useClinicRuntime } from '@/app/providers';
 import { fmtMMK, patientOutstanding } from '@/data/money';
+import { updatePatient } from '@/data/patientRecords';
 import { useClinicAddon } from '@/flags/useClinicAddon';
 import { useT } from '@/i18n';
 import { Button, Card, Input, Modal, StatTile, Tag } from '@/ui';
-import type { PatientRow, SaleRow } from '@/data/types';
+import type { ClinicalRecordWire, PatientRow, SaleRow } from '@/data/types';
 import { counterAlertText } from './patientSelectors';
 import styles from './PatientProfileScreen.module.css';
 
@@ -15,11 +16,13 @@ export function PatientProfileScreen({
   sales,
   onBook,
   onNewSale,
+  onUpdated,
 }: {
   patient: PatientRow;
   sales: readonly SaleRow[];
   onBook(): void;
   onNewSale(): void;
+  onUpdated(): void;
 }) {
   const runtime = useClinicRuntime();
   const { t } = useT();
@@ -28,6 +31,14 @@ export function PatientProfileScreen({
   const [password, setPassword] = useState('');
   const [unlocked, setUnlocked] = useState(false);
   const [failedUnlock, setFailedUnlock] = useState(false);
+  const [clinicalRecords, setClinicalRecords] = useState<ClinicalRecordWire[]>([]);
+  const [visitNotes, setVisitNotes] = useState('');
+  const [prescriptions, setPrescriptions] = useState('');
+  const [clinicalBusy, setClinicalBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState(patient.name);
+  const [editPhone, setEditPhone] = useState(patient.phone);
+  const [editAllergies, setEditAllergies] = useState(patient.allergies ?? '');
   const alert = counterAlertText(patient);
   const outstanding = patientOutstanding(sales);
   const visits = sales.filter((sale) => sale.status === 'completed').length;
@@ -35,6 +46,10 @@ export function PatientProfileScreen({
   const unlockClinical = async () => {
     try {
       await runtime.elevation.elevate(password, 'patient-clinical-history');
+      const elevation = runtime.elevation.state();
+      if (elevation.kind !== 'active') throw new Error('Elevation did not become active.');
+      if (runtime.api.clinicalRecords === undefined) throw new Error('Clinical records are unavailable.');
+      setClinicalRecords(await runtime.api.clinicalRecords(patient.id, elevation.token));
       setUnlocked(true);
       setUnlockOpen(false);
       setPassword('');
@@ -42,6 +57,31 @@ export function PatientProfileScreen({
     } catch {
       setFailedUnlock(true);
     }
+  };
+
+  const addClinicalRecord = async () => {
+    const elevation = runtime.elevation.state();
+    const session = runtime.session.state();
+    if (elevation.kind !== 'active' || session.kind !== 'active' || visitNotes.trim() === '' || runtime.api.createClinicalRecord === undefined) return;
+    setClinicalBusy(true);
+    try {
+      const created = await runtime.api.createClinicalRecord(patient.id, {
+        staff_id: session.identity.staffId,
+        visit_notes: visitNotes.trim(),
+        prescriptions: prescriptions.trim() === '' ? null : prescriptions.trim(),
+      }, elevation.token);
+      setClinicalRecords((current) => [created, ...current]);
+      setVisitNotes('');
+      setPrescriptions('');
+    } finally {
+      setClinicalBusy(false);
+    }
+  };
+
+  const savePatient = async () => {
+    await updatePatient({ db: runtime.db, api: runtime.api, patient: { ...patient, name: editName.trim(), phone: editPhone.trim(), allergies: editAllergies.trim() || null } });
+    setEditOpen(false);
+    onUpdated();
   };
 
   return (
@@ -55,6 +95,7 @@ export function PatientProfileScreen({
         <div className={styles.actions}>
           <Button data-testid="patient-profile-book" onClick={onBook} pill size="sm" variant="ghost">{t('clients.profile.book')}</Button>
           <Button data-testid="patient-profile-new-sale" onClick={onNewSale} pill size="sm">{t('clients.profile.newSale')}</Button>
+          <Button data-testid="patient-profile-edit" onClick={() => setEditOpen(true)} pill size="sm" variant="ghost">Edit</Button>
         </div>
       </Card>
       {alert === undefined ? null : <Card className={styles.alert} data-testid="allergy-banner"><strong>{t('clients.profile.alert')}</strong><span>{alert}</span></Card>}
@@ -68,7 +109,12 @@ export function PatientProfileScreen({
           <div><p>{t('clients.profile.clinical')}</p><h2>{t('clients.profile.clinicalHistory')}</h2></div>
           {unlocked ? <Tag tone="ok">{t('clients.profile.unlocked')}</Tag> : <Button data-testid="unlock-clinical" onClick={() => setUnlockOpen(true)} pill size="sm" variant="ghost">{t('clients.profile.unlock')}</Button>}
         </div>
-        {unlocked ? <div data-testid="clinical-record">{sales.length === 0 ? <p>{t('clients.profile.noVisits')}</p> : sales.map((sale) => <p key={sale.id}>{sale.lines.map((line) => line.nameSnapshot).join(', ')}</p>)}</div> : <p data-testid="clinical-locked">{t('clients.profile.locked')}</p>}
+        {unlocked ? <div className={styles.clinicalRecords} data-testid="clinical-record">
+          {clinicalRecords.length === 0 ? <p>{t('clients.profile.noVisits')}</p> : clinicalRecords.map((record) => <Card compact key={record.id}><strong>{new Date(record.created_at).toLocaleString()}</strong><p>{record.visit_notes}</p>{record.prescriptions ? <small>{record.prescriptions}</small> : null}</Card>)}
+          <label><span>Visit notes</span><Input data-testid="clinical-visit-notes" onChange={(event) => setVisitNotes(event.target.value)} value={visitNotes} /></label>
+          <label><span>Prescriptions</span><Input data-testid="clinical-prescriptions" onChange={(event) => setPrescriptions(event.target.value)} value={prescriptions} /></label>
+          <Button data-testid="clinical-record-save" disabled={clinicalBusy || visitNotes.trim() === ''} onClick={() => { void addClinicalRecord(); }}>Save clinical record</Button>
+        </div> : <p data-testid="clinical-locked">{t('clients.profile.locked')}</p>}
         {unlocked && recallEnabled ? <Card className={styles.recall} data-testid="recall-card"><Tag tone="ai">{t('clients.profile.recall')}</Tag><p>{t('clients.profile.recallBody')}</p></Card> : null}
       </Card>
       <Modal closeLabel={t('modal.close')} onClose={() => { setUnlockOpen(false); setFailedUnlock(false); }} open={unlockOpen} testId="clinical-elevation-modal" title={t('clients.profile.unlock')}>
@@ -76,6 +122,14 @@ export function PatientProfileScreen({
           <Input aria-label={t('clients.profile.password')} data-testid="clinical-elevation-password" onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
           {failedUnlock ? <p role="status">{t('clients.profile.unlockFailed')}</p> : null}
           <Button data-testid="clinical-elevation-confirm" onClick={() => { void unlockClinical(); }}>{t('clients.profile.unlock')}</Button>
+        </div>
+      </Modal>
+      <Modal closeLabel={t('modal.close')} onClose={() => setEditOpen(false)} open={editOpen} testId="patient-edit-modal" title="Edit patient">
+        <div className={styles.unlockForm}>
+          <label><span>Name</span><Input data-testid="patient-edit-name" onChange={(event) => setEditName(event.target.value)} value={editName} /></label>
+          <label><span>Phone</span><Input data-testid="patient-edit-phone" onChange={(event) => setEditPhone(event.target.value)} value={editPhone} /></label>
+          <label><span>Allergies</span><Input onChange={(event) => setEditAllergies(event.target.value)} value={editAllergies} /></label>
+          <Button data-testid="patient-edit-save" disabled={editName.trim() === '' || editPhone.trim() === ''} onClick={() => { void savePatient(); }}>Save</Button>
         </div>
       </Modal>
     </section>
