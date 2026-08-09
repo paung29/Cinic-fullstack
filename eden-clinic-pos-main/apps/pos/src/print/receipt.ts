@@ -166,6 +166,8 @@ export function buildReceiptLayout(input: ReceiptRenderInput): ReceiptLayout {
   };
 }
 
+export const QR_QUIET_MODULES = 4;
+
 export function qrModuleScale(matrix: QrMatrix, width: ReceiptLayout['width']): number {
   // Whole pixels per module only: a fractional scale lands module edges
   // mid-dot and the printer smears them into an unscannable block.
@@ -179,8 +181,13 @@ function withMetrics(run: UnmeasuredReceiptRun, width: ReceiptLayout['width'], a
     return { ...run, fontSize: 0, advance: height + 10, spacingBefore: 0 };
   }
   if (run.kind === 'qr-code') {
-    const side = assets.qr === undefined ? 0 : assets.qr.size * qrModuleScale(assets.qr, width);
-    return { ...run, fontSize: 0, advance: side + 10, spacingBefore: 10 };
+    if (assets.qr === undefined) return { ...run, fontSize: 0, advance: 0, spacingBefore: 0 };
+    const scale = qrModuleScale(assets.qr, width);
+    // The spec requires a 4-module light margin on every side; without it
+    // scanners lock on unreliably, and the horizontal margin comes free from
+    // centring but the vertical one has to be reserved here.
+    const quiet = QR_QUIET_MODULES * scale;
+    return { ...run, fontSize: 0, advance: assets.qr.size * scale + quiet, spacingBefore: quiet };
   }
   if (run.kind === 'contact') return { ...run, fontSize: 15, advance: 22, spacingBefore: 0 };
   if (run.kind === 'copy-marker') {

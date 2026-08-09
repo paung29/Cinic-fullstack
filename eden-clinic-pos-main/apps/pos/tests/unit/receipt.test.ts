@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { buildReceiptLayout, renderReceipt, waitForReceiptFonts, type ReceiptRenderInput } from '@/print/receipt';
+import { buildReceiptLayout, qrModuleScale, QR_QUIET_MODULES, renderReceipt, waitForReceiptFonts, type ReceiptRenderInput } from '@/print/receipt';
 
 const input: ReceiptRenderInput = {
   sale: {
@@ -168,5 +168,38 @@ describe('receipt branding', () => {
     expect(buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, receiptHeaderFont: 'elegant' } }).headerFont).toBe('Cormorant Garamond');
     expect(buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, receiptHeaderFont: 'geometric' } }).headerFont).toBe('Montserrat');
     expect(buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, name: 'ဧဒင်ဆေးခန်း', receiptHeaderFont: 'geometric' } }).headerFont).toBe('Padauk');
+  });
+});
+
+describe('qr quiet zone', () => {
+  const branded: ReceiptRenderInput = {
+    ...input,
+    clinic: { ...input.clinic, telegramHandle: 'edenclinic' },
+  };
+
+  test('reserves the four-module light margin scanners need above and below', () => {
+    const layout = buildReceiptLayout(branded);
+    const qrRun = layout.runs.find((run) => run.kind === 'qr-code');
+    const matrix = layout.qr;
+
+    expect(qrRun).toBeDefined();
+    expect(matrix).toBeDefined();
+    if (qrRun === undefined || matrix === undefined) return;
+
+    const scale = qrModuleScale(matrix, 576);
+    const quiet = QR_QUIET_MODULES * scale;
+    expect(qrRun.spacingBefore).toBe(quiet);
+    expect(qrRun.advance - matrix.size * scale).toBe(quiet);
+  });
+
+  test('uses a whole number of pixels per module so edges land on dots', () => {
+    const matrix = buildReceiptLayout(branded).qr;
+    if (matrix === undefined) throw new Error('expected a qr matrix');
+    for (const width of [576, 384] as const) {
+      const scale = qrModuleScale(matrix, width);
+      expect(Number.isInteger(scale)).toBe(true);
+      expect(scale).toBeGreaterThanOrEqual(2);
+      expect(matrix.size * scale).toBeLessThanOrEqual(width);
+    }
   });
 });
