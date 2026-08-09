@@ -233,6 +233,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
               {voidableSales.length === 0 ? <p className={styles.emptyLine}>{t('ops.void.empty')}</p> : <>
                 <label className={styles.field}><span>{t('ops.void.sale')}</span>
                   <Select data-testid="void-sale-select" onChange={(event) => setSaleId(event.target.value)} value={saleId}>
+                    <option value="" />
                     {voidableSales.map((sale) => <option key={sale.id} value={sale.id}>{sale.no ?? sale.id.slice(0, 8)} · {fmtMMK(sale.total)}</option>)}
                   </Select>
                 </label>
@@ -248,6 +249,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
               <h2>{t('ops.adjust.title')}</h2>
               <label className={styles.field}><span>{t('ops.adjust.product')}</span>
                 <Select data-testid="adjust-product-select" onChange={(event) => setProductId(event.target.value)} value={productId}>
+                  <option value="" />
                   {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.stockQty})</option>)}
                 </Select>
               </label>
