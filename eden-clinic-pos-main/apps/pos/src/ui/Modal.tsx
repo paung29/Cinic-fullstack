@@ -4,9 +4,9 @@ import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 
-export type ModalProps = { open: boolean; title: string; closeLabel: string; onClose(): void; children: ReactNode; testId?: string };
+export type ModalProps = { open: boolean; title: string; closeLabel: string; onClose(): void; children: ReactNode; testId?: string; size?: 'md' | 'lg' };
 
-export function Modal({ children, closeLabel, onClose, open, testId = 'demo-modal', title }: ModalProps) {
+export function Modal({ children, closeLabel, onClose, open, size = 'md', testId = 'demo-modal', title }: ModalProps) {
   useEffect(() => {
     if (!open) return undefined;
 
@@ -30,7 +30,7 @@ export function Modal({ children, closeLabel, onClose, open, testId = 'demo-moda
       }}
       role="presentation"
     >
-      <section aria-modal="true" className={styles.modal} data-testid={testId} role="dialog">
+      <section aria-modal="true" className={[styles.modal, size === 'lg' ? styles.lg : ''].filter(Boolean).join(' ')} data-testid={testId} role="dialog">
         <header className={styles.header}>
           <h2>{title}</h2>
           <button aria-label={closeLabel} className={styles.close} onClick={onClose} type="button">

@@ -550,6 +550,19 @@ export type PatientRow = {
   followupDate: string | null;
 };
 
+export type PhotoGrade = 'none' | 'slight' | 'moderate' | 'marked';
+
+export type PhotoSessionRow = {
+  id: string;
+  patientId: string;
+  title: string;
+  at: string;
+  note: string;
+  grade: PhotoGrade | null;
+  before: Blob | null;
+  after: Blob | null;
+};
+
 export type SaleLineRow = {
   id: string;
   kind: 'service' | 'product';

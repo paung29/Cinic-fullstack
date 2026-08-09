@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe('ClinicDb', () => {
-  test('creates isolated v1 databases only when the factory is called', async () => {
+  test('creates isolated databases only when the factory is called', async () => {
     expect(createClinicDb).toBeTypeOf('function');
 
     const firstName = `eden-first-${crypto.randomUUID()}`;
@@ -54,6 +54,7 @@ describe('ClinicDb', () => {
       'meta',
       'outbox',
       'patients',
+      'photoSessions',
       'products',
       'sales',
       'services',

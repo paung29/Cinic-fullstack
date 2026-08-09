@@ -9,6 +9,7 @@ import type {
   MetaRow,
   OutboxRow,
   PatientRow,
+  PhotoSessionRow,
   ProductRow,
   SaleRow,
   ServiceRow,
@@ -23,6 +24,7 @@ export class ClinicDb extends Dexie {
   meta!: Table<MetaRow, string>;
   outbox!: Table<OutboxRow, number>;
   patients!: Table<PatientRow, string>;
+  photoSessions!: Table<PhotoSessionRow, string>;
   products!: Table<ProductRow, string>;
   sales!: Table<SaleRow, string>;
   services!: Table<ServiceRow, string>;
@@ -45,6 +47,12 @@ export class ClinicDb extends Dexie {
       meta: 'key',
     });
 
+    // v2 adds the device-local photo library. Additive only: every v1 store
+    // keeps its schema, so existing clinic databases upgrade in place.
+    this.version(2).stores({
+      photoSessions: 'id, patientId',
+    });
+
     this.appointments = this.table('appointments');
     this.clinic = this.table('clinic');
     this.contacts = this.table('contacts');
@@ -52,6 +60,7 @@ export class ClinicDb extends Dexie {
     this.meta = this.table('meta');
     this.outbox = this.table('outbox');
     this.patients = this.table('patients');
+    this.photoSessions = this.table('photoSessions');
     this.products = this.table('products');
     this.sales = this.table('sales');
     this.services = this.table('services');
