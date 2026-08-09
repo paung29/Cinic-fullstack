@@ -28,11 +28,12 @@ export const clinicSchema = z.object({
   credit_limit_mmk: z.number().int(),
   receipt: jsonObjectSchema,
   receipt_footer: z.string().default(''),
+  telegram_handle: z.string().nullable().default(''),
   logo_url: z.string().default(''),
   receipt_qr: z.boolean().default(true),
   receipt_next_visit: z.boolean().default(true),
   receipt_template: z.enum(['classic', 'modern', 'minimal', 'boxed']).default('classic'),
-  receipt_header_font: z.enum(['sans', 'serif', 'display']).default('sans'),
+  receipt_header_font: z.string().default('sans'),
   receipt_divider: z.enum(['line', 'dots', 'none']).default('line'),
   consent_mode: z.enum(['off', 'warn', 'block']).default('warn'),
   addons: jsonObjectSchema,
@@ -43,6 +44,7 @@ export const clinicPatchSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  telegram_handle: z.string().optional(),
   receipt_footer: z.string().optional(),
   logo_url: z.string().optional(),
   rounding_step: z.union([z.literal(1), z.literal(100), z.literal(500), z.literal(1_000)]).optional(),
@@ -51,7 +53,7 @@ export const clinicPatchSchema = z.object({
   receipt_qr: z.boolean().optional(),
   receipt_next_visit: z.boolean().optional(),
   receipt_template: z.enum(['classic', 'modern', 'minimal', 'boxed']).optional(),
-  receipt_header_font: z.enum(['sans', 'serif', 'display']).optional(),
+  receipt_header_font: z.string().optional(),
   receipt_divider: z.enum(['line', 'dots', 'none']).optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'At least one clinic field is required.' });
 
@@ -480,10 +482,11 @@ export type ClinicRow = {
   receipt: Record<string, JsonValue>;
   receiptFooter: string;
   logoUrl: string;
+  telegramHandle: string;
   receiptQr: boolean;
   receiptNextVisit: boolean;
   receiptTemplate: 'classic' | 'modern' | 'minimal' | 'boxed';
-  receiptHeaderFont: 'sans' | 'serif' | 'display';
+  receiptHeaderFont: string;
   receiptDivider: 'line' | 'dots' | 'none';
   consentMode: 'off' | 'warn' | 'block';
   addons: Record<string, JsonValue>;
@@ -692,6 +695,12 @@ export type MetaRow = {
   value: JsonValue;
 };
 
+// Binary receipt assets live outside `meta` so its value stays JSON-typed.
+export type ReceiptAssetRow = {
+  key: string;
+  blob: Blob;
+};
+
 export type DeferredRemoteChange = {
   entity: z.infer<typeof deltaEntitySchema>;
   op: 'upsert' | 'delete';
@@ -709,6 +718,7 @@ export function toLocalClinic(wire: ClinicWire): ClinicRow {
     receipt: wire.receipt,
     receiptFooter: wire.receipt_footer,
     logoUrl: wire.logo_url,
+    telegramHandle: wire.telegram_handle ?? '',
     receiptQr: wire.receipt_qr,
     receiptNextVisit: wire.receipt_next_visit,
     receiptTemplate: wire.receipt_template,

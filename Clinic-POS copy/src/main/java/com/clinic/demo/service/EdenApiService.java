@@ -107,6 +107,7 @@ public class EdenApiService {
         if (input.receiptQr() != null) c.setReceiptQr(input.receiptQr());
         if (input.receiptNextVisit() != null) c.setReceiptNextVisit(input.receiptNextVisit());
         if (input.receiptTemplate() != null) c.setReceiptTemplate(input.receiptTemplate());
+        if (input.telegramHandle() != null) c.setTelegramHandle(input.telegramHandle());
         if (input.receiptHeaderFont() != null) c.setReceiptHeaderFont(input.receiptHeaderFont());
         if (input.receiptDivider() != null) c.setReceiptDivider(input.receiptDivider());
         ClinicDto result = clinicDto(c);
@@ -464,7 +465,7 @@ public class EdenApiService {
         receipt.put("header", c.getName()); receipt.put("phone", or(c.getPhone(), "")); receipt.put("footer", or(c.getReceiptFooter(), ""));
         receipt.put("logo", or(c.getLogoUrl(), "")); receipt.put("qr", Boolean.TRUE.equals(c.getReceiptQr())); receipt.put("fu", Boolean.TRUE.equals(c.getReceiptNextVisit())); receipt.put("width", 80);
         return new ClinicDto(c.getId(), c.getName(), or(c.getPhone(), ""), or(c.getAddress(), ""), or(c.getRoundingStep(), 500),
-                or(c.getCreditLimitMmk(), 0), receipt, or(c.getReceiptFooter(), ""), or(c.getLogoUrl(), ""),
+                or(c.getCreditLimitMmk(), 0), receipt, or(c.getReceiptFooter(), ""), or(c.getTelegramHandle(), ""), or(c.getLogoUrl(), ""),
                 Boolean.TRUE.equals(c.getReceiptQr()), Boolean.TRUE.equals(c.getReceiptNextVisit()), or(c.getReceiptTemplate(), "classic"),
                 or(c.getReceiptHeaderFont(), "sans"), or(c.getReceiptDivider(), "line"), or(c.getConsentMode(), "warn"),
                 DEFAULT_ADDONS, DEFAULT_FEATURE_FLAGS);

@@ -32,7 +32,7 @@ function seed() {
   db = {
     clinic: {
       id: 'clinic-1', name: 'Eden Aesthetic Clinic', rounding_step: 500, credit_limit_mmk: 100000,
-      phone: '09 000 000 000', address: 'Lashio · Myanmar', receipt_footer: 'ကျေးဇူးတင်ပါသည်', logo_url: '',
+      phone: '09 000 000 000', address: 'Lashio · Myanmar', receipt_footer: 'ကျေးဇူးတင်ပါသည်', telegram_handle: '', logo_url: '',
       receipt_qr: true, receipt_next_visit: true, receipt_template: 'classic', receipt_header_font: 'sans', receipt_divider: 'line', consent_mode: 'warn',
       receipt: { header: 'EDEN AESTHETIC CLINIC', sub: 'အလှပြင်ဆေးခန်း · လားရှိုးမြို့', phone: '09 000 000 000', footer: 'ကျေးဇူးတင်ပါသည်', logo: true, qr: true, fu: true, width: 80 },
       addons: { brief: true, careloop: true, recall: true, outcomes: true, insights: true },
@@ -221,7 +221,7 @@ const server = http.createServer(async (req, res) => {
   if (path === '/clinic' && req.method === 'PATCH') {
     if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
     const b = await body(req);
-    const allowed = ['name', 'phone', 'address', 'receipt_footer', 'logo_url', 'rounding_step', 'credit_limit_mmk', 'consent_mode', 'receipt_qr', 'receipt_next_visit', 'receipt_template', 'receipt_header_font', 'receipt_divider'];
+    const allowed = ['name', 'phone', 'address', 'telegram_handle', 'receipt_footer', 'logo_url', 'rounding_step', 'credit_limit_mmk', 'consent_mode', 'receipt_qr', 'receipt_next_visit', 'receipt_template', 'receipt_header_font', 'receipt_divider'];
     if (!strictPatch(b, allowed)) return err(res, 400, 'MALFORMED', 'clinic update must include only mutable fields');
     if ('rounding_step' in b && !isOneOf(b.rounding_step, [1, 100, 500, 1000])) return err(res, 400, 'MALFORMED', 'invalid rounding_step');
     if ('credit_limit_mmk' in b && (!Number.isInteger(b.credit_limit_mmk) || b.credit_limit_mmk < 0)) return err(res, 400, 'MALFORMED', 'invalid credit_limit_mmk');
@@ -229,7 +229,7 @@ const server = http.createServer(async (req, res) => {
     if ('receipt_template' in b && !isOneOf(b.receipt_template, ['classic', 'modern', 'minimal', 'boxed'])) return err(res, 400, 'MALFORMED', 'invalid receipt_template');
     if ('receipt_header_font' in b && !isOneOf(b.receipt_header_font, ['sans', 'serif', 'display'])) return err(res, 400, 'MALFORMED', 'invalid receipt_header_font');
     if ('receipt_divider' in b && !isOneOf(b.receipt_divider, ['line', 'dots', 'none'])) return err(res, 400, 'MALFORMED', 'invalid receipt_divider');
-    if (['name', 'phone', 'address', 'receipt_footer', 'logo_url'].some(key => key in b && typeof b[key] !== 'string')) return err(res, 400, 'MALFORMED', 'clinic text fields must be strings');
+    if (['name', 'phone', 'address', 'telegram_handle', 'receipt_footer', 'logo_url'].some(key => key in b && typeof b[key] !== 'string')) return err(res, 400, 'MALFORMED', 'clinic text fields must be strings');
     if (['receipt_qr', 'receipt_next_visit'].some(key => key in b && typeof b[key] !== 'boolean')) return err(res, 400, 'MALFORMED', 'receipt options must be booleans');
     Object.assign(db.clinic, b); bump('clinic', db.clinic);
     return send(res, 200, db.clinic);

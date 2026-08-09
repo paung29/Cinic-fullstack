@@ -1,5 +1,8 @@
 import { fmtMMK } from '@/data/money';
 import type { ClinicRow, SaleRow } from '@/data/types';
+import { buildQrMatrix, normalizeTelegramHandle, telegramDisplayHandle, telegramLink, type QrMatrix } from './qr';
+import { RECEIPT_FONTS, headerFamilyFor } from './receiptFonts';
+import type { LogoBitmap } from './receiptLogo';
 
 export type ReceiptPalette = {
   background: string;
@@ -15,14 +18,16 @@ export type ReceiptRenderInput = {
   width: 576 | 384;
   palette: ReceiptPalette;
   copyMarker?: string;
+  /** Pre-dithered brand mark; omitted when the clinic has not uploaded one. */
+  logo?: LogoBitmap;
 };
 
-export type ReceiptHeaderFont = 'sans' | 'serif' | 'display';
+export type ReceiptHeaderFont = string;
 
 export type ReceiptRun = {
-  kind: 'header-latin' | 'header-burmese' | 'body' | 'total' | 'divider' | 'qr' | 'copy-marker';
+  kind: 'header-latin' | 'header-burmese' | 'body' | 'total' | 'divider' | 'qr' | 'copy-marker' | 'contact' | 'logo' | 'qr-code';
   text: string;
-  font: 'Inter' | 'Padauk' | 'Lora' | 'Playfair Display';
+  font: string;
   locale: 'en' | 'my';
   align: 'left' | 'center';
   weight: 400 | 700;
@@ -37,8 +42,10 @@ export type ReceiptLayout = {
   width: 576 | 384;
   height: number;
   template: ClinicRow['receiptTemplate'];
-  headerFont: 'Inter' | 'Lora' | 'Playfair Display';
+  headerFont: string;
   runs: ReceiptRun[];
+  logo?: LogoBitmap;
+  qr?: QrMatrix;
 };
 
 export type RenderedReceipt = {
@@ -76,11 +83,11 @@ export async function waitForReceiptFonts(fonts: Pick<FontFaceSet, 'load'>, head
     fonts.load('400 16px Padauk', burmeseSample),
   ];
 
-  if (headerFont === 'serif') {
-    pending.push(fonts.load('700 24px Lora', latinHeader));
-  }
-  if (headerFont === 'display') {
-    pending.push(fonts.load('700 24px "Playfair Display"', latinHeader));
+  // Only the selected face is fetched; the registry keeps this in step with
+  // the picker automatically as fonts are added.
+  const selected = RECEIPT_FONTS.find((font) => font.id === headerFont);
+  if (selected !== undefined && selected.family !== 'Inter') {
+    pending.push(fonts.load(`700 24px "${selected.family}"`, latinHeader));
   }
 
   // Best-effort: a rejected face load (offline cold cache) must never block a receipt;
@@ -90,14 +97,32 @@ export async function waitForReceiptFonts(fonts: Pick<FontFaceSet, 'load'>, head
 
 export function buildReceiptLayout(input: ReceiptRenderInput): ReceiptLayout {
   const { clinic, sale, width } = input;
-  const headerFont = resolveHeaderFont(clinic.receiptHeaderFont);
+  const headerFont = resolveHeaderFont(clinic.receiptHeaderFont, clinic.name || latinHeader);
   const align = clinic.receiptTemplate === 'modern' || clinic.receiptTemplate === 'minimal' ? 'center' : 'left';
-  const runs: UnmeasuredReceiptRun[] = [
-    { kind: 'header-latin', text: clinic.name || latinHeader, font: headerFont, locale: 'en', align, weight: 700 },
+  const brandName = clinic.name || latinHeader;
+  const runs: UnmeasuredReceiptRun[] = [];
+
+  if (input.logo !== undefined && input.logo.width > 0 && input.logo.height > 0) {
+    runs.push({ kind: 'logo', text: '', font: 'Inter', locale: 'en', align: 'center', weight: 400 });
+  }
+
+  runs.push(
+    { kind: 'header-latin', text: brandName, font: headerFont, locale: 'en', align, weight: 700 },
     { kind: 'header-burmese', text: burmeseSample, font: 'Padauk', locale: 'my', align, weight: 400 },
+  );
+
+  // Phone and address were captured in Set-up but never reached the paper.
+  if (clinic.phone) {
+    runs.push({ kind: 'contact', text: clinic.phone, font: 'Inter', locale: 'en', align, weight: 400 });
+  }
+  if (clinic.address) {
+    runs.push({ kind: 'contact', text: clinic.address, font: 'Inter', locale: 'en', align, weight: 400 });
+  }
+
+  runs.push(
     { kind: 'body', text: `Receipt ${sale.no ?? sale.id}`, font: 'Inter', locale: 'en', align: 'left', weight: 400 },
     { kind: 'divider', text: clinic.receiptDivider, font: 'Inter', locale: 'en', align: 'left', weight: 400 },
-  ];
+  );
 
   if (input.copyMarker !== undefined) {
     runs.push({ kind: 'copy-marker', text: input.copyMarker, font: 'Inter', locale: 'en', align: 'center', weight: 700 });
@@ -113,12 +138,22 @@ export function buildReceiptLayout(input: ReceiptRenderInput): ReceiptLayout {
   if (clinic.receiptFooter) {
     runs.push({ kind: 'body', text: clinic.receiptFooter, font: 'Inter', locale: 'en', align, weight: 400 });
   }
+  // A real scannable code replaces the old placeholder glyph whenever the
+  // clinic has given us a handle; without one we keep the plain caption
+  // rather than printing a QR that leads nowhere.
+  const handle = normalizeTelegramHandle(clinic.telegramHandle ?? '');
+  const qr = clinic.receiptQr && handle !== '' ? buildQrMatrix(telegramLink(handle)) : undefined;
   if (clinic.receiptQr) {
-    runs.push({ kind: 'qr', text: qrMarker, font: 'Inter', locale: 'en', align: 'center', weight: 700 });
+    if (qr !== undefined) {
+      runs.push({ kind: 'qr-code', text: telegramLink(handle), font: 'Inter', locale: 'en', align: 'center', weight: 400 });
+      runs.push({ kind: 'body', text: telegramDisplayHandle(handle), font: 'Inter', locale: 'en', align: 'center', weight: 700 });
+    } else {
+      runs.push({ kind: 'qr', text: qrMarker, font: 'Inter', locale: 'en', align: 'center', weight: 700 });
+    }
     runs.push({ kind: 'body', text: qrCaption, font: 'Inter', locale: 'en', align: 'center', weight: 400 });
   }
 
-  const measuredRuns = runs.map((run) => withMetrics(run, width));
+  const measuredRuns = runs.map((run) => withMetrics(run, width, { logo: input.logo, qr }));
   const baseHeight = clinic.receiptTemplate === 'boxed' ? 42 : clinic.receiptTemplate === 'minimal' ? 20 : 30;
   return {
     width,
@@ -126,10 +161,28 @@ export function buildReceiptLayout(input: ReceiptRenderInput): ReceiptLayout {
     template: clinic.receiptTemplate,
     headerFont,
     runs: measuredRuns,
+    ...(input.logo === undefined ? {} : { logo: input.logo }),
+    ...(qr === undefined ? {} : { qr }),
   };
 }
 
-function withMetrics(run: UnmeasuredReceiptRun, width: ReceiptLayout['width']): ReceiptRun {
+export function qrModuleScale(matrix: QrMatrix, width: ReceiptLayout['width']): number {
+  // Whole pixels per module only: a fractional scale lands module edges
+  // mid-dot and the printer smears them into an unscannable block.
+  const target = width === 576 ? 240 : 180;
+  return Math.max(2, Math.floor(target / matrix.size));
+}
+
+function withMetrics(run: UnmeasuredReceiptRun, width: ReceiptLayout['width'], assets: { logo?: LogoBitmap; qr?: QrMatrix }): ReceiptRun {
+  if (run.kind === 'logo') {
+    const height = assets.logo?.height ?? 0;
+    return { ...run, fontSize: 0, advance: height + 10, spacingBefore: 0 };
+  }
+  if (run.kind === 'qr-code') {
+    const side = assets.qr === undefined ? 0 : assets.qr.size * qrModuleScale(assets.qr, width);
+    return { ...run, fontSize: 0, advance: side + 10, spacingBefore: 10 };
+  }
+  if (run.kind === 'contact') return { ...run, fontSize: 15, advance: 22, spacingBefore: 0 };
   if (run.kind === 'copy-marker') {
     return { ...run, fontSize: width === 576 ? 28 : 24, advance: width === 576 ? 44 : 40, spacingBefore: 12 };
   }
@@ -149,10 +202,8 @@ export async function renderReceipt(input: ReceiptRenderInput, deps: ReceiptRend
   return { width: input.width, png, raster: new Uint8Array(await png.arrayBuffer()), layout };
 }
 
-function resolveHeaderFont(headerFont: ReceiptHeaderFont): ReceiptLayout['headerFont'] {
-  if (headerFont === 'serif') return 'Lora';
-  if (headerFont === 'display') return 'Playfair Display';
-  return 'Inter';
+function resolveHeaderFont(headerFont: ReceiptHeaderFont, brandName: string): ReceiptLayout['headerFont'] {
+  return headerFamilyFor(brandName, headerFont);
 }
 
 function drawReceipt(context: ReceiptDrawingContext, layout: ReceiptLayout, palette: ReceiptPalette): void {
@@ -168,12 +219,54 @@ function drawReceipt(context: ReceiptDrawingContext, layout: ReceiptLayout, pale
       y += run.advance;
       continue;
     }
+    if (run.kind === 'logo') {
+      if (layout.logo !== undefined) drawLogo(context, layout.logo, layout.width, y, palette.ink);
+      y += run.advance;
+      continue;
+    }
+    if (run.kind === 'qr-code') {
+      if (layout.qr !== undefined) drawQr(context, layout.qr, layout.width, y, palette.ink);
+      y += run.advance;
+      continue;
+    }
     context.fillStyle = run.kind === 'qr' || run.kind === 'copy-marker' ? palette.brand : run.kind === 'total' ? palette.ink : palette.muted;
     context.font = `${run.weight} ${run.fontSize}px ${run.font}`;
     context.textAlign = run.align;
     const x = run.align === 'center' ? layout.width / 2 : inset;
     context.fillText(run.text, x, y);
     y += run.advance;
+  }
+}
+
+// Both the logo and the QR are painted as filled rectangles rather than an
+// image blit, so the fake canvas used in tests needs no extra capability and
+// every dot lands on an exact pixel boundary for the thermal head.
+function drawLogo(context: ReceiptDrawingContext, logo: LogoBitmap, width: number, top: number, ink: string): void {
+  const left = Math.round((width - logo.width) / 2);
+  context.fillStyle = ink;
+  for (let row = 0; row < logo.height; row += 1) {
+    let run = 0;
+    for (let column = 0; column <= logo.width; column += 1) {
+      const on = column < logo.width && logo.dots[row * logo.width + column] === 1;
+      if (on) {
+        run += 1;
+        continue;
+      }
+      if (run > 0) context.fillRect(left + column - run, top + row, run, 1);
+      run = 0;
+    }
+  }
+}
+
+function drawQr(context: ReceiptDrawingContext, matrix: QrMatrix, width: number, top: number, ink: string): void {
+  const scale = qrModuleScale(matrix, width === 576 ? 576 : 384);
+  const side = matrix.size * scale;
+  const left = Math.round((width - side) / 2);
+  context.fillStyle = ink;
+  for (let row = 0; row < matrix.size; row += 1) {
+    for (let column = 0; column < matrix.size; column += 1) {
+      if (matrix.isDark(row, column)) context.fillRect(left + column * scale, top + row * scale, scale, scale);
+    }
   }
 }
 

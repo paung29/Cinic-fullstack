@@ -56,6 +56,7 @@ describe('ClinicDb', () => {
       'patients',
       'photoSessions',
       'products',
+      'receiptAssets',
       'sales',
       'services',
       'staff',

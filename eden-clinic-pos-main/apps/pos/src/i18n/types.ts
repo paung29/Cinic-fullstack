@@ -450,6 +450,17 @@ export const translationKeys = [
   'photo.viewPhotos',
   'photo.done',
   'photo.removeSession',
+  'setup.telegramHandle',
+  'setup.font.geometric',
+  'setup.font.rounded',
+  'setup.font.elegant',
+  'setup.logo',
+  'setup.logoHint',
+  'setup.logoChoose',
+  'setup.logoReplace',
+  'setup.logoRemove',
+  'setup.logoNone',
+  'setup.logoTooBig',
 ] as const;
 
 export type Locale = 'my' | 'en' | 'zh';

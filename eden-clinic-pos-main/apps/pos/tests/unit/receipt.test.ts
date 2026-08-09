@@ -11,7 +11,7 @@ const input: ReceiptRenderInput = {
   },
   clinic: {
     id: 'clinic-1', name: 'Eden Clinic', phone: '', address: '', roundingStep: 500, creditLimitMmk: 100_000,
-    receipt: {}, receiptFooter: 'Thank you', logoUrl: '', receiptQr: true, receiptNextVisit: true,
+    receipt: {}, receiptFooter: 'Thank you', logoUrl: '', telegramHandle: '', receiptQr: true, receiptNextVisit: true,
     receiptTemplate: 'classic', receiptHeaderFont: 'sans', receiptDivider: 'line', consentMode: 'warn', addons: {}, featureFlags: {},
   },
   width: 576,
@@ -85,7 +85,9 @@ test('waits for mandatory and selected receipt faces before any raster canvas ex
   await expect(pending).resolves.toMatchObject({ width: 576, raster: expect.any(Uint8Array) });
   expect(calls).toContainEqual(['700 16px Inter', undefined]);
   expect(calls.some(([font, sample]) => font === '400 16px Padauk' && sample !== undefined)).toBe(true);
-  expect(calls).toContainEqual(['700 24px Lora', 'Eden Clinic']);
+  // The registry quotes every family uniformly; required for multi-word names
+  // like "Playfair Display" and valid CSS for single-word ones.
+  expect(calls).toContainEqual(['700 24px "Lora"', 'Eden Clinic']);
 });
 
 test('selective font loading leaves optional display faces out of a sans receipt', async () => {
@@ -106,4 +108,65 @@ test('keeps rendering possible when an offline font face rejects', async () => {
   await expect(waitForReceiptFonts(fonts, 'display')).resolves.toBeUndefined();
   expect(fonts.load).toHaveBeenCalledWith('400 16px Padauk', expect.any(String));
   expect(fonts.load).toHaveBeenCalledWith('700 24px "Playfair Display"', 'Eden Clinic');
+});
+
+describe('receipt branding', () => {
+  const branded: ReceiptRenderInput = {
+    ...input,
+    clinic: { ...input.clinic, phone: '09 771 000 111', address: 'Lashio, Myanmar', telegramHandle: '@edenclinic' },
+  };
+
+  test('prints the contact number and address that Set-up already collects', () => {
+    const layout = buildReceiptLayout(branded);
+    const contacts = layout.runs.filter((run) => run.kind === 'contact').map((run) => run.text);
+
+    expect(contacts).toEqual(['09 771 000 111', 'Lashio, Myanmar']);
+    // They belong under the header, above the receipt number.
+    const lastContact = layout.runs.map((run, index) => run.kind === 'contact' ? index : -1).reduce((last, index) => Math.max(last, index), -1);
+    const receiptNo = layout.runs.findIndex((run) => run.text.startsWith('Receipt '));
+    expect(lastContact).toBeLessThan(receiptNo);
+  });
+
+  test('omits contact rows the clinic has not filled in', () => {
+    const layout = buildReceiptLayout(input);
+    expect(layout.runs.some((run) => run.kind === 'contact')).toBe(false);
+  });
+
+  test('replaces the placeholder marker with a scannable code and the handle', () => {
+    const layout = buildReceiptLayout(branded);
+
+    expect(layout.qr?.size).toBeGreaterThanOrEqual(21);
+    expect(layout.runs.some((run) => run.kind === 'qr')).toBe(false);
+    expect(layout.runs).toContainEqual(expect.objectContaining({ kind: 'qr-code', text: 'https://t.me/edenclinic' }));
+    expect(layout.runs.some((run) => run.text === '@edenclinic')).toBe(true);
+  });
+
+  test('keeps the plain marker when no handle is set, rather than a QR leading nowhere', () => {
+    const layout = buildReceiptLayout(input);
+    expect(layout.qr).toBeUndefined();
+    expect(layout.runs.some((run) => run.kind === 'qr')).toBe(true);
+  });
+
+  test('drops the whole telegram block when the clinic turns the QR off', () => {
+    const layout = buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, receiptQr: false } });
+    expect(layout.runs.some((run) => run.kind === 'qr-code' || run.kind === 'qr')).toBe(false);
+  });
+
+  test('reserves height for a logo and puts it above the name', () => {
+    const logo = { dots: new Uint8Array(40 * 20), height: 20, width: 40 };
+    const withLogo = buildReceiptLayout({ ...branded, logo });
+    const withoutLogo = buildReceiptLayout(branded);
+
+    expect(withLogo.logo).toBe(logo);
+    expect(withLogo.height).toBeGreaterThan(withoutLogo.height);
+    expect(withLogo.runs[0]?.kind).toBe('logo');
+    const header = withLogo.runs.findIndex((run) => run.kind === 'header-latin');
+    expect(header).toBeGreaterThan(0);
+  });
+
+  test('selects the header family from the registry and honours the Burmese fallback', () => {
+    expect(buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, receiptHeaderFont: 'elegant' } }).headerFont).toBe('Cormorant Garamond');
+    expect(buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, receiptHeaderFont: 'geometric' } }).headerFont).toBe('Montserrat');
+    expect(buildReceiptLayout({ ...branded, clinic: { ...branded.clinic, name: 'ဧဒင်ဆေးခန်း', receiptHeaderFont: 'geometric' } }).headerFont).toBe('Padauk');
+  });
 });

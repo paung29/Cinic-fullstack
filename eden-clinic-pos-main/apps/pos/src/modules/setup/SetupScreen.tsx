@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- The preview is a local Canvas-rasterized Blob URL. */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { saveClinicConfig } from '@/data/clinicConfig';
@@ -12,14 +12,17 @@ import { readPrinterProfile, savePrinterProfile, saveReceiptDesignerDraft, type 
 import { buildSupportOutboxExport } from '@/data/supportExport';
 import type { ClinicPatchWire, ClinicRow, SaleRow } from '@/data/types';
 import { useLocaleControl, useT } from '@/i18n';
+import { decodeLogoBitmap } from '@/print/logoDecode';
 import { renderReceipt, type ReceiptPalette, type RenderedReceipt } from '@/print/receipt';
+import { RECEIPT_FONTS } from '@/print/receiptFonts';
+import { clearReceiptLogo, readReceiptLogo, writeReceiptLogo, type LogoBitmap } from '@/print/receiptLogo';
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
 import { createM5PrinterTransport } from '@/print/transport';
 import { AppShell, Button, Input, Modal, Select, Skeleton, Switch, Tag, useToast } from '@/ui';
 import { isClinicSaveOffline } from './setupSelectors';
 import styles from './SetupScreen.module.css';
 
-type ReceiptDraft = Pick<ClinicPatchWire, 'name' | 'phone' | 'address' | 'receipt_footer' | 'logo_url' | 'rounding_step' | 'credit_limit_mmk' | 'consent_mode' | 'receipt_qr' | 'receipt_next_visit' | 'receipt_template' | 'receipt_header_font' | 'receipt_divider'>;
+type ReceiptDraft = Pick<ClinicPatchWire, 'name' | 'phone' | 'address' | 'telegram_handle' | 'receipt_footer' | 'logo_url' | 'rounding_step' | 'credit_limit_mmk' | 'consent_mode' | 'receipt_qr' | 'receipt_next_visit' | 'receipt_template' | 'receipt_header_font' | 'receipt_divider'>;
 
 const defaultProfile: PrinterProfile = { version: 1, transport: 'generic-escpos', width: 576 };
 
@@ -40,6 +43,9 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [status, setStatus] = useState<OutboxStatusView>({ state: 'synced', pendingCount: 0, attentionCount: 0, drainProgress: 0 });
   const [previewUrl, setPreviewUrl] = useState<string | undefined>();
   const [previewReceipt, setPreviewReceipt] = useState<RenderedReceipt | undefined>();
+  const [logo, setLogo] = useState<LogoBitmap | undefined>();
+  const [logoUrl, setLogoUrl] = useState<string | undefined>();
+  const [logoRevision, setLogoRevision] = useState(0);
   const [elevateOpen, setElevateOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
@@ -92,6 +98,45 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
     void saveReceiptDesignerDraft(runtime.db, runtime.deviceId, { version: 1, fields: draft });
   }, [draft, runtime.db, runtime.deviceId]);
 
+  const pickLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file === undefined) return;
+    // Guard the device store: an unbounded upload would sit in IndexedDB for
+    // the life of the install and the dither only needs a modest source.
+    if (file.size > 4_000_000) {
+      enqueue(t('setup.logoTooBig'));
+      return;
+    }
+    await writeReceiptLogo(runtime.db, file);
+    setLogoRevision((current) => current + 1);
+  };
+
+  const removeLogo = async () => {
+    await clearReceiptLogo(runtime.db);
+    setLogoRevision((current) => current + 1);
+  };
+
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl: string | undefined;
+    void readReceiptLogo(runtime.db).then(async (blob) => {
+      if (disposed || blob === undefined) {
+        if (!disposed) { setLogo(undefined); setLogoUrl(undefined); }
+        return;
+      }
+      const bitmap = await decodeLogoBitmap(blob, profile.width === 576 ? undefined : 288);
+      if (disposed) return;
+      objectUrl = URL.createObjectURL(blob);
+      setLogo(bitmap);
+      setLogoUrl(objectUrl);
+    });
+    return () => {
+      disposed = true;
+      if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl);
+    };
+  }, [logoRevision, profile.width, runtime.db]);
+
   useEffect(() => {
     if (clinic === undefined) return undefined;
     let disposed = false;
@@ -99,6 +144,7 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
     const previewClinic = applyDraft(clinic, draft);
     void renderReceipt(buildConfirmedReceiptInput({
       sale: previewSale(), clinic: previewClinic, width: profile.width, palette: readPalette(),
+      ...(logo === undefined ? {} : { logo }),
     }), { fonts: document.fonts }).then((rendered) => {
       if (disposed) return;
       objectUrl = URL.createObjectURL(rendered.png);
@@ -109,7 +155,7 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
       disposed = true;
       if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl);
     };
-  }, [clinic, draft, enqueue, profile.width, t]);
+  }, [clinic, draft, enqueue, logo, profile.width, t]);
 
   if (identity === undefined) return <main className={styles.loading}><Skeleton size="loading" /></main>;
   const offline = isClinicSaveOffline(status);
@@ -152,12 +198,12 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
             <label><span>{t('setup.receiptFooter')}</span><Input onChange={(event) => setDraft((current) => ({ ...current, receipt_footer: event.target.value }))} value={draft.receipt_footer ?? ''} /></label>
             <label><span>{t('setup.phone')}</span><Input onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} value={draft.phone ?? ''} /></label>
             <label><span>{t('setup.address')}</span><Input onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} value={draft.address ?? ''} /></label>
-            <label><span>{t('setup.logoUrl')}</span><Input onChange={(event) => setDraft((current) => ({ ...current, logo_url: event.target.value }))} value={draft.logo_url ?? ''} /></label>
+            <label><span>{t('setup.telegramHandle')}</span><Input data-testid="setup-telegram-handle" onChange={(event) => setDraft((current) => ({ ...current, telegram_handle: event.target.value }))} placeholder="edenclinic" value={draft.telegram_handle ?? ''} /></label>
             <label><span>{t('setup.rounding')}</span><Select onChange={(event) => setDraft((current) => ({ ...current, rounding_step: Number(event.target.value) as ReceiptDraft['rounding_step'] }))} value={draft.rounding_step ?? 500}>{[1, 100, 500, 1000].map((value) => <option key={value} value={value}>{value}</option>)}</Select></label>
             <label><span>{t('setup.creditLimit')}</span><Input min="0" onChange={(event) => setDraft((current) => ({ ...current, credit_limit_mmk: Number(event.target.value) || 0 }))} type="number" value={draft.credit_limit_mmk ?? 0} /></label>
             <label><span>{t('setup.consent')}</span><Select onChange={(event) => setDraft((current) => ({ ...current, consent_mode: event.target.value as ReceiptDraft['consent_mode'] }))} value={draft.consent_mode ?? 'warn'}>{(['off', 'warn', 'block'] as const).map((value) => <option key={value} value={value}>{t(`setup.consent.${value}`)}</option>)}</Select></label>
             <label><span>{t('setup.template')}</span><Select data-testid="receipt-template" onChange={(event) => setDraft((current) => ({ ...current, receipt_template: event.target.value as ReceiptDraft['receipt_template'] }))} value={draft.receipt_template ?? 'classic'}>{(['classic', 'modern', 'minimal', 'boxed'] as const).map((value) => <option key={value} value={value}>{t(`setup.template.${value}`)}</option>)}</Select></label>
-            <label><span>{t('setup.headerFont')}</span><Select data-testid="receipt-header-font" onChange={(event) => setDraft((current) => ({ ...current, receipt_header_font: event.target.value as ReceiptDraft['receipt_header_font'] }))} value={draft.receipt_header_font ?? 'sans'}>{(['sans', 'serif', 'display'] as const).map((value) => <option key={value} value={value}>{t(`setup.font.${value}`)}</option>)}</Select></label>
+            <label><span>{t('setup.headerFont')}</span><Select data-testid="receipt-header-font" onChange={(event) => setDraft((current) => ({ ...current, receipt_header_font: event.target.value as ReceiptDraft['receipt_header_font'] }))} value={draft.receipt_header_font ?? 'sans'}>{RECEIPT_FONTS.map((font) => <option key={font.id} value={font.id}>{t(`setup.font.${font.id}`)}</option>)}</Select></label>
             <label><span>{t('setup.divider')}</span><Select data-testid="receipt-divider" onChange={(event) => setDraft((current) => ({ ...current, receipt_divider: event.target.value as ReceiptDraft['receipt_divider'] }))} value={draft.receipt_divider ?? 'line'}>{(['line', 'dots', 'none'] as const).map((value) => <option key={value} value={value}>{t(`setup.divider.${value}`)}</option>)}</Select></label>
           </div>
           <div className={styles.switchRow}><span>{t('setup.receiptQr')}</span><Switch checked={draft.receipt_qr ?? true} label={t('setup.receiptQr')} onCheckedChange={(receipt_qr) => setDraft((current) => ({ ...current, receipt_qr }))} /></div>
@@ -167,6 +213,20 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
         </section>
         <aside className={styles.stack}>
           <section className={styles.card}><h2>{t('setup.receipt')}</h2>{previewUrl === undefined ? <Skeleton size="preview" /> : <img alt={t('setup.receipt')} className={styles.preview} data-testid="receipt-preview" src={previewUrl} />}</section>
+          <section className={styles.card} data-testid="receipt-logo-card">
+            <h2>{t('setup.logo')}</h2>
+            <p className={styles.notice}>{t('setup.logoHint')}</p>
+            {logoUrl === undefined
+              ? <p data-testid="receipt-logo-empty">{t('setup.logoNone')}</p>
+              : <img alt={t('setup.logo')} className={styles.logoPreview} data-testid="receipt-logo-preview" src={logoUrl} />}
+            <div className={styles.cardActions}>
+              <label className={styles.logoPick}>
+                <span>{logoUrl === undefined ? t('setup.logoChoose') : t('setup.logoReplace')}</span>
+                <input accept="image/*" className={styles.logoInput} data-testid="receipt-logo-input" onChange={(event) => { void pickLogo(event); }} type="file" />
+              </label>
+              {logoUrl === undefined ? null : <Button data-testid="receipt-logo-remove" onClick={() => { void removeLogo(); }} pill size="sm" variant="ghost">{t('setup.logoRemove')}</Button>}
+            </div>
+          </section>
           <section className={styles.card}><h2>{t('setup.hardware')}</h2><label><span>{t('setup.width')}</span><Select data-testid="printer-width" onChange={(event) => { const width = Number(event.target.value) as 576 | 384; const next = { ...profile, width }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.width}><option value="576">{t('setup.width80')}</option><option value="384">{t('setup.width58')}</option></Select></label><label><span>{t('setup.transport')}</span><Select onChange={(event) => { const next = { ...profile, transport: event.target.value as PrinterProfile['transport'] }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.transport}>{(['sunmi-sdk', 'xprinter-lan', 'xprinter-bluetooth', 'epson-epos', 'generic-escpos'] as const).map((value) => <option key={value} value={value}>{value}</option>)}</Select></label><Button data-testid="printer-test" disabled={previewReceipt === undefined} onClick={() => { if (previewReceipt === undefined) return; void createM5PrinterTransport(profile).send(previewReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('setup.testPrint')}</Button></section>
           <section className={styles.card}><h2>{t('setup.locale')}</h2><Select data-testid="locale-picker" onChange={(event) => setLocale(event.target.value as typeof locale)} value={locale}><option value="my">{t('locale.my')}</option><option value="en">{t('locale.en')}</option><option value="zh">{t('locale.zh')}</option></Select></section>
           <section className={styles.card} data-testid="storage-diagnostics"><h2>{t('setup.storage')}</h2><p>{storageStatus.kind === 'granted' ? t('setup.storage.granted') : storageStatus.kind === 'unavailable' ? t('setup.storage.unavailable') : t('setup.storage.notGranted')}</p>{storageStatus.kind === 'unavailable' ? null : <p>{t('setup.storage.usage')}: {storageStatus.usage ?? 0} / {storageStatus.quota ?? 0}</p>}<Button data-testid="storage-refresh" onClick={() => { void runtime.storageDiagnostics.refresh().then(setStorageStatus); }} pill size="sm" variant="ghost">{t('setup.storage.refresh')}</Button><Button data-testid="storage-export" onClick={() => setExportOpen(true)} pill size="sm" variant="ghost">{t('setup.storage.export')}</Button></section>
@@ -181,11 +241,11 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
 }
 
 function toReceiptDraft(clinic: ClinicRow): ReceiptDraft {
-  return { name: clinic.name, phone: clinic.phone, address: clinic.address, receipt_footer: clinic.receiptFooter, logo_url: clinic.logoUrl, rounding_step: clinic.roundingStep, credit_limit_mmk: clinic.creditLimitMmk, consent_mode: clinic.consentMode, receipt_qr: clinic.receiptQr, receipt_next_visit: clinic.receiptNextVisit, receipt_template: clinic.receiptTemplate, receipt_header_font: clinic.receiptHeaderFont, receipt_divider: clinic.receiptDivider };
+  return { name: clinic.name, phone: clinic.phone, address: clinic.address, telegram_handle: clinic.telegramHandle, receipt_footer: clinic.receiptFooter, logo_url: clinic.logoUrl, rounding_step: clinic.roundingStep, credit_limit_mmk: clinic.creditLimitMmk, consent_mode: clinic.consentMode, receipt_qr: clinic.receiptQr, receipt_next_visit: clinic.receiptNextVisit, receipt_template: clinic.receiptTemplate, receipt_header_font: clinic.receiptHeaderFont, receipt_divider: clinic.receiptDivider };
 }
 
 function applyDraft(clinic: ClinicRow, draft: ReceiptDraft): ClinicRow {
-  return { ...clinic, name: draft.name ?? clinic.name, phone: draft.phone ?? clinic.phone, address: draft.address ?? clinic.address, receiptFooter: draft.receipt_footer ?? clinic.receiptFooter, logoUrl: draft.logo_url ?? clinic.logoUrl, roundingStep: draft.rounding_step ?? clinic.roundingStep, creditLimitMmk: draft.credit_limit_mmk ?? clinic.creditLimitMmk, consentMode: draft.consent_mode ?? clinic.consentMode, receiptQr: draft.receipt_qr ?? clinic.receiptQr, receiptNextVisit: draft.receipt_next_visit ?? clinic.receiptNextVisit, receiptTemplate: draft.receipt_template ?? clinic.receiptTemplate, receiptHeaderFont: draft.receipt_header_font ?? clinic.receiptHeaderFont, receiptDivider: draft.receipt_divider ?? clinic.receiptDivider };
+  return { ...clinic, name: draft.name ?? clinic.name, phone: draft.phone ?? clinic.phone, address: draft.address ?? clinic.address, telegramHandle: draft.telegram_handle ?? clinic.telegramHandle, receiptFooter: draft.receipt_footer ?? clinic.receiptFooter, logoUrl: draft.logo_url ?? clinic.logoUrl, roundingStep: draft.rounding_step ?? clinic.roundingStep, creditLimitMmk: draft.credit_limit_mmk ?? clinic.creditLimitMmk, consentMode: draft.consent_mode ?? clinic.consentMode, receiptQr: draft.receipt_qr ?? clinic.receiptQr, receiptNextVisit: draft.receipt_next_visit ?? clinic.receiptNextVisit, receiptTemplate: draft.receipt_template ?? clinic.receiptTemplate, receiptHeaderFont: draft.receipt_header_font ?? clinic.receiptHeaderFont, receiptDivider: draft.receipt_divider ?? clinic.receiptDivider };
 }
 
 function previewSale(): SaleRow {

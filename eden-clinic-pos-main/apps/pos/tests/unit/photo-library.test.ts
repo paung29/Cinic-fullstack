@@ -132,7 +132,7 @@ describe('photoStore', () => {
     const upgraded = createClinicDb(name);
     databases.push(upgraded);
     await upgraded.open();
-    expect(upgraded.verno).toBe(2);
+    expect(upgraded.verno).toBe(3);
     expect((await upgraded.patients.get('patient-1'))?.name).toBe('Ma Thida');
     await putPhotoSession(upgraded, session({}));
     expect((await readPhotoSessions(upgraded, 'patient-1')).length).toBe(1);

@@ -11,6 +11,7 @@ import type {
   PatientRow,
   PhotoSessionRow,
   ProductRow,
+  ReceiptAssetRow,
   SaleRow,
   ServiceRow,
   StaffRow,
@@ -26,6 +27,7 @@ export class ClinicDb extends Dexie {
   patients!: Table<PatientRow, string>;
   photoSessions!: Table<PhotoSessionRow, string>;
   products!: Table<ProductRow, string>;
+  receiptAssets!: Table<ReceiptAssetRow, string>;
   sales!: Table<SaleRow, string>;
   services!: Table<ServiceRow, string>;
   staff!: Table<StaffRow, string>;
@@ -53,6 +55,11 @@ export class ClinicDb extends Dexie {
       photoSessions: 'id, patientId',
     });
 
+    // v3 adds binary receipt assets (the brand logo). Additive, same as v2.
+    this.version(3).stores({
+      receiptAssets: 'key',
+    });
+
     this.appointments = this.table('appointments');
     this.clinic = this.table('clinic');
     this.contacts = this.table('contacts');
@@ -62,6 +69,7 @@ export class ClinicDb extends Dexie {
     this.patients = this.table('patients');
     this.photoSessions = this.table('photoSessions');
     this.products = this.table('products');
+    this.receiptAssets = this.table('receiptAssets');
     this.sales = this.table('sales');
     this.services = this.table('services');
     this.staff = this.table('staff');

@@ -28,6 +28,7 @@ function bootstrapPayload(patientName = 'Server name'): BootstrapWire {
       receipt: {},
       receipt_footer: '',
       logo_url: '',
+      telegram_handle: '',
       receipt_qr: true,
       receipt_next_visit: true,
       receipt_template: 'classic',

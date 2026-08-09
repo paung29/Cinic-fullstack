@@ -15,8 +15,9 @@ test('font checksum manifest exactly covers every bundled WOFF2 asset with actua
     return { hash: match[1], file: match[2] };
   });
   expect(entries.map((entry) => entry.file).sort()).toEqual([
-    'inter-400.woff2', 'inter-500.woff2', 'inter-600.woff2', 'inter-700.woff2',
-    'lora-700.woff2', 'padauk-400.woff2', 'padauk-700.woff2', 'playfair-display-700.woff2',
+    'cormorant-garamond-700.woff2', 'inter-400.woff2', 'inter-500.woff2', 'inter-600.woff2',
+    'inter-700.woff2', 'lora-700.woff2', 'montserrat-700.woff2', 'padauk-400.woff2',
+    'padauk-700.woff2', 'playfair-display-700.woff2', 'poppins-700.woff2',
   ]);
 
   await Promise.all(entries.map(async ({ file, hash }) => {
