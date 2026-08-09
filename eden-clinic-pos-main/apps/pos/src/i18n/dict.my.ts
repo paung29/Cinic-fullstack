@@ -158,6 +158,8 @@ export const dictMy = {
   // TODO(native-review)
   'auth.login.wrongPin': 'PIN မမှန်ပါ',
   'auth.login.signInFailed': 'PIN ကို လက်ခံခဲ့သော်လည်း အကောင့်ဝင်ခြင်း မပြီးဆုံးနိုင်ပါ။ ထပ်မံကြိုးစားပါ။',
+  'auth.sessionExpired': 'ဤစက်ကို ဆာဗာမှ ထွက်စေခဲ့သည်။ ပြန်ချိတ်ဆက်ရန် ဝန်ထမ်း PIN ကို ထပ်ထည့်ပါ။', // TODO(native-review)
+  'auth.adminPasswordWrong': 'စီမံသူ စကားဝှက် မမှန်ပါ။', // TODO(native-review)
   // TODO(native-review)
   'auth.login.wait': 'ထပ်မံမကြိုးစားမီ စောင့်ပါ',
   // TODO(native-review)

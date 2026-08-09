@@ -344,3 +344,55 @@ describe('session controller', () => {
     expect([1, 2, 3, 4, 5, 6, 7].map(pinDelayMs)).toEqual([1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000]);
   });
 });
+
+describe('session controller auth failure recovery', () => {
+  // Regression: a revoked/expired refresh token used to leave the device in a
+  // dead loop — the PIN screen kept unlocking the stale envelope offline, and
+  // every protected call 401'd, which staff saw as "wrong PIN" with no way out.
+  test('flags the staff member for online repair without touching the offline envelope', async () => {
+    const db = await createDatabase();
+    const controller = await createCommittedController({ db });
+    const envelopeBefore = JSON.stringify((await db.meta.get('auth-envelope:s1'))?.value);
+
+    await controller.provider.onAuthFailure();
+
+    // The envelope survives so the device can still trade offline...
+    expect(JSON.stringify((await db.meta.get('auth-envelope:s1'))?.value)).toBe(envelopeBefore);
+    // ...but the login screen is told to re-authenticate for real next time.
+    expect((await db.meta.get('auth-repair:s1'))?.value).toBe(true);
+    expect(controller.provider.getAccessToken()).toBeUndefined();
+    expect(controller.state().kind).toBe('auth-required');
+  });
+
+  test('a successful online sign-in clears the repair flag', async () => {
+    const db = await createDatabase();
+    const controller = await createCommittedController({ db });
+    await controller.provider.onAuthFailure();
+    expect(await db.meta.get('auth-repair:s1')).toBeDefined();
+
+    const pending = await controller.beginOnlineSignIn({ staff_id: 's1', pin: '1234' });
+    await pending.commit();
+
+    expect(await db.meta.get('auth-repair:s1')).toBeUndefined();
+  });
+
+  test('an abandoned sign-in leaves the repair flag set', async () => {
+    const db = await createDatabase();
+    const controller = await createCommittedController({ db });
+    await controller.provider.onAuthFailure();
+
+    const pending = await controller.beginOnlineSignIn({ staff_id: 's1', pin: '1234' });
+    pending.abandon();
+
+    expect((await db.meta.get('auth-repair:s1'))?.value).toBe(true);
+  });
+
+  test('a signed-out controller tolerates an auth failure with no active secret', async () => {
+    const db = await createDatabase();
+    const controller = createSessionController({ db, auth: createAuth(), clock: createClock().clock, crypto: createCrypto() });
+
+    await controller.provider.onAuthFailure();
+
+    expect(controller.state().kind).toBe('signed-out');
+  });
+});

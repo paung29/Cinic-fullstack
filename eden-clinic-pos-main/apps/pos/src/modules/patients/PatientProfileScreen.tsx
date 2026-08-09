@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useClinicRuntime } from '@/app/providers';
 import { fmtMMK, patientOutstanding } from '@/data/money';
+import { elevationFailureKey } from '@/data/elevationErrors';
 import { updatePatient } from '@/data/patientRecords';
 import { useClinicAddon } from '@/flags/useClinicAddon';
 import { useT } from '@/i18n';
@@ -32,7 +33,7 @@ export function PatientProfileScreen({
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [unlocked, setUnlocked] = useState(false);
-  const [failedUnlock, setFailedUnlock] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | undefined>(undefined);
   const [clinicalRecords, setClinicalRecords] = useState<ClinicalRecordWire[]>([]);
   const [visitNotes, setVisitNotes] = useState('');
   const [prescriptions, setPrescriptions] = useState('');
@@ -55,9 +56,9 @@ export function PatientProfileScreen({
       setUnlocked(true);
       setUnlockOpen(false);
       setPassword('');
-      setFailedUnlock(false);
-    } catch {
-      setFailedUnlock(true);
+      setUnlockError(undefined);
+    } catch (error) {
+      setUnlockError(elevationFailureKey(error, t));
     }
   };
 
@@ -128,10 +129,10 @@ export function PatientProfileScreen({
         {unlocked && recallEnabled ? <Card className={styles.recall} data-testid="recall-card"><Tag tone="ai">{t('clients.profile.recall')}</Tag><p>{t('clients.profile.recallBody')}</p></Card> : null}
       </Card>
       {unlocked ? <PhotoLibrary db={runtime.db} patientId={patient.id} /> : null}
-      <Modal closeLabel={t('modal.close')} onClose={() => { setUnlockOpen(false); setFailedUnlock(false); }} open={unlockOpen} testId="clinical-elevation-modal" title={t('clients.profile.unlock')}>
+      <Modal closeLabel={t('modal.close')} onClose={() => { setUnlockOpen(false); setUnlockError(undefined); }} open={unlockOpen} testId="clinical-elevation-modal" title={t('clients.profile.unlock')}>
         <div className={styles.unlockForm}>
           <Input aria-label={t('clients.profile.password')} data-testid="clinical-elevation-password" onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
-          {failedUnlock ? <p role="status">{t('clients.profile.unlockFailed')}</p> : null}
+          {unlockError === undefined ? null : <p role="status">{unlockError}</p>}
           <Button data-testid="clinical-elevation-confirm" onClick={() => { void unlockClinical(); }}>{t('clients.profile.unlock')}</Button>
         </div>
       </Modal>

@@ -80,6 +80,8 @@ export const dictEn = {
   'auth.login.pin': 'Enter PIN',
   'auth.login.wrongPin': 'Incorrect PIN',
   'auth.login.signInFailed': 'The PIN was accepted, but sign-in could not finish. Please try again.',
+  'auth.sessionExpired': 'This device was signed out by the server. Enter the staff PIN again to reconnect.',
+  'auth.adminPasswordWrong': 'Administrator password is incorrect.',
   'auth.login.wait': 'Please wait before trying again',
   'auth.login.loading': 'Preparing this device',
   'auth.logout.blocked': 'Sync the queued work before logging out',

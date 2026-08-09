@@ -1,7 +1,7 @@
 import type { SessionProvider } from '@/data/api';
 import type { AuthClient } from '@/data/auth';
 import type { Clock } from '@/data/bootstrap';
-import { authEnvelopeMetaKey, type ClinicDb } from '@/data/db';
+import { authEnvelopeMetaKey, authRepairMetaKey, type ClinicDb } from '@/data/db';
 import type { LoginWire } from '@/data/types';
 import {
   decryptSessionSecret,
@@ -169,8 +169,23 @@ export function createSessionController(options: {
         return accessToken;
       },
       refresh,
-      onAuthFailure() {
+      // Reached once the server has answered 401 and a refresh could not rescue
+      // it, so the stored credential is dead. The envelope is deliberately KEPT
+      // — it carries the offline identity and the device must keep taking sales
+      // when the server is unreachable. Instead we flag the staff member for
+      // online repair: without it the PIN screen keeps unlocking offline into a
+      // session whose every protected call 401s, which staff see as "wrong PIN"
+      // with no way out.
+      async onAuthFailure() {
         accessToken = undefined;
+        const staffId = activeSecret?.identity.staffId;
+        if (staffId !== undefined) {
+          try {
+            await options.db.meta.put({ key: authRepairMetaKey(staffId), value: true });
+          } catch {
+            // Best effort: a failed flag write must not mask the auth failure.
+          }
+        }
         if (activeSecret !== undefined) {
           setState({ kind: 'auth-required', identity: activeSecret.identity });
         } else {
@@ -223,6 +238,8 @@ export function createSessionController(options: {
           }
 
           await options.db.meta.put({ key: authEnvelopeMetaKey(identity.staffId), value: encrypted.envelope });
+          // A fresh server sign-in is exactly the repair the flag asks for.
+          await options.db.meta.delete(authRepairMetaKey(identity.staffId));
           committed = true;
         },
         abandon() {

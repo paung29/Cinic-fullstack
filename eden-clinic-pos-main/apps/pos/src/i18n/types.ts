@@ -78,6 +78,8 @@ export const translationKeys = [
   'auth.login.pin',
   'auth.login.wrongPin',
   'auth.login.signInFailed',
+  'auth.sessionExpired',
+  'auth.adminPasswordWrong',
   'auth.login.wait',
   'auth.login.loading',
   'auth.logout.blocked',

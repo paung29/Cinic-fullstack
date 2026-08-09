@@ -84,6 +84,14 @@ export function authEnvelopeMetaKey(staffId: string): string {
   return `auth-envelope:${staffId}`;
 }
 
+// Set when the server rejects this staff member's stored credential, cleared
+// on the next successful online sign-in. The envelope itself is kept so the
+// device stays usable offline; this only tells the login screen to prefer a
+// real server sign-in over an offline unlock.
+export function authRepairMetaKey(staffId: string): string {
+  return `auth-repair:${staffId}`;
+}
+
 export async function activeProtectedKeys(db: ClinicDb): Promise<Set<string>> {
   const protectedKeys = new Set<string>();
   const rows = await db.outbox.filter((row) => row.status !== 'done').toArray();

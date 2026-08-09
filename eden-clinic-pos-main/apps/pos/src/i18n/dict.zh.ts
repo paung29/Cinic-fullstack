@@ -158,6 +158,8 @@ export const dictZh = {
   // TODO(native-review)
   'auth.login.wrongPin': 'PIN 不正确',
   'auth.login.signInFailed': 'PIN 已通过验证，但登录未能完成。请重试。',
+  'auth.sessionExpired': '服务器已将此设备登出。请重新输入员工 PIN 以重新连接。', // TODO(native-review)
+  'auth.adminPasswordWrong': '管理员密码不正确。', // TODO(native-review)
   // TODO(native-review)
   'auth.login.wait': '请稍候再试',
   // TODO(native-review)

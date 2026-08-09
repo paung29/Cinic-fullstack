@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiHttpError, ApiNetworkError } from '@/data/api';
-import { authEnvelopeMetaKey } from '@/data/db';
+import { authEnvelopeMetaKey, authRepairMetaKey } from '@/data/db';
 import { returnToAfterSignIn } from '@/data/returnTo';
 import { useClinicRuntimeStatus } from '@/app/providers';
 import { useLocaleControl, useT, type Locale } from '@/i18n';
@@ -118,6 +118,17 @@ export function LoginScreen() {
         await runtime.provision({ staff_id: activeStaffId!, pin });
       } else if (needsOnlineRepair || await runtime.db.meta.get(authEnvelopeMetaKey(activeStaffId!)) === undefined) {
         await runtime.signInOnline({ staff_id: activeStaffId!, pin });
+      } else if (await runtime.db.meta.get(authRepairMetaKey(activeStaffId!)) !== undefined) {
+        // The server previously rejected this stored credential. Prefer a real
+        // sign-in so the device stops unlocking into a session that cannot use
+        // any protected feature — but if we simply cannot reach the server,
+        // still let staff in offline so the clinic can keep taking sales.
+        try {
+          await runtime.signInOnline({ staff_id: activeStaffId!, pin });
+        } catch (error) {
+          if (!(error instanceof ApiNetworkError)) throw error;
+          await runtime.unlockOffline(activeStaffId!, pin);
+        }
       } else {
         await runtime.unlockOffline(activeStaffId!, pin);
       }

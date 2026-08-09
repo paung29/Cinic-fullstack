@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
-import { ApiNetworkError } from '@/data/api';
+import { elevationFailureKey } from '@/data/elevationErrors';
 import { fmtMMK } from '@/data/money';
 import type { ProductRow, SaleRow, StaffRow } from '@/data/types';
 import { useT } from '@/i18n';
@@ -93,7 +93,7 @@ function ActiveAnalyticsScreen({ runtime }: { runtime: ClinicRuntime }) {
       setPassword('');
     } catch (error) {
       setPassword('');
-      enqueue(error instanceof ApiNetworkError ? t('auth.setup.internetRequired') : t('auth.login.wrongPin'));
+      enqueue(elevationFailureKey(error, t));
     }
   };
 

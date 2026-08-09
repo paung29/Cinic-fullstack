@@ -8,6 +8,7 @@ import { ShoppingCart } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { usePwaUpdate } from '@/app/pwaUpdate';
 import { ApiNetworkError } from '@/data/api';
+import { elevationFailureKey } from '@/data/elevationErrors';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
 import { cartSubtotal, fmtMMK } from '@/data/money';
 import { consumeSalePrefill } from '@/data/salePrefill';
@@ -454,7 +455,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       if (elevation.kind === 'active') await saveService(elevation.token);
     } catch (error) {
       setSvcPassword('');
-      enqueue(error instanceof ApiNetworkError ? t('auth.setup.internetRequired') : t('auth.login.wrongPin'));
+      enqueue(elevationFailureKey(error, t));
     }
   };
 
