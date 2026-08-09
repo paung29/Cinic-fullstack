@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { usePwaUpdate } from '@/app/pwaUpdate';
+import { ApiNetworkError } from '@/data/api';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
 import { cartSubtotal, fmtMMK } from '@/data/money';
 import { consumeSalePrefill } from '@/data/salePrefill';
@@ -30,6 +31,7 @@ import { renderReceipt, type ReceiptPalette, type RenderedReceipt } from '@/prin
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
 import { createM5PrinterTransport, createPngShareTransport } from '@/print/transport';
 import { AppShell, Button, Input, Modal, PinPad, Skeleton, Tabs, useToast } from '@/ui';
+import { toLocalService } from '@/data/types';
 import type { PatientRow, ProductRow, SaleRow, ServiceRow, StaffRow } from '@/data/types';
 import styles from './SaleScreen.module.css';
 
@@ -87,6 +89,18 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   // armed with inputMode "none" so programmatic focus never raises the tablet's
   // on-screen keyboard; an explicit tap switches to manual typing.
   const [scannerManualEntry, setScannerManualEntry] = useState(false);
+  const [serviceModal, setServiceModal] = useState<'add' | 'edit' | undefined>();
+  const [svcId, setSvcId] = useState('');
+  const [svcNameEn, setSvcNameEn] = useState('');
+  const [svcNameMm, setSvcNameMm] = useState('');
+  const [svcCategory, setSvcCategory] = useState('Skin');
+  const [svcPrice, setSvcPrice] = useState('0');
+  const [svcFollowUp, setSvcFollowUp] = useState('');
+  const [svcRequiresLot, setSvcRequiresLot] = useState(false);
+  const [svcActive, setSvcActive] = useState(true);
+  const [svcElevOpen, setSvcElevOpen] = useState(false);
+  const [svcPassword, setSvcPassword] = useState('');
+  const [allServices, setAllServices] = useState<ServiceRow[]>([]);
   const scannerRef = useRef<HTMLInputElement>(null);
   const prefillChecked = useRef(false);
 
@@ -100,6 +114,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       offlineApprovalsState(runtime.db),
     ]);
     setServices(nextServices.filter((row) => row.active));
+    setAllServices(nextServices);
     setProducts(nextProducts.filter((row) => row.active));
     setPatients(nextPatients);
     setStaff(nextStaff.filter((row) => row.active));
@@ -363,6 +378,86 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     }
   };
 
+  const openServiceAdd = () => {
+    setServiceModal('add');
+    setSvcId('');
+    setSvcNameEn('');
+    setSvcNameMm('');
+    setSvcCategory('Skin');
+    setSvcPrice('0');
+    setSvcFollowUp('');
+    setSvcRequiresLot(false);
+    setSvcActive(true);
+  };
+  const openServiceEdit = () => {
+    const first = allServices[0];
+    setServiceModal('edit');
+    pickService(first?.id ?? '');
+  };
+  const pickService = (id: string) => {
+    setSvcId(id);
+    const row = allServices.find((entry) => entry.id === id);
+    if (row === undefined) return;
+    setSvcNameEn(row.nameEn ?? '');
+    setSvcNameMm(row.nameMm);
+    setSvcCategory(row.category);
+    setSvcPrice(String(row.price));
+    setSvcFollowUp(row.defaultFollowupDays === null ? '' : String(row.defaultFollowupDays));
+    setSvcRequiresLot(row.requiresLot);
+    setSvcActive(row.active);
+  };
+  const saveService = async (elevationToken?: string) => {
+    const elevation = runtime.elevation.state();
+    const token = elevationToken ?? (elevation.kind === 'active' ? elevation.token : undefined);
+    if (token === undefined) { setSvcElevOpen(true); return; }
+    const followUp = svcFollowUp.trim() === '' ? null : Number(svcFollowUp) || 0;
+    try {
+      if (serviceModal === 'add') {
+        if (runtime.api.createService === undefined) return;
+        const created = await runtime.api.createService({
+          id: crypto.randomUUID(),
+          category: svcCategory.trim() === '' ? 'Other' : svcCategory.trim(),
+          name_mm: svcNameMm.trim() === '' ? (svcNameEn.trim() === '' ? t('service.pick') : svcNameEn.trim()) : svcNameMm.trim(),
+          name_en: svcNameEn.trim() === '' ? undefined : svcNameEn.trim(),
+          price: Number(svcPrice) || 0,
+          requires_lot: svcRequiresLot,
+          default_followup_days: followUp,
+          active: true,
+        }, token);
+        await runtime.db.services.put(toLocalService(created.service));
+      } else {
+        if (runtime.api.updateService === undefined || svcId === '') return;
+        const updated = await runtime.api.updateService(svcId, {
+          category: svcCategory.trim() === '' ? 'Other' : svcCategory.trim(),
+          name_mm: svcNameMm.trim() === '' ? undefined : svcNameMm.trim(),
+          name_en: svcNameEn.trim() === '' ? null : svcNameEn.trim(),
+          price: Number(svcPrice) || 0,
+          requires_lot: svcRequiresLot,
+          default_followup_days: followUp,
+          active: svcActive,
+        }, token);
+        await runtime.db.services.put(toLocalService(updated));
+      }
+      setServiceModal(undefined);
+      enqueue(t('service.saved'));
+      await refreshLocal();
+    } catch (error) {
+      enqueue(error instanceof ApiNetworkError ? t('auth.setup.internetRequired') : t('sync.attention'));
+    }
+  };
+  const submitServiceElevation = async () => {
+    try {
+      await runtime.elevation.elevate(svcPassword, 'services');
+      setSvcElevOpen(false);
+      setSvcPassword('');
+      const elevation = runtime.elevation.state();
+      if (elevation.kind === 'active') await saveService(elevation.token);
+    } catch (error) {
+      setSvcPassword('');
+      enqueue(error instanceof ApiNetworkError ? t('auth.setup.internetRequired') : t('auth.login.wrongPin'));
+    }
+  };
+
   const provisionedAdmins = staff.filter((member) => member.role === 'admin' && provisionedAdminIds.includes(member.id));
   const syncLabels = {
     synced: t('sync.synced'),
@@ -410,9 +505,9 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
           if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
           else { void runtime.session.logout(); router.push('/login'); }
         }); }}
-        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'clients' ? '/clients' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/sale')}
+        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'clients' ? '/clients' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'analytics' ? '/analytics' : id === 'setup' ? '/setup' : '/sale')}
         sync={{ label: syncLabel, state: syncStatus.state, count: syncStatus.pendingCount, onClick: () => { void runtime.refreshSync().then(refreshLocal); } }}
-        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }]}
+        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         storageAttention={storageAttention}
         userName={activeIdentity.name}
@@ -460,6 +555,10 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
             <Tabs activeId={catalogueTab} label={t('sale.catalogue')} onChange={(id) => { setCatalogueTab(id as CatalogueTab); setCatalogueCategory('all'); }} tabs={[{ id: 'services', label: t('sale.services') }, { id: 'products', label: t('sale.products') }]} testId="catalogue-tabs" testIdPrefix="catalogue-tab" />
             <div className={styles.categoryChips} data-testid="category-chips">
               {categories.map((category) => <Button aria-pressed={catalogueCategory === category.id} className={catalogueCategory === category.id ? styles.categoryChipActive : undefined} data-testid={`category-chip-${category.id.toLowerCase().replaceAll(' ', '-')}`} key={category.id} onClick={() => setCatalogueCategory(category.id)} pill size="sm" variant="ghost">{category.label}</Button>)}
+              {catalogueTab === 'services' && activeIdentity.role === 'admin' ? <>
+                <Button className={styles.manageChip} data-testid="service-add-open" onClick={openServiceAdd} pill size="sm" variant="ghost">+ {t('sale.addService')}</Button>
+                <Button className={styles.manageChip} data-testid="service-edit-open" disabled={allServices.length === 0} onClick={openServiceEdit} pill size="sm" variant="ghost">{t('sale.editServices')}</Button>
+              </> : null}
             </div>
             <div className={styles.searchRow}>
               <Input className={styles.searchInput} data-testid="catalogue-search" onChange={(event) => setSearch(event.target.value)} placeholder={t('sale.search')} value={search} />
@@ -521,6 +620,25 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => setReceipt(undefined)} open={receipt !== undefined} title={t('sale.receipt')}>
         {receipt === undefined ? null : <section className={styles.receipt} data-qr-present={renderedReceipt?.layout.runs.some((run) => run.kind === 'qr') ? 'true' : 'false'} data-testid="receipt-view"><h2>{t('sale.receipt')}</h2><p>{t('sale.waitingSync')}</p><strong>{fmtMMK(receipt.total)}</strong>{renderedReceipt === undefined || receiptImageUrl === undefined ? <Skeleton size="receipt" /> : <img alt={t('sale.receipt')} className={styles.receiptCanvas} data-testid="receipt-canvas" src={receiptImageUrl} />}<div className={styles.tenderChoices}><Button data-testid="receipt-print" disabled={renderedReceipt === undefined || printerProfile === undefined} onClick={() => { if (renderedReceipt === undefined || printerProfile === undefined) return; void createM5PrinterTransport(printerProfile).send(renderedReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('sale.print')}</Button><Button data-testid="receipt-share" disabled={renderedReceipt === undefined} onClick={() => { if (renderedReceipt === undefined || navigator.share === undefined) return; void createPngShareTransport((file) => navigator.share({ files: [file] })).send(renderedReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('sale.share')}</Button></div><Button data-testid="sale-complete" onClick={() => setReceipt(undefined)}>{t('sale.done')}</Button></section>}
+      </Modal>
+      <Modal closeLabel={t('modal.close')} onClose={() => setServiceModal(undefined)} open={serviceModal !== undefined} testId="service-modal" title={serviceModal === 'edit' ? t('sale.editServices') : t('sale.addService')}>
+        <div className={styles.modalForm}>
+          {serviceModal === 'edit' ? <label><span>{t('service.pick')}</span><select data-testid="service-pick" onChange={(event) => pickService(event.target.value)} value={svcId}>{allServices.map((row) => <option key={row.id} value={row.id}>{row.nameEn ?? row.nameMm}{row.active ? '' : ' ✕'}</option>)}</select></label> : null}
+          <label><span>{t('service.nameEn')}</span><Input data-testid="service-name-en" onChange={(event) => setSvcNameEn(event.target.value)} value={svcNameEn} /></label>
+          <label><span>{t('service.nameMm')}</span><Input data-testid="service-name-mm" onChange={(event) => setSvcNameMm(event.target.value)} value={svcNameMm} /></label>
+          <label><span>{t('service.category')}</span><Input data-testid="service-category" onChange={(event) => setSvcCategory(event.target.value)} value={svcCategory} /></label>
+          <label><span>{t('service.price')}</span><Input data-testid="service-price" min="0" onChange={(event) => setSvcPrice(event.target.value)} type="number" value={svcPrice} /></label>
+          <label><span>{t('service.followUpDays')}</span><Input data-testid="service-followup" min="0" onChange={(event) => setSvcFollowUp(event.target.value)} type="number" value={svcFollowUp} /></label>
+          <label className={styles.checkboxRow}><input checked={svcRequiresLot} data-testid="service-requires-lot" onChange={(event) => setSvcRequiresLot(event.target.checked)} type="checkbox" />{t('service.requiresLot')}</label>
+          {serviceModal === 'edit' ? <label className={styles.checkboxRow}><input checked={svcActive} data-testid="service-active" onChange={(event) => setSvcActive(event.target.checked)} type="checkbox" />{t('service.active')}</label> : null}
+          <Button data-testid="service-save" disabled={(svcNameEn.trim() === '' && svcNameMm.trim() === '') || (serviceModal === 'edit' && svcId === '')} onClick={() => { void saveService(); }}>{t('service.save')}</Button>
+        </div>
+      </Modal>
+      <Modal closeLabel={t('modal.close')} onClose={() => { setSvcElevOpen(false); setSvcPassword(''); }} open={svcElevOpen} testId="service-elevation" title={t('setup.elevate')}>
+        <div className={styles.modalForm}>
+          <label><span>{t('setup.password')}</span><Input data-testid="service-elevation-password" onChange={(event) => setSvcPassword(event.target.value)} type="password" value={svcPassword} /></label>
+          <Button data-testid="service-elevation-submit" disabled={svcPassword === ''} onClick={() => { void submitServiceElevation(); }}>{t('setup.elevate')}</Button>
+        </div>
       </Modal>
     </main>
   );

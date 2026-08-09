@@ -321,6 +321,28 @@ const server = http.createServer(async (req, res) => {
   }
 
   /* ---- PRODUCTS: idempotent + barcode merge ---- */
+  if (path === '/services' && req.method === 'POST') {
+    if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
+    const b = await body(req);
+    if (!b?.id || !b.name_mm || !Number.isInteger(b.price) || b.price < 0) return err(res, 400, 'MALFORMED', 'service requires id, name_mm, price');
+    const existing = db.services.find(v => v.id === b.id);
+    if (existing) return send(res, 200, { service: existing, replayed: true });
+    const v = { category: 'Other', name_en: null, duration_min: null, requires_lot: false, default_followup_days: null, active: true, ...b };
+    db.services.push(v); bump('service', v);
+    return send(res, 200, { service: v, replayed: false });
+  }
+  if ((m = path.match(/^\/services\/([^/]+)$/)) && req.method === 'PATCH') {
+    if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
+    const b = await body(req);
+    const allowed = ['category', 'name_mm', 'name_en', 'price', 'duration_min', 'requires_lot', 'default_followup_days', 'active'];
+    if (!strictPatch(b, allowed)) return err(res, 400, 'MALFORMED', 'service update must include only mutable fields');
+    if ('name_mm' in b && (typeof b.name_mm !== 'string' || b.name_mm === '')) return err(res, 400, 'MALFORMED', 'invalid service name');
+    if ('price' in b && (!Number.isInteger(b.price) || b.price < 0)) return err(res, 400, 'MALFORMED', 'invalid service price');
+    const v = db.services.find(entry => entry.id === m[1]);
+    if (!v) return err(res, 404, 'NOT_FOUND', 'unknown service');
+    Object.assign(v, b); bump('service', v);
+    return send(res, 200, v);
+  }
   if (path === '/products' && req.method === 'POST') {
     const b = await body(req);
     if (!b?.id || !b.name) return err(res, 400, 'MALFORMED', 'product requires id, name');

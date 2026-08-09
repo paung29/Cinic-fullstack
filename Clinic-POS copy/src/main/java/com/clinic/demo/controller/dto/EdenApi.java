@@ -34,6 +34,15 @@ public final class EdenApi {
             Boolean takesBookings) {}
     public record ServiceDto(UUID id, String category, String nameMm, String nameEn, long price,
             Integer durationMin, boolean requiresLot, Integer defaultFollowupDays, boolean active) {}
+
+    public record ServiceInput(@NotNull UUID id, String category, @NotBlank String nameMm, String nameEn,
+                               @NotNull @Min(0) Long price, Integer durationMin, Boolean requiresLot,
+                               Integer defaultFollowupDays, Boolean active) {}
+
+    public record ServicePatch(String category, String nameMm, String nameEn, @Min(0) Long price,
+                               Integer durationMin, Boolean requiresLot, Integer defaultFollowupDays, Boolean active) {}
+
+    public record ServiceEnvelope(ServiceDto service, Boolean replayed) {}
     public record ProductDto(UUID id, String name, String category, String subcategory, int sortOrder,
             String barcode, long cost, long price, BigDecimal stockQty, BigDecimal lowStockAt,
             BigDecimal reorderAt, String stockType, String soldBy, boolean requiresLot,

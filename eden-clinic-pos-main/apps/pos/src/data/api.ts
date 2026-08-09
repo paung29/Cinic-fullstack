@@ -27,6 +27,9 @@ import {
   paymentSchema,
   productResponseSchema,
   productPatchSchema,
+  serviceSchema,
+  servicePatchSchema,
+  serviceCreateResponseSchema,
   productSchema,
   saleResponseSchema,
   saleSchema,
@@ -61,6 +64,9 @@ import {
   type PaymentWire,
   type ProductResponseWire,
   type ProductPatchWire,
+  type ServiceWire,
+  type ServicePatchWire,
+  type ServiceCreateResponseWire,
   type ProductWire,
   type SaleResponseWire,
   type SaleWire,
@@ -106,6 +112,8 @@ export interface ApiClient {
   updateClinic(input: ClinicPatchWire, elevationToken: string): Promise<ClinicWire>;
   updatePatient(id: string, input: PatientWire): Promise<PatientWire>;
   updateProduct(id: string, input: ProductPatchWire, elevationToken: string): Promise<ProductWire>;
+  createService?(input: ServiceWire, elevationToken: string): Promise<ServiceCreateResponseWire>;
+  updateService?(id: string, input: ServicePatchWire, elevationToken: string): Promise<ServiceWire>;
   adjustStock(input: StockAdjustWire, elevationToken: string): Promise<ProductWire>;
   voidSale(id: string, reason: string, elevationToken: string): Promise<SaleResponseWire>;
   followups(from?: string, to?: string): Promise<FollowupWire[]>;
@@ -311,6 +319,26 @@ export function createApiClient(options: {
         path: `/products/${encodeURIComponent(id)}`,
         body: productPatchSchema.parse(input),
         schema: productSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    createService(input, elevationToken): Promise<ServiceCreateResponseWire> {
+      return request({
+        method: 'POST',
+        path: '/services',
+        body: serviceSchema.parse(input),
+        schema: serviceCreateResponseSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    updateService(id, input, elevationToken): Promise<ServiceWire> {
+      return request({
+        method: 'PATCH',
+        path: `/services/${encodeURIComponent(id)}`,
+        body: servicePatchSchema.parse(input),
+        schema: serviceSchema,
         protected: true,
         elevationToken,
       });

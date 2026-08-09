@@ -79,7 +79,7 @@ function ActiveTodayScreen({ runtime }: { runtime: ClinicRuntime }) {
   const blocksClose = data.status.pendingCount > 0 || data.status.attentionCount > 0;
   const storageStatus = runtime.storageDiagnostics.state();
   const storageAttention = storageStatus.kind === 'granted' ? undefined : t('shell.storageTag');
-  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }];
+  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }];
   const route = (id: string) => id === 'today' ? '/' : `/${id}`;
 
   const confirmClose = async () => {

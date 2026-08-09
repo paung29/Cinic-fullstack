@@ -155,9 +155,9 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
         storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         onLogout={logout}
-        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'clients' ? '/clients' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/calendar')}
+        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'clients' ? '/clients' : id === 'stocks' ? '/stocks' : id === 'analytics' ? '/analytics' : id === 'setup' ? '/setup' : '/calendar')}
         sync={{ label: t('sync.synced'), state: 'synced', onClick: () => { void runtime.refreshSync().then(refreshLocal, refreshLocal); } }}
-        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }]}
+        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]}
         userName={identity.name}
         userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}
       >

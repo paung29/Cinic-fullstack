@@ -89,11 +89,11 @@ export const serverExportSchema = jsonObjectSchema;
 
 export const serviceSchema = z.object({
   id: z.string(),
-  category: z.string().optional(),
+  category: z.string().nullable().optional(),
   name_mm: z.string(),
-  name_en: z.string().optional(),
+  name_en: z.string().nullable().optional(),
   price: z.number().int(),
-  duration_min: z.number().int().optional(),
+  duration_min: z.number().int().nullable().optional(),
   requires_lot: z.boolean().optional(),
   default_followup_days: z.number().int().nullable().optional(),
   active: z.boolean().optional(),
@@ -118,6 +118,22 @@ export const productSchema = z.object({
   unit_label: z.string().nullable().optional(),
   photo_key: z.string().nullable().optional(),
   active: z.boolean().optional(),
+});
+
+export const servicePatchSchema = z.object({
+  category: z.string().optional(),
+  name_mm: z.string().min(1).optional(),
+  name_en: z.string().nullable().optional(),
+  price: z.number().int().nonnegative().optional(),
+  duration_min: z.number().int().nullable().optional(),
+  requires_lot: z.boolean().optional(),
+  default_followup_days: z.number().int().nullable().optional(),
+  active: z.boolean().optional(),
+});
+
+export const serviceCreateResponseSchema = z.object({
+  service: serviceSchema,
+  replayed: z.boolean().optional(),
 });
 
 export const productPatchSchema = z.object({
@@ -419,6 +435,8 @@ export type LicenseWire = z.infer<typeof licenseSchema>;
 export type ServiceWire = z.infer<typeof serviceSchema>;
 export type ProductWire = z.infer<typeof productSchema>;
 export type ProductPatchWire = z.infer<typeof productPatchSchema>;
+export type ServicePatchWire = z.infer<typeof servicePatchSchema>;
+export type ServiceCreateResponseWire = z.infer<typeof serviceCreateResponseSchema>;
 export type BarcodeLookupWire = z.infer<typeof barcodeLookupSchema>;
 export type PatientWire = z.infer<typeof patientSchema>;
 export type SaleLineWire = z.infer<typeof saleLineSchema>;

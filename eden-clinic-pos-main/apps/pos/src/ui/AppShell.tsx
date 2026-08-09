@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { CalendarDays, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users, UsersRound } from 'lucide-react';
+import { CalendarDays, ChartColumn, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users, UsersRound } from 'lucide-react';
 import { Button } from './Button';
 import { SyncChip, type SyncChipProps } from './SyncChip';
 import { Tabs, type TabItem } from './Tabs';
@@ -35,6 +35,7 @@ const NAV_ICONS: Record<string, ReactNode> = {
   clients: <Users aria-hidden="true" size={17} />,
   sale: <ShoppingCart aria-hidden="true" size={17} />,
   stocks: <Package aria-hidden="true" size={17} />,
+  analytics: <ChartColumn aria-hidden="true" size={17} />,
   setup: <Settings aria-hidden="true" size={17} />,
 };
 

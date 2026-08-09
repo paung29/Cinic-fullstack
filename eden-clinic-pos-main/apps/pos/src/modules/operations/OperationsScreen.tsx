@@ -95,7 +95,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
   if (identity === undefined) return <main className={styles.loading}><Skeleton size="loading" /></main>;
 
   const syncLabels = { synced: t('sync.synced'), syncing: t('sync.syncing'), offline: t('sync.offline'), attention: t('sync.attention') };
-  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }];
+  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }];
 
   const runAction = async (action: typeof pendingAction, token: string) => {
     if (action === 'report') {

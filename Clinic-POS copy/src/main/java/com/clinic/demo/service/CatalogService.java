@@ -41,6 +41,7 @@ public class CatalogService {
     public CatalogItem createService(UUID clinicId, CatalogInput input) {
         Clinic clinic = requireClinic(clinicId);
         return response(serviceRepository.save(com.clinic.demo.entity.Service.builder()
+                .id(UUID.randomUUID())
                 .clinic(clinic).name(input.name().trim()).price(input.price())
                 .active(input.active() == null || input.active()).build()));
     }

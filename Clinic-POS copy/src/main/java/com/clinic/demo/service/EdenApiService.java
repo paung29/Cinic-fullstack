@@ -166,6 +166,46 @@ public class EdenApiService {
     }
 
     @Transactional
+    public ServiceEnvelope createService(Account account, ServiceInput input, UUID elevationToken) {
+        requireElevation(account, elevationToken);
+        UUID clinicId = account.getClinic().getId();
+        com.clinic.demo.entity.Service replay = services.findByIdAndClinicId(input.id(), clinicId).orElse(null);
+        if (replay != null) return new ServiceEnvelope(serviceDto(replay), true);
+        com.clinic.demo.entity.Service s = services.save(com.clinic.demo.entity.Service.builder()
+                .id(input.id()).clinic(account.getClinic())
+                .name(input.nameMm().trim())
+                .nameEn(input.nameEn() == null || input.nameEn().isBlank() ? null : input.nameEn().trim())
+                .category(or(input.category(), "Other"))
+                .price(money(input.price()))
+                .durationMin(input.durationMin())
+                .requiresLot(Boolean.TRUE.equals(input.requiresLot()))
+                .defaultFollowupDays(input.defaultFollowupDays())
+                .active(input.active() == null || input.active())
+                .build());
+        ServiceDto dto = serviceDto(s);
+        emit(account.getClinic(), "service", dto);
+        return new ServiceEnvelope(dto, false);
+    }
+
+    @Transactional
+    public ServiceDto patchService(Account account, UUID id, ServicePatch input, UUID elevationToken) {
+        requireElevation(account, elevationToken);
+        com.clinic.demo.entity.Service s = requireService(account, id);
+        if (input.nameMm() != null) s.setName(input.nameMm().trim());
+        if (input.nameEn() != null) s.setNameEn(input.nameEn().isBlank() ? null : input.nameEn().trim());
+        if (input.category() != null) s.setCategory(input.category());
+        if (input.price() != null) s.setPrice(money(input.price()));
+        if (input.durationMin() != null) s.setDurationMin(input.durationMin());
+        if (input.requiresLot() != null) s.setRequiresLot(input.requiresLot());
+        if (input.defaultFollowupDays() != null) s.setDefaultFollowupDays(input.defaultFollowupDays());
+        if (input.active() != null) s.setActive(input.active());
+        services.save(s);
+        ServiceDto dto = serviceDto(s);
+        emit(account.getClinic(), "service", dto);
+        return dto;
+    }
+
+    @Transactional
     public ProductDto patchProduct(Account account, UUID id, ProductPatch input, UUID elevationToken) {
         requireElevation(account, elevationToken);
         Product p = requireProduct(account, id);

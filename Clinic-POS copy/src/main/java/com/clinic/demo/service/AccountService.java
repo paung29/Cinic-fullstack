@@ -51,6 +51,7 @@ public class AccountService {
                 .active(true)
                 .build());
         serviceRepository.save(com.clinic.demo.entity.Service.builder()
+                .id(java.util.UUID.randomUUID())
                 .clinic(clinic)
                 .name("Consultation")
                 .nameEn("Consultation")
