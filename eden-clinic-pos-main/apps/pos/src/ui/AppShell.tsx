@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { LogOut, UsersRound } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users, UsersRound } from 'lucide-react';
 import { Button } from './Button';
 import { SyncChip, type SyncChipProps } from './SyncChip';
 import { Tabs, type TabItem } from './Tabs';
@@ -25,6 +25,17 @@ export type AppShellProps = {
   storageAttention?: string;
   offlineAdminAttention?: string;
   children: ReactNode;
+};
+
+// v5 shell: the nav ids are stable product sections, so the shell owns their
+// glyphs — call sites keep passing plain {id, label} tabs unchanged.
+const NAV_ICONS: Record<string, ReactNode> = {
+  today: <LayoutDashboard aria-hidden="true" size={17} />,
+  calendar: <CalendarDays aria-hidden="true" size={17} />,
+  clients: <Users aria-hidden="true" size={17} />,
+  sale: <ShoppingCart aria-hidden="true" size={17} />,
+  stocks: <Package aria-hidden="true" size={17} />,
+  setup: <Settings aria-hidden="true" size={17} />,
 };
 
 export function AppShell({
@@ -53,6 +64,8 @@ export function AppShell({
           <span>{location}</span>
         </div>
         <div className={styles.grow} />
+        {storageAttention === undefined ? null : <Tag className={styles.attentionTag} data-testid="storage-persistence-banner" role="status" tone="amber" title={storageAttention}>{storageAttention}</Tag>}
+        {offlineAdminAttention === undefined ? null : <Tag className={styles.attentionTag} data-testid="offline-admin-attention" role="status" tone="amber" title={offlineAdminAttention}>{offlineAdminAttention}</Tag>}
         <SyncChip {...sync} />
         <div className={styles.user}>
           <strong>{userName}</strong>
@@ -64,11 +77,9 @@ export function AppShell({
           <span className={styles.logoutText}>{logoutLabel}</span>
         </Button>
       </header>
-      <nav className={styles.tabRail} data-testid="tab-rail">
-        <Tabs activeId={activeTab} label={brand} onChange={onTabChange} tabs={tabs} />
+      <nav className={styles.sideRail} data-testid="tab-rail">
+        <Tabs activeId={activeTab} icons={NAV_ICONS} label={brand} onChange={onTabChange} orientation="vertical" tabs={tabs} />
       </nav>
-      {offlineAdminAttention === undefined ? null : <div className={styles.attention}><Tag data-testid="offline-admin-attention" role="status" tone="amber">{offlineAdminAttention}</Tag></div>}
-      {storageAttention === undefined ? null : <p className={styles.storageAttention} data-testid="storage-persistence-banner" role="status">{storageAttention}</p>}
       <div className={styles.content}>{children}</div>
     </div>
   );

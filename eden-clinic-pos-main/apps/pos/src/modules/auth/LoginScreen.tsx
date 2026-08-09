@@ -189,10 +189,12 @@ export function LoginScreen() {
                   setMessage(undefined);
                   setPin('');
                 }} pill variant="ghost">
+                  <span aria-hidden="true" className={styles.staffAvatar}>{member.name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
                   <span className={styles.staffIdentity}>
                     <strong>{member.name}</strong>
                     <small>{member.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}</small>
                   </span>
+                  <span aria-hidden="true" className={styles.staffChevron}>&rsaquo;</span>
                 </Button>
               ))}
             </div>

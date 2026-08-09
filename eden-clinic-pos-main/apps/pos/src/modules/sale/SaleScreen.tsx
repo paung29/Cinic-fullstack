@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ShoppingCart } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { usePwaUpdate } from '@/app/pwaUpdate';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
@@ -370,7 +371,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     attention: t('sync.attention'),
   };
   const syncLabel = syncLabels[syncStatus.state];
-  const storageAttention = runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageAttention');
+  const storageAttention = runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag');
   const serviceCategories: ReadonlyArray<{ id: CatalogueCategory; label: string }> = [
     { id: 'all', label: t('sale.category.all') },
     { id: 'Laser', label: t('sale.category.laser') },
@@ -418,7 +419,6 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
         userRole={t('shell.userRole')}
       >
         <div className={styles.workspace}>
-          {activeIdentity.role === 'admin' ? <div className={styles.envelopeManager}><Button onClick={() => router.push('/security')} pill size="sm" variant="ghost">{t('auth.envelopes.open')}</Button></div> : null}
           <section className={styles.cartPanel} data-testid="sale-cart">
             <header className={styles.panelHeader}><h1>{t('sale.cart')}</h1><strong>{fmtMMK(total)}</strong></header>
             <label className={styles.patientField}>
@@ -430,7 +430,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
             </label>
             {selectedPatient?.allergies || selectedPatient?.alertNote ? <p className={styles.allergy} data-testid="allergy-banner">{selectedPatient.allergies ?? selectedPatient.alertNote}</p> : null}
             <div className={styles.cartLines}>
-              {draft.lines.length === 0 ? <p className={styles.empty}>{t('sale.emptyCart')}</p> : draft.lines.map((line) => (
+              {draft.lines.length === 0 ? <div className={styles.cartEmpty}><ShoppingCart aria-hidden="true" size={26} /><p>{t('sale.emptyCart')}</p></div> : draft.lines.map((line) => (
                 <article className={styles.cartLine} data-testid={`cart-line-${line.id}`} key={line.id}>
                   <div><strong>{line.nameSnapshot}</strong><span>{fmtMMK(line.unitPrice)}</span></div>
                   <div className={styles.lineActions}>
@@ -461,21 +461,24 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
             <div className={styles.categoryChips} data-testid="category-chips">
               {categories.map((category) => <Button aria-pressed={catalogueCategory === category.id} className={catalogueCategory === category.id ? styles.categoryChipActive : undefined} data-testid={`category-chip-${category.id.toLowerCase().replaceAll(' ', '-')}`} key={category.id} onClick={() => setCatalogueCategory(category.id)} pill size="sm" variant="ghost">{category.label}</Button>)}
             </div>
-            <Input data-testid="catalogue-search" onChange={(event) => setSearch(event.target.value)} placeholder={t('sale.search')} value={search} />
-            <Input
-            className={styles.scannerInput}
-            data-testid="scanner-input"
-            inputMode={scannerManualEntry ? 'numeric' : 'none'}
-            onBlur={() => setScannerManualEntry(false)}
-            onChange={(event) => setScannerValue(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') scan(); }}
-            onPointerDown={() => setScannerManualEntry(true)}
-            placeholder={t('sale.scanner')}
-            ref={scannerRef}
-            value={scannerValue}
-          />
+            <div className={styles.searchRow}>
+              <Input className={styles.searchInput} data-testid="catalogue-search" onChange={(event) => setSearch(event.target.value)} placeholder={t('sale.search')} value={search} />
+              <Input
+                className={styles.scannerInput}
+                data-testid="scanner-input"
+                inputMode={scannerManualEntry ? 'numeric' : 'none'}
+                onBlur={() => setScannerManualEntry(false)}
+                onChange={(event) => setScannerValue(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') scan(); }}
+                onPointerDown={() => setScannerManualEntry(true)}
+                placeholder={t('sale.scanner')}
+                ref={scannerRef}
+                value={scannerValue}
+              />
+            </div>
             <div className={styles.catalogueList}>
-              {catalogueTab === 'services' ? visibleServices.map((service) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${service.id}`} key={service.id} onClick={() => addService(service)} variant="ghost"><span>{service.nameEn ?? service.nameMm}</span><strong>{fmtMMK(service.price)}</strong></Button>) : visibleProducts.map((product) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${product.id}`} key={product.id} onClick={() => addProduct(product)} variant="ghost"><span>{product.name}</span><strong>{fmtMMK(product.price)}</strong></Button>)}
+              {catalogueTab === 'services' ? visibleServices.map((service) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${service.id}`} key={service.id} onClick={() => addService(service)} variant="ghost"><span className={styles.tileName}>{service.nameEn ?? service.nameMm}</span>{typeof service.nameEn === 'string' && service.nameEn !== service.nameMm ? <small className={styles.tileSub}>{service.nameMm}</small> : null}<strong>{fmtMMK(service.price)}</strong></Button>) : visibleProducts.map((product) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${product.id}`} key={product.id} onClick={() => addProduct(product)} variant="ghost"><span className={styles.tileName}>{product.name}</span>{product.category === '' ? null : <small className={styles.tileSub}>{product.category}</small>}<strong>{fmtMMK(product.price)}</strong></Button>)}
+              {(catalogueTab === 'services' ? visibleServices : visibleProducts).length === 0 ? <p className={styles.catalogueEmpty}>{t('sale.emptyCatalogue')}</p> : null}
             </div>
           </section>
         </div>

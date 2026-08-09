@@ -112,7 +112,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}
-        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageAttention')}
+        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         onLogout={() => { void runtime.outbox.status().then((status) => {
           if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));

@@ -1,22 +1,26 @@
 .root { min-height: 100vh; background: var(--bg); }
 .loading { display: grid; min-height: 100vh; place-items: center; background: var(--bg); }
-.content { display: grid; gap: 16px; padding: 18px; }
+.content { display: grid; width: 100%; max-width: 1280px; box-sizing: border-box; margin: 0 auto; gap: 16px; padding: 18px 22px 26px; }
 .toolbar, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .toolbar { justify-content: space-between; }
-.toolbar h1 { margin: 0; }
-.table { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); box-shadow: var(--sh-subtle); }
+.toolbar h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+.toolbar .actions input { width: min(260px, 60vw); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--sh-subtle); }
 .table table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-.table th { color: var(--mut); font-size: 12px; }
+.table th, .table td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.table th { color: var(--mut); font-size: 11.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .table td { color: var(--ink); }
+.table tr:last-child td { border-bottom: 0; }
+.table th:nth-child(n+4):nth-child(-n+7), .table td:nth-child(n+4):nth-child(-n+7) { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tableEmpty { margin: 0; padding: 34px 16px; color: var(--mut); text-align: center; }
 .stack { display: grid; gap: 12px; }
 .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.fields label { display: grid; gap: 5px; color: var(--mut); font-size: 13px; font-weight: 700; }
+.fields label, .stack label { display: grid; gap: 5px; color: var(--mut); font-size: 13px; font-weight: 700; }
 .notice { margin: 0; color: var(--amber); font-weight: 700; }
 .marginHigh { color: var(--forest); }
 .marginMedium { color: var(--amber); }
 .marginLow { color: var(--red); }
-.productName { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.stockValue { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.productName { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.stockValue { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .lotLine { display: block; margin-top: 3px; color: var(--mut); font-size: 12px; }
 @media (max-width: 760px) { .content { padding: 12px; } .fields { grid-template-columns: 1fr; } }

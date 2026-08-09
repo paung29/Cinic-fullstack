@@ -442,7 +442,7 @@ export const dictMy = {
   'stocks.price': 'ရောင်းစျေး', // TODO(native-review)
   'stocks.stock': 'လက်ကျန်', // TODO(native-review)
   'stocks.lowStock': 'လက်ကျန်နည်း', // TODO(native-review)
-  'stocks.type': 'အမျိုးအစား', // TODO(native-review)
+  'stocks.type': 'ပစ္စည်းအမျိုးအစား', // TODO(native-review)
   'stocks.lot': 'အတွဲနံပါတ်', // TODO(native-review)
   'stocks.expiry': 'သက်တမ်းကုန်', // TODO(native-review)
   'stocks.lookup': 'ဘားကုဒ် ရှာပါ', // TODO(native-review)
@@ -565,4 +565,9 @@ export const dictMy = {
   'ops.export.submit': 'ဒေတာ ဒေါင်းလုဒ်လုပ်ရန်', // TODO(native-review)
   'ops.adminOnly': 'စီမံခန့်ခွဲသူများသာ လုပ်ငန်းစီမံမှုကို ဖွင့်နိုင်ပါသည်။', // TODO(native-review)
   'ops.failed': 'လုပ်ဆောင်၍ မရပါ။ အင်တာနက်ကို စစ်ပြီး ထပ်ကြိုးစားပါ။', // TODO(native-review)
+  'shell.storageTag': 'သိုလှောင်မှု မကာကွယ်ရသေး', // TODO(native-review)
+  'today.allClear': 'အားလုံး ရှင်းလင်း', // TODO(native-review)
+  'calendar.todayJump': 'ယနေ့', // TODO(native-review)
+  'sale.emptyCatalogue': 'ဤအမျိုးအစားတွင် မရှိသေးပါ။', // TODO(native-review)
+  'stocks.empty': 'ကုန်ပစ္စည်း မရှိသေးပါ — ထည့်ပါ သို့မဟုတ် ကုန်လက်ခံပါ။', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

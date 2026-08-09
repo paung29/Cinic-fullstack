@@ -372,4 +372,9 @@ export const dictEn = {
   'ops.export.submit': 'Download export',
   'ops.adminOnly': 'Only administrators can open operations.',
   'ops.failed': 'The action could not be completed. Check the connection and try again.',
+  'shell.storageTag': 'Storage unprotected',
+  'today.allClear': 'All clear',
+  'calendar.todayJump': 'Today',
+  'sale.emptyCatalogue': 'Nothing in this category yet.',
+  'stocks.empty': 'No products yet — add one or receive a delivery.',
 } satisfies TranslationDictionary;

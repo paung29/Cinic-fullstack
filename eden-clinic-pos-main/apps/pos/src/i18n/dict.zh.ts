@@ -565,4 +565,9 @@ export const dictZh = {
   'ops.export.submit': '下载导出数据', // TODO(native-review)
   'ops.adminOnly': '只有管理员才能打开运营管理。', // TODO(native-review)
   'ops.failed': '操作未能完成。请检查网络后重试。', // TODO(native-review)
+  'shell.storageTag': '存储未受保护', // TODO(native-review)
+  'today.allClear': '全部正常', // TODO(native-review)
+  'calendar.todayJump': '今天', // TODO(native-review)
+  'sale.emptyCatalogue': '该分类暂无项目。', // TODO(native-review)
+  'stocks.empty': '暂无商品 — 添加或收货。', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

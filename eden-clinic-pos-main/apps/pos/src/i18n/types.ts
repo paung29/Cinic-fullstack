@@ -370,6 +370,11 @@ export const translationKeys = [
   'ops.export.submit',
   'ops.adminOnly',
   'ops.failed',
+  'shell.storageTag',
+  'today.allClear',
+  'calendar.todayJump',
+  'sale.emptyCatalogue',
+  'stocks.empty',
 ] as const;
 
 export type Locale = 'my' | 'en' | 'zh';

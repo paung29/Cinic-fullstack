@@ -81,6 +81,10 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
   const appointmentForSlot = (staffId: string, time: string) => dayAppointments.find((row) => row.staffId === staffId && row.time === time && row.status !== 'cancelled');
   const cancelledAppointmentForSlot = (staffId: string, time: string) => dayAppointments.find((row) => row.staffId === staffId && row.time === time && row.status === 'cancelled');
   const appointmentLabel = (status: AppointmentRow['status']) => t(`calendar.status.${status}`);
+  const localDateIso = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
 
   const openBooking = (slot: Slot) => {
     setBookingSlot(slot);
@@ -148,7 +152,7 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}
-        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageAttention')}
+        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         onLogout={logout}
         onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'clients' ? '/clients' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/calendar')}
@@ -159,24 +163,34 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
       >
         <section className={styles.content}>
           <header className={styles.toolbar}>
-            <div><p>{t('calendar.day')}</p><h1>{t('calendar.title')}</h1></div>
-            <Input data-testid="calendar-date" onChange={(event) => setDate(event.target.value)} type="date" value={date} />
-            <Button data-testid="calendar-book" onClick={() => openBooking({ staffId: columns[0]?.id ?? '', time: slotTimes[0]! })} pill>{t('calendar.book')}</Button>
+            <div className={styles.toolbarTitle}><p>{t('calendar.day')}</p><h1>{t('calendar.title')}</h1></div>
+            <div className={styles.toolbarActions}>
+              <Input data-testid="calendar-date" onChange={(event) => setDate(event.target.value)} type="date" value={date} />
+              <Button data-testid="calendar-today" onClick={() => setDate(localDateIso())} pill size="sm" variant="ghost">{t('calendar.todayJump')}</Button>
+              <Button data-testid="calendar-book" onClick={() => openBooking({ staffId: columns[0]?.id ?? '', time: slotTimes[0]! })} pill>{t('calendar.book')}</Button>
+            </div>
           </header>
-          {columns.length === 0 ? <Card><p>{t('calendar.noBookings')}</p></Card> : <div className={styles.grid} data-testid="calendar-grid">
+          {columns.length === 0 ? <Card><p>{t('calendar.noBookings')}</p></Card> : <div className={styles.grid} data-cols={String(Math.min(columns.length, 6))} data-testid="calendar-grid">
             <div className={styles.corner}>{t('calendar.time')}</div>
-            {columns.map((member) => <div className={styles.staffHeader} key={member.id}>{member.name}</div>)}
+            {columns.map((member) => <div className={styles.staffHeader} key={member.id}><span aria-hidden="true" className={styles.staffAvatar}>{staffInitials(member.name)}</span><span className={styles.staffMeta}><strong>{member.name}</strong><small>{dayAppointments.filter((row) => row.staffId === member.id && row.status !== 'cancelled').length} · {t('calendar.status.booked')}</small></span></div>)}
             {slotTimes.flatMap((time) => [
               <div className={styles.timeLabel} key={`${time}-label`}>{time}</div>,
               ...columns.map((member) => {
                 const appointment = appointmentForSlot(member.id, time);
                 const cancelledAppointment = cancelledAppointmentForSlot(member.id, time);
                 return <div className={styles.slot} key={`${member.id}-${time}`}>
-                  {appointment === undefined ? <>{cancelledAppointment === undefined ? null : <button className={[styles.appointment, styles[appointmentBlockClass(cancelledAppointment.status)]].join(' ')} data-testid={`calendar-appointment-${cancelledAppointment.id}`} disabled type="button"><strong>{patients.find((patient) => patient.id === cancelledAppointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(cancelledAppointment.status)}</span></button>}<Button data-testid={`calendar-slot-${member.id}-${time}`} onClick={() => openBooking({ staffId: member.id, time })} size="sm" variant="ghost">{t('calendar.book')}</Button></> : <button className={[styles.appointment, styles[appointmentBlockClass(appointment.status)]].join(' ')} data-testid={`calendar-appointment-${appointment.id}`} onClick={() => setSelectedAppointment(appointment)} type="button"><strong>{patients.find((patient) => patient.id === appointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(appointment.status)}</span>{appointment.syncConflict ? <Tag tone="amber">{t('calendar.conflict')}</Tag> : null}</button>}
+                  {appointment === undefined ? <>{cancelledAppointment === undefined ? null : <button className={[styles.appointment, styles[appointmentBlockClass(cancelledAppointment.status)]].join(' ')} data-testid={`calendar-appointment-${cancelledAppointment.id}`} disabled type="button"><strong>{patients.find((patient) => patient.id === cancelledAppointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(cancelledAppointment.status)}</span></button>}<Button className={styles.slotBook} data-testid={`calendar-slot-${member.id}-${time}`} onClick={() => openBooking({ staffId: member.id, time })} size="sm" variant="ghost">{t('calendar.book')}</Button></> : <button className={[styles.appointment, styles[appointmentBlockClass(appointment.status)]].join(' ')} data-testid={`calendar-appointment-${appointment.id}`} onClick={() => setSelectedAppointment(appointment)} type="button"><strong>{patients.find((patient) => patient.id === appointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(appointment.status)}</span>{appointment.syncConflict ? <Tag tone="amber">{t('calendar.conflict')}</Tag> : null}</button>}
                 </div>;
               }),
             ])}
           </div>}
+          <footer className={styles.legend}>
+            <span className={styles.legendItem}><span className={styles.legendDot} />{t('calendar.status.booked')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendHere].join(' ')} />{t('calendar.status.here')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendDone].join(' ')} />{t('calendar.status.done')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendCancelled].join(' ')} />{t('calendar.status.cancelled')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendConflict].join(' ')} />{t('calendar.conflict')}</span>
+          </footer>
         </section>
       </AppShell>
       <Modal closeLabel={t('modal.close')} onClose={() => setBookingSlot(undefined)} open={bookingSlot !== undefined} testId="calendar-booking-modal" title={t('calendar.bookTitle')}>
@@ -207,4 +221,8 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
       </Modal>
     </main>
   );
+}
+
+function staffInitials(name: string): string {
+  return name.split(' ').filter((part) => part !== '').slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
