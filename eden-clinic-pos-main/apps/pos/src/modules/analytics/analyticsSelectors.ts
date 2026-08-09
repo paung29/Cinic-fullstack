@@ -86,6 +86,40 @@ export function windowStartIso(nowDayIso: string, range: AnalyticsRange): string
   return bucketKeys(nowDayIso, range)[0] ?? nowDayIso;
 }
 
+const MS_PER_DAY = 86_400_000;
+const DAYS_PER_MONTH = 30;
+
+function dayIndex(dayIso: string): number {
+  return Math.round(new Date(`${dayIso}T00:00:00Z`).getTime() / MS_PER_DAY);
+}
+
+export function firstActivityDay(sales: readonly SaleRow[]): string | null {
+  let earliest: string | null = null;
+  for (const sale of sales) {
+    if (sale.status === 'voided') continue;
+    const day = localDayIso(sale.at);
+    if (earliest === null || day < earliest) earliest = day;
+  }
+  return earliest;
+}
+
+// Payroll is a fixed monthly figure, so a nominal window would bill a full
+// year of salary against a clinic that opened last week — the monthly view
+// read -9,950,000 Ks on day one. Charge payroll only for the days the clinic
+// has actually been trading inside the window (first non-voided sale → today),
+// so cost and revenue always cover the same span. Once a clinic has more
+// history than the window, this is the full window and nothing changes.
+export function activeMonthsInWindow(sales: readonly SaleRow[], range: AnalyticsRange, nowDayIso: string): number {
+  const firstDay = firstActivityDay(sales);
+  if (firstDay === null) return 0;
+  const windowStart = windowStartIso(nowDayIso, range);
+  const startDay = windowStart.length === 4 ? `${windowStart}-01-01` : windowStart.length === 7 ? `${windowStart}-01` : windowStart;
+  const from = firstDay > startDay ? firstDay : startDay;
+  if (from > nowDayIso) return 0;
+  const days = dayIndex(nowDayIso) - dayIndex(from) + 1;
+  return Math.min(RANGE_MONTHS[range], days / DAYS_PER_MONTH);
+}
+
 export function expensesInWindow(expenses: readonly ExpenseEntry[], range: AnalyticsRange, nowDayIso: string): ExpenseEntry[] {
   const start = windowStartIso(nowDayIso, range);
   const startDay = start.length === 4 ? `${start}-01-01` : start.length === 7 ? `${start}-01` : start;

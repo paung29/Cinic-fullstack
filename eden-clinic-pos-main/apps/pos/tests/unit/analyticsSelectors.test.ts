@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   abbreviateKs,
+  activeMonthsInWindow,
   bucketKey,
   bucketKeys,
   expensesForMonth,
   expensesInWindow,
+  firstActivityDay,
+  RANGE_MONTHS,
   revenueSeries,
   saleCost,
   sumAmounts,
@@ -113,5 +116,58 @@ describe('abbreviateKs', () => {
     expect(abbreviateKs(45000)).toBe('45k Ks');
     expect(abbreviateKs(2450000)).toBe('2.5M Ks');
     expect(abbreviateKs(0)).toBe('0k Ks');
+  });
+});
+
+describe('firstActivityDay', () => {
+  it('returns the earliest non-voided sale day', () => {
+    expect(firstActivityDay([sale('2026-08-09T10:00:00', 1000), sale('2026-08-01T10:00:00', 1000)])).toBe('2026-08-01');
+  });
+  it('ignores voided sales', () => {
+    expect(firstActivityDay([sale('2026-08-09T10:00:00', 1000), sale('2026-08-01T10:00:00', 1000, [], 'voided')])).toBe('2026-08-09');
+  });
+  it('returns null with no sales', () => {
+    expect(firstActivityDay([])).toBeNull();
+  });
+});
+
+describe('activeMonthsInWindow', () => {
+  // A brand new clinic must not be billed a full year of salary against one
+  // day of revenue — the monthly view read -9,950,000 Ks on install day.
+  it('charges roughly one day of payroll on the clinic’s first day', () => {
+    const months = activeMonthsInWindow([sale('2026-08-09T10:00:00', 100000)], 'monthly', '2026-08-09');
+    expect(months).toBeCloseTo(1 / 30, 5);
+  });
+  it('grows with the days actually traded', () => {
+    const months = activeMonthsInWindow([sale('2026-07-11T10:00:00', 1000)], 'monthly', '2026-08-09');
+    expect(months).toBeCloseTo(30 / 30, 5);
+  });
+  it('bills the elapsed window, not the nominal one, when the last bucket is part-way through', () => {
+    // The 12-bucket monthly window opens 2025-09-01; only 343 days of it have
+    // elapsed by 2026-08-09, so a clinic is not charged the missing 3 weeks
+    // of August salary it has not reached yet.
+    const sales = [sale('2019-01-01T10:00:00', 1000), sale('2026-08-09T10:00:00', 1000)];
+    expect(activeMonthsInWindow(sales, 'monthly', '2026-08-09')).toBeCloseTo(343 / 30, 5);
+    expect(activeMonthsInWindow(sales, 'daily', '2026-08-09')).toBeCloseTo(14 / 30, 5);
+  });
+
+  it('never exceeds the nominal window, however long the history', () => {
+    const sales = [sale('1990-01-01T10:00:00', 1000)];
+    for (const range of ['daily', 'weekly', 'monthly', 'yearly'] as const) {
+      expect(activeMonthsInWindow(sales, range, '2026-08-09')).toBeLessThanOrEqual(RANGE_MONTHS[range]);
+    }
+    // A yearly window opens on Jan 1 four years back, so it caps at the window.
+    expect(activeMonthsInWindow(sales, 'yearly', '2026-12-31')).toBe(48);
+  });
+  it('clamps to the window start when trading began before it', () => {
+    const months = activeMonthsInWindow([sale('2026-01-01T10:00:00', 1000)], 'daily', '2026-08-09');
+    expect(months).toBeCloseTo(14 / 30, 5);
+  });
+  it('is zero with no sales at all, so payroll cannot swamp an empty clinic', () => {
+    expect(activeMonthsInWindow([], 'monthly', '2026-08-09')).toBe(0);
+  });
+  it('ignores voided sales when finding the start', () => {
+    const sales = [sale('2026-01-01T10:00:00', 1000, [], 'voided'), sale('2026-08-09T10:00:00', 1000)];
+    expect(activeMonthsInWindow(sales, 'monthly', '2026-08-09')).toBeCloseTo(1 / 30, 5);
   });
 });

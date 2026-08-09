@@ -11,8 +11,8 @@ import { useT } from '@/i18n';
 import { AppShell, Button, Field, Input, Modal, Select, Skeleton, Tag, useToast } from '@/ui';
 import {
   EXPENSE_CATEGORIES,
-  RANGE_MONTHS,
   abbreviateKs,
+  activeMonthsInWindow,
   expensesForMonth,
   expensesInWindow,
   localDayIso,
@@ -127,7 +127,7 @@ function ActiveAnalyticsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const revenue = series.reduce((total, point) => total + point.revenue, 0);
   const cogs = series.reduce((total, point) => total + point.cost, 0);
   const payrollMonthly = staff.reduce((total, member) => total + (payroll[member.id] ?? 0), 0);
-  const payrollWindow = Math.round(payrollMonthly * RANGE_MONTHS[range]);
+  const payrollWindow = Math.round(payrollMonthly * activeMonthsInWindow(sales, range, nowDay));
   const expensesWindow = sumAmounts(expensesInWindow(expenses, range, nowDay));
   const net = revenue - cogs - payrollWindow - expensesWindow;
   const monthExpenses = expensesForMonth(expenses, nowDay.slice(0, 7));
