@@ -43,7 +43,7 @@ public class ElevationGrant {
     @PrePersist
     void defaults() {
         if (token == null) token = UUID.randomUUID();
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = LocalDateTime.now(java.time.ZoneOffset.UTC);
         if (expiresAt == null) expiresAt = createdAt.plusMinutes(15);
     }
 }

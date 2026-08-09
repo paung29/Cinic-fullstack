@@ -40,7 +40,7 @@ public class ElevationService {
                 .orElseThrow(() -> new AccessDeniedException("Clinical elevation is required."));
         if (!grant.getClinic().getId().equals(clinicId) ||
                 !grant.getAccount().getId().equals(requester.getId()) ||
-                grant.isRevoked() || !grant.getExpiresAt().isAfter(LocalDateTime.now())) {
+                grant.isRevoked() || !grant.getExpiresAt().isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC))) {
             throw new AccessDeniedException("Clinical elevation is invalid or expired.");
         }
         return requester;
