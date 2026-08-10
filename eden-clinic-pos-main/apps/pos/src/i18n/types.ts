@@ -76,6 +76,7 @@ export const translationKeys = [
   'auth.setup.ownerPassword',
   'auth.setup.pairHint',
   'auth.setup.passwordHint',
+  'auth.setup.emailHint',
   'auth.setup.pinNew',
   'auth.setup.pinExisting',
   'auth.setup.createSubmit',

@@ -6,7 +6,7 @@ import { authEnvelopeMetaKey, authRepairMetaKey } from '@/data/db';
 import { returnToAfterSignIn } from '@/data/returnTo';
 import { useClinicRuntimeStatus } from '@/app/providers';
 import { useLocaleControl, useT, type Locale } from '@/i18n';
-import { loginFailureFor } from '@/modules/auth/loginErrors';
+import { loginFailureDetail, loginFailureFor } from '@/modules/auth/loginErrors';
 import { pinDelayMs, type SessionIdentity } from '@/modules/auth/sessionController';
 import { Button, Card, Field, Input, PinPad, SecretInput, Skeleton } from '@/ui';
 import styles from './LoginScreen.module.css';
@@ -43,6 +43,7 @@ export function LoginScreen() {
   const [isWaiting, setWaiting] = useState(false);
   const [isBusy, setBusy] = useState(false);
   const [message, setMessage] = useState<LoginMessage>();
+  const [failureDetail, setFailureDetail] = useState<string | undefined>();
   const [needsOnlineRepair, setNeedsOnlineRepair] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
 
@@ -101,8 +102,12 @@ export function LoginScreen() {
   const creatingClinic = isDeviceSetup && showClinicSetup && !pairingByStaffId && !pairingByEmail;
   // Mirrors the guards in handleSubmit so the button can say "not yet" by being
   // disabled, rather than looking alive and then silently doing nothing.
+  // The server demands a real address. The button used to go live on any
+  // non-empty string, so a name or a phone number typed here sailed through
+  // and came back as an opaque "sign-in could not finish".
+  const adminEmailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail.trim());
   const setupReady = pin.length === 4 && !isBusy && (creatingClinic
-    ? clinicName.trim() !== '' && adminName.trim() !== '' && adminPhone.trim() !== '' && adminEmail.trim() !== '' && adminPassword.length >= 8
+    ? clinicName.trim() !== '' && adminName.trim() !== '' && adminPhone.trim() !== '' && adminEmailLooksValid && adminPassword.length >= 8
     : pairingByEmail || (activeStaffId !== undefined && activeStaffId !== ''));
 
   const clearForFailedPin = () => {
@@ -115,7 +120,7 @@ export function LoginScreen() {
 
   const handleSubmit = async () => {
     const invalidExistingClinic = !creatingClinic && !pairingByEmail && (activeStaffId === undefined || activeStaffId === '');
-    const invalidNewClinic = creatingClinic && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
+    const invalidNewClinic = creatingClinic && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || !adminEmailLooksValid || adminPassword.length < 8);
     if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy) {
       return;
     }
@@ -129,6 +134,7 @@ export function LoginScreen() {
 
     setBusy(true);
     setMessage(undefined);
+    setFailureDetail(undefined);
     try {
       if (creatingClinic) {
         await runtime.install({
@@ -176,6 +182,8 @@ export function LoginScreen() {
       if (destination !== undefined) router.push(destination);
     } catch (error) {
       const failure = loginFailureFor(error);
+      // Whatever the server actually said, shown alongside our own wording.
+      setFailureDetail(loginFailureDetail(error));
       if (failure === 'wrong-pin') {
         clearForFailedPin();
       } else if (failure === 'repair') {
@@ -230,10 +238,11 @@ export function LoginScreen() {
               <Field htmlFor="admin-name" label={t('auth.setup.adminName')}><Input data-testid="admin-name" id="admin-name" onChange={(event) => setAdminName(event.target.value)} value={adminName} /></Field>
               <Field htmlFor="admin-phone" label={t('auth.setup.adminPhone')}><Input id="admin-phone" onChange={(event) => setAdminPhone(event.target.value)} value={adminPhone} /></Field>
               <Field htmlFor="admin-email" label={t('auth.setup.adminEmail')}><Input id="admin-email" onChange={(event) => setAdminEmail(event.target.value)} type="email" value={adminEmail} /></Field>
+              {adminEmail.trim() === '' || adminEmailLooksValid ? null : <p data-testid="admin-email-hint">{t('auth.setup.emailHint')}</p>}
               <Field htmlFor="admin-password" label={t('auth.setup.adminPassword')}><SecretInput autoComplete="new-password" data-testid="admin-password" hideLabel={t('field.hide')} id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} revealLabel={t('field.reveal')} value={adminPassword} /></Field>
               <p>{t('auth.setup.passwordHint')}</p>
             </div> : null}
-            <LoginMessage message={message} t={t} />
+            <LoginMessage detail={failureDetail} message={message} t={t} />
             {/* The pad is the second of two secrets on this card and staff had
                 no way to tell it apart from the account password above it. */}
             <p>{showClinicSetup ? t('auth.setup.pinNew') : t('auth.setup.pinExisting')}</p>
@@ -275,7 +284,7 @@ export function LoginScreen() {
               <p>{selectedStaff.name}</p>
               <h1>{t('auth.login.pin')}</h1>
             </header>
-            <LoginMessage message={message} t={t} />
+            <LoginMessage detail={failureDetail} message={message} t={t} />
             <div className={message === 'wrong-pin' ? styles.shake : undefined}>
               <PinPad backspaceLabel={t('pin.backspace')} onChange={setPin} onSubmit={handleSubmit} submitLabel={t('pin.submit')} testId="login-pinpad" displayTestId="login-pin-display" value={pin} />
             </div>
@@ -307,7 +316,7 @@ export function LoginScreen() {
   );
 }
 
-function LoginMessage({ message, t }: { message: LoginMessage; t(key: Parameters<ReturnType<typeof useT>['t']>[0]): string }) {
+function LoginMessage({ detail, message, t }: { detail?: string; message: LoginMessage; t(key: Parameters<ReturnType<typeof useT>['t']>[0]): string }) {
   if (message === undefined) return null;
   const key = message === 'internet-required'
     ? 'auth.setup.internetRequired'
@@ -318,5 +327,10 @@ function LoginMessage({ message, t }: { message: LoginMessage; t(key: Parameters
         : message === 'sign-in-failed'
           ? 'auth.login.signInFailed'
           : 'auth.login.wrongPin';
-  return <p className={styles.message} role="status">{t(key)}</p>;
+  return (
+    <p className={styles.message} role="status">
+      {t(key)}
+      {detail === undefined ? null : <><br /><small data-testid="login-failure-detail">{detail}</small></>}
+    </p>
+  );
 }

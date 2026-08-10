@@ -76,6 +76,7 @@ export const dictEn = {
   'auth.setup.ownerPassword': 'Owner password',
   'auth.setup.pairHint': 'Sign in with the clinic owner account to add this device, then choose the PIN for everyday use.',
   'auth.setup.passwordHint': 'At least 8 characters. Used to sign in on another device and to approve discounts — not for the daily till.',
+  'auth.setup.emailHint': 'This needs to be a real email address, like owner@clinic.com — it is the account you sign in with on another device.',
   'auth.setup.pinNew': 'Now choose a 4-digit PIN. This is what staff type at the counter every day, and it is not the account password above.',
   'auth.setup.pinExisting': 'Enter the 4-digit staff PIN for this account — not the account password above.',
   'auth.setup.createSubmit': 'Create clinic',
