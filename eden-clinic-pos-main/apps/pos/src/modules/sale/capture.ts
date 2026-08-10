@@ -30,10 +30,21 @@ export type CaptureSaleInput = {
 export {
   cartDraftSubtotal,
   cartDraftTotal,
+  cartLineTotal,
   saleBalanceDue,
   saleChange,
   tenderTotal,
 } from './cart';
+
+/**
+ * The steepest discount anywhere on the sale — cart-wide or on a single line.
+ *
+ * Approval has to key off this rather than the cart figure alone, or 100% off
+ * one line would sail through the control that stops a 25% cart discount.
+ */
+export function steepestDiscountPct(draft: SaleDraft): number {
+  return Math.max(draft.discountPct, ...draft.lines.map((line) => line.discountPct ?? 0));
+}
 
 export async function captureSale(input: CaptureSaleInput): Promise<SaleRow> {
   const clinic = await input.db.clinic.toCollection().first();
@@ -43,7 +54,7 @@ export async function captureSale(input: CaptureSaleInput): Promise<SaleRow> {
   if (input.draft.lines.length === 0) {
     throw new Error('A sale needs at least one line.');
   }
-  if (input.draft.discountPct > 20 && input.draft.discountApprovedBy === null) {
+  if (steepestDiscountPct(input.draft) > 20 && input.draft.discountApprovedBy === null) {
     throw new Error('A discount above 20% needs separate approval.');
   }
 

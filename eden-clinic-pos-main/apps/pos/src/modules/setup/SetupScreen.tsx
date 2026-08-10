@@ -10,6 +10,7 @@ import { useClinicBranding } from '@/data/useClinicBranding';
 import { ApiNetworkError } from '@/data/api';
 import { elevationFailureKey } from '@/data/elevationErrors';
 import { type OutboxStatusView } from '@/data/outbox';
+import { clearPaymentQr, readPaymentQr, writePaymentQr } from '@/data/paymentQr';
 import { readPrinterProfile, savePrinterProfile, saveReceiptDesignerDraft, type PrinterProfile } from '@/data/printerProfile';
 import { buildSupportOutboxExport } from '@/data/supportExport';
 import type { ClinicPatchWire, ClinicRow, SaleRow } from '@/data/types';
@@ -49,6 +50,8 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [logo, setLogo] = useState<LogoBitmap | undefined>();
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const [logoRevision, setLogoRevision] = useState(0);
+  const [paymentQrUrl, setPaymentQrUrl] = useState<string | undefined>();
+  const [paymentQrRevision, setPaymentQrRevision] = useState(0);
   const [elevateOpen, setElevateOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerPassword, setDrawerPassword] = useState('');
@@ -121,6 +124,41 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
     await clearReceiptLogo(runtime.db);
     setLogoRevision((current) => current + 1);
   };
+
+  const pickPaymentQr = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file === undefined) return;
+    if (file.size > 4_000_000) {
+      enqueue(t('setup.logoTooBig'));
+      return;
+    }
+    await writePaymentQr(runtime.db, file);
+    setPaymentQrRevision((current) => current + 1);
+  };
+
+  const removePaymentQr = async () => {
+    await clearPaymentQr(runtime.db);
+    setPaymentQrRevision((current) => current + 1);
+  };
+
+  // Held as the uploaded image, deliberately undithered: unlike the brand logo
+  // this is never sent to the thermal head, and thresholding a QR is a good way
+  // to produce one that no longer scans.
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl: string | undefined;
+    void readPaymentQr(runtime.db).then((blob) => {
+      if (disposed) return;
+      if (blob === undefined) { setPaymentQrUrl(undefined); return; }
+      objectUrl = URL.createObjectURL(blob);
+      setPaymentQrUrl(objectUrl);
+    });
+    return () => {
+      disposed = true;
+      if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl);
+    };
+  }, [paymentQrRevision, runtime.db]);
 
   useEffect(() => {
     let disposed = false;
@@ -259,6 +297,20 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
                 <input accept="image/*" className={styles.logoInput} data-testid="receipt-logo-input" onChange={(event) => { void pickLogo(event); }} type="file" />
               </label>
               {logoUrl === undefined ? null : <Button data-testid="receipt-logo-remove" onClick={() => { void removeLogo(); }} pill size="sm" variant="ghost">{t('setup.logoRemove')}</Button>}
+            </div>
+          </section>
+          <section className={styles.card} data-testid="payment-qr-card">
+            <h2>{t('setup.paymentQr')}</h2>
+            <p className={styles.notice}>{t('setup.paymentQrHint')}</p>
+            {paymentQrUrl === undefined
+              ? <p data-testid="payment-qr-empty">{t('setup.paymentQrNone')}</p>
+              : <img alt={t('setup.paymentQr')} className={styles.logoPreview} data-testid="payment-qr-preview" src={paymentQrUrl} />}
+            <div className={styles.cardActions}>
+              <label className={styles.logoPick}>
+                <span>{paymentQrUrl === undefined ? t('setup.paymentQrChoose') : t('setup.paymentQrReplace')}</span>
+                <input accept="image/*" className={styles.logoInput} data-testid="payment-qr-input" onChange={(event) => { void pickPaymentQr(event); }} type="file" />
+              </label>
+              {paymentQrUrl === undefined ? null : <Button data-testid="payment-qr-remove" onClick={() => { void removePaymentQr(); }} pill size="sm" variant="ghost">{t('setup.paymentQrRemove')}</Button>}
             </div>
           </section>
           <section className={styles.card}><h2>{t('setup.hardware')}</h2><label><span>{t('setup.width')}</span><Select data-testid="printer-width" onChange={(event) => { const width = Number(event.target.value) as 576 | 384; const next = { ...profile, width }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.width}><option value="576">{t('setup.width80')}</option><option value="384">{t('setup.width58')}</option></Select></label><label><span>{t('setup.transport')}</span><Select onChange={(event) => { const next = { ...profile, transport: event.target.value as PrinterProfile['transport'] }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.transport}>{(['sunmi-sdk', 'xprinter-lan', 'xprinter-bluetooth', 'epson-epos', 'generic-escpos'] as const).map((value) => <option key={value} value={value}>{value}</option>)}</Select></label><Button data-testid="open-drawer" onClick={() => setDrawerOpen(true)} pill variant="ghost">{t('setup.openDrawer')}</Button><p className={styles.notice}>{t('setup.openDrawerHint')}</p><Button data-testid="printer-test" disabled={previewReceipt === undefined} onClick={() => { if (previewReceipt === undefined) return; void createM5PrinterTransport(profile).send(previewReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('setup.testPrint')}</Button></section>

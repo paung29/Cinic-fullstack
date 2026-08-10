@@ -15,12 +15,15 @@ import { cartSubtotal, fmtMMK } from '@/data/money';
 import { consumeSalePrefill } from '@/data/salePrefill';
 import type { OutboxStatusView } from '@/data/outbox';
 import { authEnvelopeMetaKey } from '@/data/db';
+import { readPaymentQr } from '@/data/paymentQr';
 import { readPrinterProfile, type PrinterProfile } from '@/data/printerProfile';
 import { useT } from '@/i18n';
 import {
   captureSale,
   cartDraftTotal,
+  cartLineTotal,
   saleBalanceDue,
+  steepestDiscountPct,
   type CartLineDraft,
   type SaleDraft,
   type TenderDraft,
@@ -79,6 +82,8 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [weightQuantity, setWeightQuantity] = useState('1');
   const [unknownCode, setUnknownCode] = useState<string | undefined>();
   const [tenderOpen, setTenderOpen] = useState(false);
+  const [kbzQrOpen, setKbzQrOpen] = useState(false);
+  const [kbzQrUrl, setKbzQrUrl] = useState<string | undefined>();
   const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | undefined>();
   const [approvalPin, setApprovalPin] = useState('');
   const [approvalStaffId, setApprovalStaffId] = useState('');
@@ -221,6 +226,25 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     if (activeIdentity === undefined) router.replace('/login');
   }, [activeIdentity, router]);
 
+  // The clinic's merchant QR is a device asset, decoded only while a customer
+  // is actually being asked to scan it, and released the moment the panel
+  // closes — a counter tablet leaves the Sale screen open all day.
+  useEffect(() => {
+    if (!kbzQrOpen) return undefined;
+    let disposed = false;
+    let url: string | undefined;
+    void readPaymentQr(runtime.db).then((blob) => {
+      if (disposed || blob === undefined) return;
+      url = URL.createObjectURL(blob);
+      setKbzQrUrl(url);
+    });
+    return () => {
+      disposed = true;
+      setKbzQrUrl(undefined);
+      if (url !== undefined) URL.revokeObjectURL(url);
+    };
+  }, [kbzQrOpen, runtime.db]);
+
   const selectedPatient = patients.find((patient) => patient.id === draft.patientId);
   const total = cartDraftTotal(draft, 500);
   const paid = cartSubtotal(tenders.map((tender) => ({ qty: 1, unitPrice: tender.amount })), 1);
@@ -348,8 +372,9 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   };
 
   const requestCapture = async () => {
-    if (draft.discountPct > 20 && draft.discountApprovedBy === null) {
-      setApprovalRequest({ kind: 'discount', percent: draft.discountPct });
+    const steepest = steepestDiscountPct(draft);
+    if (steepest > 20 && draft.discountApprovedBy === null) {
+      setApprovalRequest({ kind: 'discount', percent: steepest });
       return;
     }
     const projectedCredit = balance > 0 ? balance : 0;
@@ -566,6 +591,32 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
                     <span>{line.qty}</span>
                     <Button aria-label={t('sale.remove')} data-testid="sale-line-remove" onClick={() => setDraft((current) => ({ ...current, lines: current.lines.filter((entry) => entry.id !== line.id) }))} size="sm" variant="ghost">−</Button>
                   </div>
+                  <div className={styles.lineDiscount}>
+                    <label>
+                      <span>{t('sale.lineDiscount')}</span>
+                      {/* Clearing back to 0 stores null, so an untouched line
+                          stays indistinguishable from one discounted to zero.
+                          Any edit drops a prior approval: it was granted for a
+                          different number. */}
+                      <Input
+                        data-testid={`line-discount-${line.id}`}
+                        inputMode="numeric"
+                        max="100"
+                        min="0"
+                        onChange={(event) => {
+                          const percent = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+                          setDraft((current) => ({
+                            ...current,
+                            discountApprovedBy: null,
+                            lines: current.lines.map((entry) => entry.id === line.id ? { ...entry, discountPct: percent === 0 ? null : percent } : entry),
+                          }));
+                        }}
+                        type="number"
+                        value={line.discountPct ?? 0}
+                      />
+                    </label>
+                    <strong data-testid={`line-total-${line.id}`}>{fmtMMK(cartLineTotal(line, 500))}</strong>
+                  </div>
                 </article>
               ))}
             </div>
@@ -631,16 +682,32 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
         </div>
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => setUnknownCode(undefined)} open={unknownCode !== undefined} title={t('sale.catalogue')}><p>{t('sale.unknown')} {unknownCode}</p></Modal>
-      <Modal closeLabel={t('modal.close')} onClose={() => { setTenderOpen(false); setCashReceived(''); }} open={tenderOpen} testId="tender-modal" title={t('sale.tenderTitle')}>
+      <Modal closeLabel={t('modal.close')} onClose={() => { setTenderOpen(false); setCashReceived(''); setKbzQrOpen(false); }} open={tenderOpen} testId="tender-modal" title={t('sale.tenderTitle')}>
         <div className={styles.modalForm}>
           <p>{t('sale.balance')}: <strong>{fmtMMK(balance > 0 ? balance : 0)}</strong></p>
           <div className={styles.tenderChoices}>
             <Button data-testid="tender-cash" onClick={chooseCash} pill variant="ghost">{t('sale.cash')}</Button>
-            <Button data-testid="tender-kbzpay" onClick={() => applyTenders([{ id: crypto.randomUUID(), method: 'kbzpay', amount: total }])} pill variant="ghost">{t('sale.kbzpay')}</Button>
+            <Button data-testid="tender-kbzpay" onClick={() => setKbzQrOpen(true)} pill variant="ghost">{t('sale.kbzpay')}</Button>
             <Button data-testid="tender-wave" onClick={() => applyTenders([{ id: crypto.randomUUID(), method: 'wave', amount: total }])} pill variant="ghost">{t('sale.wave')}</Button>
             <Button data-testid="tender-split" onClick={() => { const first = Math.min(50_000, total); applyTenders([{ id: crypto.randomUUID(), method: 'cash', amount: first }, { id: crypto.randomUUID(), method: 'wave', amount: saleBalanceDue(total, first) }]); }} pill variant="ghost">{t('sale.split')}</Button>
             <Button data-testid="tender-pay-later" disabled={draft.patientId === null} onClick={() => applyTenders([])} pill variant="ghost">{t('sale.payLater')}</Button>
           </div>
+          {kbzQrOpen ? (
+            <div className={styles.qrPanel} data-testid="kbzpay-qr">
+              <p>{t('sale.kbzpay.scan')}</p>
+              <strong data-testid="kbzpay-qr-amount">{fmtMMK(total)}</strong>
+              {kbzQrUrl === undefined
+                ? <p className={styles.qrMissing} data-testid="kbzpay-qr-missing">{t('sale.kbzpay.noQr')}</p>
+                : <img alt={t('sale.kbzpay')} className={styles.qrImage} data-testid="kbzpay-qr-image" src={kbzQrUrl} />}
+              <div className={styles.qrActions}>
+                <Button data-testid="kbzpay-cancel" onClick={() => setKbzQrOpen(false)} pill variant="ghost">{t('modal.close')}</Button>
+                {/* The balance only clears once a human confirms the transfer
+                    landed. Settling on selection, as this used to, told staff a
+                    customer had paid before they had. */}
+                <Button data-testid="kbzpay-confirm" onClick={() => { applyTenders([{ amount: total, id: crypto.randomUUID(), method: 'kbzpay' }]); setKbzQrOpen(false); }} pill>{t('sale.kbzpay.received')}</Button>
+              </div>
+            </div>
+          ) : null}
           {cashTendered ? (
             <div className={styles.cashPad} data-testid="cash-pad">
               <label>
