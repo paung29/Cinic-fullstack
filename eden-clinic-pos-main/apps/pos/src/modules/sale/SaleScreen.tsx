@@ -687,7 +687,12 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
           <p>{t('sale.balance')}: <strong>{fmtMMK(balance > 0 ? balance : 0)}</strong></p>
           <div className={styles.tenderChoices}>
             <Button data-testid="tender-cash" onClick={chooseCash} pill variant="ghost">{t('sale.cash')}</Button>
-            <Button data-testid="tender-kbzpay" onClick={() => setKbzQrOpen(true)} pill variant="ghost">{t('sale.kbzpay')}</Button>
+            {/* Clearing the tenders first releases any cash hold outright.
+                Showing the QR over a stale cash shortfall would wedge the
+                wallet sale behind a disabled Complete button — the exact
+                failure the cash-tender test was written for. The KPay amount
+                itself is still only banked once a human confirms it landed. */}
+            <Button data-testid="tender-kbzpay" onClick={() => { applyTenders([]); setKbzQrOpen(true); }} pill variant="ghost">{t('sale.kbzpay')}</Button>
             <Button data-testid="tender-wave" onClick={() => applyTenders([{ id: crypto.randomUUID(), method: 'wave', amount: total }])} pill variant="ghost">{t('sale.wave')}</Button>
             <Button data-testid="tender-split" onClick={() => { const first = Math.min(50_000, total); applyTenders([{ id: crypto.randomUUID(), method: 'cash', amount: first }, { id: crypto.randomUUID(), method: 'wave', amount: saleBalanceDue(total, first) }]); }} pill variant="ghost">{t('sale.split')}</Button>
             <Button data-testid="tender-pay-later" disabled={draft.patientId === null} onClick={() => applyTenders([])} pill variant="ghost">{t('sale.payLater')}</Button>
