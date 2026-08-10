@@ -150,6 +150,16 @@ export const dictMy = {
   // TODO(native-review)
   'auth.setup.pairHint': 'ဤစက်ကို ထည့်ရန် ဆေးခန်းပိုင်ရှင် အကောင့်ဖြင့် ဝင်ပါ။ ထို့နောက် နေ့စဉ်သုံး PIN ကို ရွေးပါ။',
   // TODO(native-review)
+  'auth.setup.passwordHint': 'အနည်းဆုံး စာလုံး ၈ လုံး။ အခြားစက်တွင် ဝင်ရန်နှင့် လျှော့ဈေး ခွင့်ပြုရန် သုံးသည် — နေ့စဉ် ငွေကောင်တာအတွက် မဟုတ်ပါ။',
+  // TODO(native-review)
+  'auth.setup.pinNew': 'ယခု PIN ၄ လုံး ရွေးပါ။ ၎င်းသည် ဝန်ထမ်းများ နေ့စဉ် ကောင်တာတွင် ရိုက်ထည့်မည့် နံပါတ်ဖြစ်ပြီး၊ အထက်ပါ အကောင့်စကားဝှက် မဟုတ်ပါ။',
+  // TODO(native-review)
+  'auth.setup.pinExisting': 'ဤအကောင့်အတွက် ဝန်ထမ်း PIN ၄ လုံး ထည့်ပါ — အထက်ပါ အကောင့်စကားဝှက် မဟုတ်ပါ။',
+  // TODO(native-review)
+  'auth.setup.createSubmit': 'ဆေးခန်း ဖွင့်ရန်',
+  // TODO(native-review)
+  'auth.setup.pairSubmit': 'ဤစက်ကို ထည့်ရန်',
+  // TODO(native-review)
   'auth.setup.internetRequired': 'ဤစက်ကို အင်တာနက်ချိတ်ဆက်မှုဖြင့် တစ်ကြိမ် စတင်ပြင်ဆင်ရပါမည်။',
   // TODO(native-review)
   'auth.setup.repair': 'ဤစက်ကို ပြန်လည်ပြုပြင်ရန် အွန်လိုင်း အကောင့်ဝင်ရပါမည်။',

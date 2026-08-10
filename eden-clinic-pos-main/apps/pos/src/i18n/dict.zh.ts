@@ -150,6 +150,16 @@ export const dictZh = {
   // TODO(native-review)
   'auth.setup.pairHint': '使用诊所所有者账户登录以添加此设备，然后设置日常使用的 PIN。',
   // TODO(native-review)
+  'auth.setup.passwordHint': '至少 8 个字符。用于在其他设备登录和批准折扣 — 不用于日常收银。',
+  // TODO(native-review)
+  'auth.setup.pinNew': '现在设置 4 位 PIN。这是员工每天在收银台输入的密码，不是上面的账户密码。',
+  // TODO(native-review)
+  'auth.setup.pinExisting': '请输入此账户的 4 位员工 PIN — 不是上面的账户密码。',
+  // TODO(native-review)
+  'auth.setup.createSubmit': '创建诊所',
+  // TODO(native-review)
+  'auth.setup.pairSubmit': '添加此设备',
+  // TODO(native-review)
   'auth.setup.internetRequired': '此设备必须先连接互联网完成一次设置。',
   // TODO(native-review)
   'auth.setup.repair': '此会话需要在线登录才能修复此设备。',

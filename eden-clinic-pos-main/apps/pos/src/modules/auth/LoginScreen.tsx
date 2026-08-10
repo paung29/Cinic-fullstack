@@ -89,6 +89,11 @@ export function LoginScreen() {
   // Owner email wins when it is filled in. The staff-ID field stays for the
   // technician rolling out devices, and for the e2e suite that pairs by ID.
   const pairingByEmail = isDeviceSetup && !showClinicSetup && ownerEmail.trim() !== '' && ownerPassword !== '';
+  // Mirrors the guards in handleSubmit so the button can say "not yet" by being
+  // disabled, rather than looking alive and then silently doing nothing.
+  const setupReady = pin.length === 4 && !isBusy && (showClinicSetup
+    ? clinicName.trim() !== '' && adminName.trim() !== '' && adminPhone.trim() !== '' && adminEmail.trim() !== '' && adminPassword.length >= 8
+    : pairingByEmail || (activeStaffId !== undefined && activeStaffId !== ''));
 
   const clearForFailedPin = () => {
     setPin('');
@@ -215,12 +220,21 @@ export function LoginScreen() {
               <Field htmlFor="admin-name" label={t('auth.setup.adminName')}><Input data-testid="admin-name" id="admin-name" onChange={(event) => setAdminName(event.target.value)} value={adminName} /></Field>
               <Field htmlFor="admin-phone" label={t('auth.setup.adminPhone')}><Input id="admin-phone" onChange={(event) => setAdminPhone(event.target.value)} value={adminPhone} /></Field>
               <Field htmlFor="admin-email" label={t('auth.setup.adminEmail')}><Input id="admin-email" onChange={(event) => setAdminEmail(event.target.value)} type="email" value={adminEmail} /></Field>
-              <Field htmlFor="admin-password" label={t('auth.setup.adminPassword')}><Input id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} type="password" value={adminPassword} /></Field>
+              <Field htmlFor="admin-password" label={t('auth.setup.adminPassword')}><SecretInput autoComplete="new-password" data-testid="admin-password" hideLabel={t('field.hide')} id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} revealLabel={t('field.reveal')} value={adminPassword} /></Field>
+              <p>{t('auth.setup.passwordHint')}</p>
             </div> : null}
             <LoginMessage message={message} t={t} />
+            {/* The pad is the second of two secrets on this card and staff had
+                no way to tell it apart from the account password above it. */}
+            <p>{showClinicSetup ? t('auth.setup.pinNew') : t('auth.setup.pinExisting')}</p>
             <div className={message === 'wrong-pin' ? styles.shake : undefined}>
               <PinPad backspaceLabel={t('pin.backspace')} onChange={setPin} onSubmit={handleSubmit} submitLabel={t('pin.submit')} testId="login-pinpad" displayTestId="login-pin-display" value={pin} />
             </div>
+            {/* The tick on the pad reads as another key, so the real action
+                gets its own named button. The pad still submits on ✓. */}
+            <Button data-testid="device-setup-submit" disabled={!setupReady} onClick={() => { void handleSubmit(); }}>
+              {showClinicSetup ? t('auth.setup.createSubmit') : t('auth.setup.pairSubmit')}
+            </Button>
           </Card>
         ) : selectedStaff === undefined ? (
           <Card className={styles.card} data-testid="staff-picker">
