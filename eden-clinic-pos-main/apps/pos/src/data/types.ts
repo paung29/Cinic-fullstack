@@ -297,6 +297,18 @@ export const loginSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
 });
 
+export const productPhotoInputSchema = z.object({
+  content_type: z.string().min(1),
+  data: z.string().min(1),
+});
+
+export const productPhotoResponseSchema = z.object({
+  product_id: z.string(),
+  photo_key: z.string(),
+  content_type: z.string(),
+  data: z.string(),
+});
+
 // Pairing a device by the owner's email. Answers with the same shape as the
 // staff-ID login, so everything downstream of sign-in stays identical.
 export const emailLoginSchema = z.object({
@@ -464,6 +476,8 @@ export type FollowupWire = z.infer<typeof followupSchema>;
 export type DailyReportWire = z.infer<typeof dailyReportSchema>;
 export type LoginWire = z.infer<typeof loginSchema>;
 export type EmailLoginWire = z.infer<typeof emailLoginSchema>;
+export type ProductPhotoInputWire = z.infer<typeof productPhotoInputSchema>;
+export type ProductPhotoResponseWire = z.infer<typeof productPhotoResponseSchema>;
 export type LoginResponseWire = z.infer<typeof loginResponseSchema>;
 export type RefreshRequestWire = z.infer<typeof refreshRequestSchema>;
 export type RefreshResponseWire = z.infer<typeof refreshResponseSchema>;
@@ -711,6 +725,12 @@ export type MetaRow = {
 export type ReceiptAssetRow = {
   key: string;
   blob: Blob;
+  /**
+   * For product photos, the server fingerprint this copy was downloaded at.
+   * Optional because the receipt logo and payment QR are device-only assets
+   * with no server counterpart to compare against.
+   */
+  photoKey?: string;
 };
 
 export type DeferredRemoteChange = {

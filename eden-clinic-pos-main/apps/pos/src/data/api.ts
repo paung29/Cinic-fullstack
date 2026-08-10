@@ -21,6 +21,8 @@ import {
   licenseSchema,
   loginResponseSchema,
   loginSchema,
+  productPhotoInputSchema,
+  productPhotoResponseSchema,
   patientResponseSchema,
   patientSchema,
   paymentResponseSchema,
@@ -64,6 +66,8 @@ import {
   type PaymentWire,
   type ProductResponseWire,
   type ProductPatchWire,
+  type ProductPhotoInputWire,
+  type ProductPhotoResponseWire,
   type ServiceWire,
   type ServicePatchWire,
   type ServiceCreateResponseWire,
@@ -119,6 +123,10 @@ export interface ApiClient {
   followups(from?: string, to?: string): Promise<FollowupWire[]>;
   dailyReport(date: string, elevationToken: string): Promise<DailyReportWire>;
   lookupBarcode(code: string): Promise<BarcodeLookupWire>;
+  /** Optional so a mock server without photo storage still satisfies the client. */
+  putProductPhoto?(productId: string, input: ProductPhotoInputWire): Promise<ProductWire>;
+  getProductPhoto?(productId: string): Promise<ProductPhotoResponseWire>;
+  deleteProductPhoto?(productId: string): Promise<ProductWire>;
   clinicalRecords?(patientId: string, elevationToken: string): Promise<ClinicalRecordWire[]>;
   createClinicalRecord?(patientId: string, input: ClinicalRecordInputWire, elevationToken: string): Promise<ClinicalRecordWire>;
   createStaffAccount?(input: StaffAccountInputWire): Promise<StaffWire>;
@@ -154,7 +162,7 @@ export class ApiHttpError extends Error {
 }
 
 type RequestOptions<TSchema extends z.ZodType> = {
-  method: 'GET' | 'POST' | 'PATCH';
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   path: string;
   schema: TSchema;
   body?: unknown;
@@ -192,7 +200,7 @@ export function createApiClient(options: {
   }
 
   async function sendRequest(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     path: string,
     body: unknown | undefined,
     needsToken: boolean,
@@ -384,6 +392,31 @@ export function createApiClient(options: {
         method: 'GET',
         path: `/barcode-lookup?code=${encodeURIComponent(code)}`,
         schema: barcodeLookupSchema,
+        protected: true,
+      });
+    },
+    putProductPhoto(productId, input): Promise<ProductWire> {
+      return request({
+        method: 'PUT',
+        path: `/products/${encodeURIComponent(productId)}/photo`,
+        body: productPhotoInputSchema.parse(input),
+        schema: productSchema,
+        protected: true,
+      });
+    },
+    getProductPhoto(productId): Promise<ProductPhotoResponseWire> {
+      return request({
+        method: 'GET',
+        path: `/products/${encodeURIComponent(productId)}/photo`,
+        schema: productPhotoResponseSchema,
+        protected: true,
+      });
+    },
+    deleteProductPhoto(productId): Promise<ProductWire> {
+      return request({
+        method: 'DELETE',
+        path: `/products/${encodeURIComponent(productId)}/photo`,
+        schema: productSchema,
         protected: true,
       });
     },

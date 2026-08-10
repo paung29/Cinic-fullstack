@@ -8,7 +8,7 @@ import { ApiHttpError } from '@/data/api';
 import { useClinicBranding } from '@/data/useClinicBranding';
 import { createProduct, hasPendingProductCreate, receiveStock, updateExistingProduct } from '@/data/inventoryRecords';
 import { marginPct, fmtMMK } from '@/data/money';
-import { clearProductPhoto, readProductPhotos, writeProductPhoto } from '@/data/productPhoto';
+import { clearProductPhoto, readProductPhotos, reconcileProductPhotos, stageProductPhoto } from '@/data/productPhoto';
 import type { ProductRow } from '@/data/types';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { useT } from '@/i18n';
@@ -71,7 +71,13 @@ function ActiveStocksScreen({ runtime }: { runtime: ClinicRuntime }) {
   useEffect(() => {
     let disposed = false;
     const created: string[] = [];
-    void readProductPhotos(runtime.db, products.map((product) => product.id)).then((found) => {
+    void (async () => {
+      // Settle up with the server first — send anything taken here while
+      // offline, pull anything another device added — then paint from the
+      // cache. Reconciling is best effort and never blocks the table.
+      if (products.length > 0) await reconcileProductPhotos(runtime.db, runtime.api, products);
+      if (disposed) return;
+      const found = await readProductPhotos(runtime.db, products.map((product) => product.id));
       if (disposed) return;
       const next: Record<string, string> = {};
       found.forEach((blob, id) => {
@@ -80,12 +86,12 @@ function ActiveStocksScreen({ runtime }: { runtime: ClinicRuntime }) {
         next[id] = url;
       });
       setPhotoUrls(next);
-    });
+    })();
     return () => {
       disposed = true;
       created.forEach(URL.revokeObjectURL);
     };
-  }, [products, photoRevision, runtime.db]);
+  }, [products, photoRevision, runtime.api, runtime.db]);
 
   const pickProductPhoto = async (productId: string, event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,12 +101,25 @@ function ActiveStocksScreen({ runtime }: { runtime: ClinicRuntime }) {
       enqueue(t('setup.logoTooBig'));
       return;
     }
-    await writeProductPhoto(runtime.db, productId, file);
+    // Stored before it is sent, so the picture is there with or without
+    // internet. The reconcile on the next pass pushes it to the clinic.
+    await stageProductPhoto(runtime.db, productId, file);
     setPhotoRevision((current) => current + 1);
   };
 
   const removeProductPhoto = async (productId: string) => {
     await clearProductPhoto(runtime.db, productId);
+    try {
+      if (runtime.api.deleteProductPhoto !== undefined) {
+        await runtime.api.deleteProductPhoto(productId);
+        await runtime.db.products.update(productId, { photoKey: null });
+      }
+    } catch {
+      // Offline: the local copy is gone, and the row still carries a server
+      // fingerprint, so the next reconcile pulls the clinic's copy back rather
+      // than silently diverging from it.
+      enqueue(t('sync.offline'));
+    }
     setPhotoRevision((current) => current + 1);
   };
 
