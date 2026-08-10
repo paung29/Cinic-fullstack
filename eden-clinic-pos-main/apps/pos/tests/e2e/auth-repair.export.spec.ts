@@ -61,6 +61,7 @@ test('a server that has forgotten this staff member cannot lock the device out o
 async function provisionAsAdmin(page: Page): Promise<void> {
   await page.goto('/login');
   await expect(page.getByTestId('device-setup')).toBeVisible();
+  await page.getByTestId('create-clinic-toggle').click();
   await page.getByTestId('installer-staff-id').fill('s1');
   await enterPin(page, '1234');
   await expect(page.getByTestId('staff-picker')).toBeVisible();

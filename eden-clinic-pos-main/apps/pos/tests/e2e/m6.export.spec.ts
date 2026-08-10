@@ -66,7 +66,7 @@ test('Today closes a drained admin shift, exposes storage diagnostics, and rende
 });
 
 async function provision(page: Page, staffId: string, code: string) {
-  await page.goto('/login'); await page.getByTestId('installer-staff-id').fill(staffId); await pin(page, code);
+  await page.goto('/login'); await page.getByTestId('create-clinic-toggle').click(); await page.getByTestId('installer-staff-id').fill(staffId); await pin(page, code);
   await page.getByTestId('staff-option-s1').click(); await pin(page, code);
   await expect(page.getByTestId('sale-root')).toBeVisible();
 }

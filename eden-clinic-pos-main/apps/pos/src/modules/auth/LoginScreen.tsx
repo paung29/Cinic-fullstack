@@ -224,10 +224,15 @@ export function LoginScreen() {
                 <SecretInput autoComplete="current-password" data-testid="owner-password" hideLabel={t('field.hide')} id="owner-password" onChange={(event) => setOwnerPassword(event.target.value)} revealLabel={t('field.reveal')} value={ownerPassword} />
               </Field>
               <p>{t('auth.setup.pairHint')}</p>
+              {/* Lives inside the join-an-existing-clinic branch on purpose.
+                  Sitting above the create-clinic form it was a trap: anything
+                  typed here takes over the submit, so an email in this box was
+                  sent where a staff UUID was expected and the server answered
+                  with a deserialisation error nobody should have to read. */}
+              <Field htmlFor="installer-staff-id" label={t('auth.setup.staffId')}>
+                <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
+              </Field>
             </div>}
-            <Field htmlFor="installer-staff-id" label={t('auth.setup.staffId')}>
-              <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
-            </Field>
             <Button data-testid="create-clinic-toggle" onClick={() => setShowClinicSetup((current) => !current)} pill variant="ghost">
               {showClinicSetup ? t('auth.setup.useExisting') : t('auth.setup.createClinic')}
             </Button>

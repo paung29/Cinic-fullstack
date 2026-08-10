@@ -28,6 +28,7 @@ test('the exported login keeps every offline baseline and makes the dev override
 test('the static workflow provisions, captures offline, and manually drains one sale', async ({ context, page }) => {
   await page.goto('/login');
   await expect(page.getByTestId('device-setup')).toBeVisible();
+  await page.getByTestId('create-clinic-toggle').click();
   await page.getByTestId('installer-staff-id').fill('s1');
   for (const digit of ['1', '2', '3', '4']) await page.getByTestId(`pin-key-${digit}`).click();
   await page.getByTestId('pin-submit').click();
