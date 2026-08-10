@@ -3,8 +3,6 @@ import type { TranslationDictionary } from './types';
 export const dictEn = {
   'brand.name': 'Eden Clinic OS',
   'brand.location': 'Lashio · Myanmar',
-  'shell.userName': 'Dr. Hkawn Mai',
-  'shell.userRole': 'Admin',
   'shell.logout': 'Log out',
   'shell.tab.home': 'Home',
   'shell.tab.calendar': 'Calendar',

@@ -6,6 +6,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { saveClinicConfig } from '@/data/clinicConfig';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { ApiNetworkError } from '@/data/api';
 import { elevationFailureKey } from '@/data/elevationErrors';
 import { type OutboxStatusView } from '@/data/outbox';
@@ -36,6 +37,7 @@ export function SetupScreen() {
 function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
   const router = useRouter();
   const { locale, t } = useT();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const { setLocale } = useLocaleControl();
   const { enqueue } = useToast();
   const [clinic, setClinic] = useState<ClinicRow | undefined>();
@@ -210,7 +212,7 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
   const route = (id: string) => id === 'sale' ? '/sale' : id === 'calendar' ? '/calendar' : id === 'clients' ? '/clients' : id === 'stocks' ? '/stocks' : id === 'analytics' ? '/analytics' : '/setup';
 
   return <main className={styles.root} data-locale={locale} data-testid="setup-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
-    <AppShell activeTab="setup" brand={t('brand.name')} location={t('brand.location')} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={storageAttention} onLogout={() => { void runtime.outbox.status().then((next) => { if (next.pendingCount > 0 || next.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(id === 'today' ? '/' : route(id))} sync={{ label: t(`sync.${status.state}`), state: status.state, count: status.pendingCount, onClick: () => { void runtime.refreshSync().then(refresh); } }} tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
+    <AppShell activeTab="setup" brand={branding.brand} location={branding.location} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={storageAttention} onLogout={() => { void runtime.outbox.status().then((next) => { if (next.pendingCount > 0 || next.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(id === 'today' ? '/' : route(id))} sync={{ label: t(`sync.${status.state}`), state: status.state, count: status.pendingCount, onClick: () => { void runtime.refreshSync().then(refresh); } }} tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
       <div className={styles.content}>
         <section className={styles.card}>
           <h1>{t('setup.title')}</h1>

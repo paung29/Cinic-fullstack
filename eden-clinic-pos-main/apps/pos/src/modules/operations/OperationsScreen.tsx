@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { adjustExistingStock } from '@/data/inventoryRecords';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { fmtMMK } from '@/data/money';
 import type { OutboxStatusView } from '@/data/outbox';
 import { toLocalSale, type DailyReportWire, type FollowupWire, type LicenseWire, type ProductRow, type SaleRow } from '@/data/types';
@@ -33,6 +34,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const session = runtime.session.state();
   const identity = session.kind === 'active' ? session.identity : undefined;
   const [sales, setSales] = useState<SaleRow[]>([]);
@@ -184,8 +186,8 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
   return <main className={styles.root} data-locale={locale} data-testid="operations-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
     <AppShell
       activeTab="setup"
-      brand={t('brand.name')}
-      location={t('brand.location')}
+      brand={branding.brand}
+      location={branding.location}
       logoutLabel={t('shell.logout')}
       onLogout={() => { void runtime.outbox.status().then((status) => {
         if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));

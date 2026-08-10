@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { elevationFailureKey } from '@/data/elevationErrors';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { fmtMMK } from '@/data/money';
 import type { ProductRow, SaleRow, StaffRow } from '@/data/types';
 import { useT } from '@/i18n';
@@ -43,6 +44,7 @@ function ActiveAnalyticsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [unlocked, setUnlocked] = useState(runtime.elevation.state().kind === 'active');
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -153,7 +155,7 @@ function ActiveAnalyticsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const route = (id: string) => id === 'today' ? '/' : id === 'calendar' ? '/calendar' : id === 'clients' ? '/clients' : id === 'sale' ? '/sale' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/analytics';
 
   return <main className={styles.root} data-locale={locale} data-testid="analytics-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
-    <AppShell activeTab="analytics" brand={t('brand.name')} location={t('brand.location')} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')} onLogout={() => { void runtime.outbox.status().then((next) => { if (next.pendingCount > 0 || next.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(route(id))} sync={{ label: t('sync.synced'), state: 'synced', count: 0, onClick: () => { void runtime.refreshSync().then(refreshLocal); } }} tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
+    <AppShell activeTab="analytics" brand={branding.brand} location={branding.location} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')} onLogout={() => { void runtime.outbox.status().then((next) => { if (next.pendingCount > 0 || next.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(route(id))} sync={{ label: t('sync.synced'), state: 'synced', count: 0, onClick: () => { void runtime.refreshSync().then(refreshLocal); } }} tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
       <div className={styles.content}>
         {unlocked ? null : <section className={styles.lockedCard} data-testid="analytics-locked">
           <Lock aria-hidden="true" size={34} />

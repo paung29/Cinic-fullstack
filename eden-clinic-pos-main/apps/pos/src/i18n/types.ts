@@ -1,8 +1,6 @@
 export const translationKeys = [
   'brand.name',
   'brand.location',
-  'shell.userName',
-  'shell.userRole',
   'shell.logout',
   'shell.tab.home',
   'shell.tab.calendar',

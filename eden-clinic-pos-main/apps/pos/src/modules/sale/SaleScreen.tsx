@@ -8,6 +8,7 @@ import { ShoppingCart } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { usePwaUpdate } from '@/app/pwaUpdate';
 import { ApiNetworkError } from '@/data/api';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { elevationFailureKey } from '@/data/elevationErrors';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
 import { cartSubtotal, fmtMMK } from '@/data/money';
@@ -57,6 +58,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { enqueue } = useToast();
   const pwaUpdate = usePwaUpdate();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [patients, setPatients] = useState<PatientRow[]>([]);
@@ -526,8 +528,8 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     <main className={styles.root} data-locale={locale} data-testid="sale-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
       <AppShell
         activeTab="sale"
-        brand={t('brand.name')}
-        location={t('brand.location')}
+        brand={branding.brand}
+        location={branding.location}
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         switchUserDisabled={hasUncommittedCart}
@@ -542,7 +544,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         storageAttention={storageAttention}
         userName={activeIdentity.name}
-        userRole={t('shell.userRole')}
+        userRole={activeIdentity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}
       >
         <div className={styles.workspace}>
           <section className={styles.cartPanel} data-testid="sale-cart">

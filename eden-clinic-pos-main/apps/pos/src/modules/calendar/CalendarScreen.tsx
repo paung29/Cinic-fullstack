@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { createAppointment, isSlotOccupied, setAppointmentStatus } from '@/data/appointmentRecords';
 import { createPatient } from '@/data/patientRecords';
 import { stageSalePrefill } from '@/data/salePrefill';
@@ -28,6 +29,7 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
@@ -147,8 +149,8 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
     <main className={styles.root} data-locale={locale} data-testid="calendar-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
       <AppShell
         activeTab="calendar"
-        brand={t('brand.name')}
-        location={t('brand.location')}
+        brand={branding.brand}
+        location={branding.location}
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}

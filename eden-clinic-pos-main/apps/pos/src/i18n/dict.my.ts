@@ -6,10 +6,6 @@ export const dictMy = {
   // TODO(native-review)
   'brand.location': 'လားရှိုး · မြန်မာ',
   // TODO(native-review)
-  'shell.userName': 'ဒေါက်တာ ခေါင်မိုင်',
-  // TODO(native-review)
-  'shell.userRole': 'စီမံခန့်ခွဲသူ',
-  // TODO(native-review)
   'shell.logout': 'ထွက်ရန်',
   // TODO(native-review)
   'shell.tab.home': 'ပင်မ',

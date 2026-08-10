@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { closeShift, type ShiftCloseRecord } from '@/data/shiftClose';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { cashDifference, expectedCash, fmtMMK } from '@/data/money';
 import { readPrinterProfile, type PrinterProfile } from '@/data/printerProfile';
 import { summarizeToday, type TodaySummary } from '@/data/todaySummary';
@@ -32,6 +33,7 @@ function ActiveTodayScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const session = runtime.session.state();
   // The session boundary deliberately precedes every local data read: an
   // auth-required identity may be useful to the login repair flow, but cannot
@@ -92,7 +94,7 @@ function ActiveTodayScreen({ runtime }: { runtime: ClinicRuntime }) {
   };
 
   return <main className={styles.root} data-locale={locale} data-testid="today-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
-    <AppShell activeTab="today" brand={t('brand.name')} location={t('brand.location')} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} switchUserDisabled={false} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={storageAttention} onLogout={() => { void runtime.outbox.status().then((status) => { if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(route(id))} sync={{ label: t(`sync.${data.status.state}`), state: data.status.state, count: data.status.pendingCount, onClick: () => { void runtime.refreshSync(); } }} tabs={tabs} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
+    <AppShell activeTab="today" brand={branding.brand} location={branding.location} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} switchUserDisabled={false} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={storageAttention} onLogout={() => { void runtime.outbox.status().then((status) => { if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(route(id))} sync={{ label: t(`sync.${data.status.state}`), state: data.status.state, count: data.status.pendingCount, onClick: () => { void runtime.refreshSync(); } }} tabs={tabs} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
       <div className={styles.content}>
         <header className={styles.heading}><div><p>{t('today.title')}</p><h1>{t('today.totalCollected')}</h1><span className={styles.headingDate}>{new Intl.DateTimeFormat(locale === 'zh' ? 'zh-Hans' : locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}</span></div><strong data-testid="today-total-collected">{fmtMMK(summary.methodTotals.totalCollected)}</strong></header>
         <div className={styles.stats}>{[['cash', summary.methodTotals.cash, t('sale.cash')], ['kbzpay', summary.methodTotals.kbzpay, t('sale.kbzpay')], ['wave', summary.methodTotals.wave, t('sale.wave')], ['credit', summary.methodTotals.credit, t('today.creditOutstanding')]].map(([id, value, label]) => <StatTile data-testid={`today-method-${id}`} key={String(id)} label={String(label)} value={fmtMMK(Number(value))} />)}</div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { fmtMMK, patientOutstanding } from '@/data/money';
 import { createPatient } from '@/data/patientRecords';
 import { useT } from '@/i18n';
@@ -24,6 +25,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [query, setQuery] = useState('');
@@ -107,8 +109,8 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
     <main className={styles.root} data-locale={locale} data-testid="clients-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
       <AppShell
         activeTab="clients"
-        brand={t('brand.name')}
-        location={t('brand.location')}
+        brand={branding.brand}
+        location={branding.location}
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}

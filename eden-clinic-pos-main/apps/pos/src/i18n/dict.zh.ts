@@ -6,10 +6,6 @@ export const dictZh = {
   // TODO(native-review)
   'brand.location': '腊戍 · 缅甸',
   // TODO(native-review)
-  'shell.userName': 'Hkawn Mai 医生',
-  // TODO(native-review)
-  'shell.userRole': '管理员',
-  // TODO(native-review)
   'shell.logout': '退出登录',
   // TODO(native-review)
   'shell.tab.home': '主页',
