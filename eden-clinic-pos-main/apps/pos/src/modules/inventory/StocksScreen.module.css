@@ -24,3 +24,45 @@
 .stockValue { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .lotLine { display: block; margin-top: 3px; color: var(--mut); font-size: 12px; }
 @media (max-width: 760px) { .content { padding: 12px; } .fields { grid-template-columns: 1fr; } }
+
+.photoHead { width: 56px; }
+.photoCell { width: 56px; padding-right: 0; }
+.photoThumb {
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.photoEmpty {
+  display: block;
+  width: 44px;
+  height: 44px;
+  background: var(--bg);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+.photoEditor { display: grid; gap: 8px; }
+.photoEditor > span { color: var(--mut); font-size: 11px; }
+.photoPreview {
+  width: 132px;
+  height: 132px;
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.photoActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.photoPick {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.photoPick:hover { background: var(--bg); }
+.photoInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
