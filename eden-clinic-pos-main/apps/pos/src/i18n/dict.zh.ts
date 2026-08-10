@@ -166,6 +166,8 @@ export const dictZh = {
   // TODO(native-review)
   'auth.login.who': '你好',
   // TODO(native-review)
+  'auth.login.notYou': '不是你？',
+  // TODO(native-review)
   'field.reveal': '显示',
   // TODO(native-review)
   'field.hide': '隐藏',

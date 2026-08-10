@@ -83,6 +83,7 @@ export const translationKeys = [
   'auth.setup.internetRequired',
   'auth.setup.repair',
   'auth.login.who',
+  'auth.login.notYou',
   'auth.login.pin',
   'auth.login.wrongPin',
   'auth.login.signInFailed',
