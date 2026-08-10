@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local H2 database (file-backed dev data) ###
+data/
+backend-run.log
