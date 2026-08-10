@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { buildReceiptLayout, qrModuleScale, QR_QUIET_MODULES, renderReceipt, waitForReceiptFonts, type ReceiptRenderInput } from '@/print/receipt';
+import { buildReceiptLayout, qrModuleScale, QR_QUIET_MODULES, receiptHeaderLines, RECEIPT_HEADER_MAX_LINES, renderReceipt, waitForReceiptFonts, type ReceiptRenderInput } from '@/print/receipt';
 
 const input: ReceiptRenderInput = {
   sale: {
@@ -11,7 +11,7 @@ const input: ReceiptRenderInput = {
   },
   clinic: {
     id: 'clinic-1', name: 'Eden Clinic', phone: '', address: '', roundingStep: 500, creditLimitMmk: 100_000,
-    receipt: {}, receiptFooter: 'Thank you', logoUrl: '', telegramHandle: '', receiptQr: true, receiptNextVisit: true,
+    receipt: {}, receiptFooter: 'Thank you', logoUrl: '', telegramHandle: '', receiptHeader: '', receiptQr: true, receiptNextVisit: true,
     receiptTemplate: 'classic', receiptHeaderFont: 'sans', receiptDivider: 'line', consentMode: 'warn', addons: {}, featureFlags: {},
   },
   width: 576,
@@ -201,5 +201,49 @@ describe('qr quiet zone', () => {
       expect(scale).toBeGreaterThanOrEqual(2);
       expect(matrix.size * scale).toBeLessThanOrEqual(width);
     }
+  });
+});
+
+describe('receipt header band', () => {
+  const withHeader = (header: string): ReceiptRenderInput => ({
+    ...input,
+    clinic: { ...input.clinic, address: 'Lashio, Myanmar', phone: '09 771 000 111', receiptHeader: header },
+  });
+
+  test('prints the clinic-authored header between rules, one run per line', () => {
+    const layout = buildReceiptLayout(withHeader('No. 12, Theinni Road\nLashio, Shan State\nOpen 9am - 6pm'));
+    const contacts = layout.runs.filter((run) => run.kind === 'contact').map((run) => run.text);
+
+    expect(contacts).toEqual(['No. 12, Theinni Road', 'Lashio, Shan State', 'Open 9am - 6pm']);
+    expect(layout.runs.filter((run) => run.kind === 'band-rule')).toHaveLength(2);
+    const kinds = layout.runs.map((run) => run.kind);
+    expect(kinds.indexOf('band-rule')).toBeLessThan(kinds.indexOf('contact'));
+    expect(kinds.lastIndexOf('band-rule')).toBeGreaterThan(kinds.lastIndexOf('contact'));
+  });
+
+  test('the header replaces the structured phone and address lines', () => {
+    const contacts = buildReceiptLayout(withHeader('Anything she wants')).runs
+      .filter((run) => run.kind === 'contact').map((run) => run.text);
+    expect(contacts).toEqual(['Anything she wants']);
+  });
+
+  test('falls back to phone and address when no header is set, so nothing is lost', () => {
+    const layout = buildReceiptLayout(withHeader(''));
+    expect(layout.runs.filter((run) => run.kind === 'band-rule')).toHaveLength(0);
+    expect(layout.runs.filter((run) => run.kind === 'contact').map((run) => run.text))
+      .toEqual(['09 771 000 111', 'Lashio, Myanmar']);
+  });
+
+  test('tidies whatever was typed and caps a runaway paste', () => {
+    expect(receiptHeaderLines('  spaced  \n\n\n  lines  \n')).toEqual(['spaced', 'lines']);
+    expect(receiptHeaderLines('   \n  \n')).toEqual([]);
+    expect(receiptHeaderLines(null)).toEqual([]);
+    expect(receiptHeaderLines(undefined)).toEqual([]);
+    const many = Array.from({ length: 30 }, (_, index) => `line ${index}`).join('\n');
+    expect(receiptHeaderLines(many)).toHaveLength(RECEIPT_HEADER_MAX_LINES);
+  });
+
+  test('grows the receipt by the band it adds', () => {
+    expect(buildReceiptLayout(withHeader('a\nb\nc')).height).toBeGreaterThan(buildReceiptLayout(withHeader('')).height);
   });
 });

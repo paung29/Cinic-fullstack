@@ -19,3 +19,6 @@ p.notice { margin: 0; color: var(--amber); font-weight: 700; }
 .logoPreview { display: block; max-width: 100%; max-height: 120px; object-fit: contain; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
 .logoPick { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 18px; background: var(--brand); border-radius: var(--r-pill); color: var(--panel); font-size: 14px; font-weight: 600; cursor: pointer; }
 .logoInput { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.headerField { display: grid; gap: 6px; color: var(--mut); }
+.headerField small { color: var(--steel); font-size: 12px; }

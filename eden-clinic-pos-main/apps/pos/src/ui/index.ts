@@ -16,6 +16,8 @@ export { Skeleton } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
 export { StatTile } from './StatTile';
 export type { StatTileProps } from './StatTile';
+export { Textarea } from './Textarea';
+export type { TextareaProps } from './Textarea';
 export { Tag } from './Tag';
 export type { TagProps, TagTone } from './Tag';
 export { Modal } from './Modal';

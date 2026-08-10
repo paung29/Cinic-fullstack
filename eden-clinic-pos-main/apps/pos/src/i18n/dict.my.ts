@@ -656,4 +656,7 @@ export const dictMy = {
   'setup.logoRemove': 'လိုဂို ဖယ်ပါ', // TODO(native-review)
   'setup.logoNone': 'လိုဂို မရှိသေးပါ — ဆေးခန်းအမည်သာ ရိုက်နှိပ်ပါမည်။', // TODO(native-review)
   'setup.logoTooBig': 'ပုံ အရွယ်အစား ကြီးလွန်းသည်။ 4 MB အောက် သုံးပါ။', // TODO(native-review)
+  'setup.receiptHeader': 'ဘောက်ချာ ခေါင်းစီး', // TODO(native-review)
+  'setup.receiptHeaderPlaceholder': 'လိပ်စာ၊ ဖွင့်ချိန် သို့မဟုတ် အထက်တွင် ဖော်ပြလိုသည့် စာသား', // TODO(native-review)
+  'setup.receiptHeaderHint': 'ဆေးခန်းအမည်အောက်တွင် မျဉ်းဘောင်ဖြင့် ရိုက်နှိပ်ပါမည်။ ဗလာထားပါက ဖုန်းနှင့် လိပ်စာကို ရိုက်နှိပ်ပါမည်။', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

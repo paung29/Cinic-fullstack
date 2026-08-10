@@ -21,10 +21,10 @@ public final class EdenApi {
     public record ElevationResponse(UUID elevationToken, OffsetDateTime expiresAt) {}
 
     public record ClinicDto(UUID id, String name, String phone, String address, int roundingStep,
-            int creditLimitMmk, Map<String,Object> receipt, String receiptFooter, String telegramHandle, String logoUrl,
+            int creditLimitMmk, Map<String,Object> receipt, String receiptFooter, String receiptHeader, String telegramHandle, String logoUrl,
             boolean receiptQr, boolean receiptNextVisit, String receiptTemplate, String receiptHeaderFont,
             String receiptDivider, String consentMode, Map<String,Object> addons, Map<String,Object> featureFlags) {}
-    public record ClinicPatch(String name, String phone, String address, String telegramHandle, String receiptFooter, String logoUrl,
+    public record ClinicPatch(String name, String phone, String address, String telegramHandle, String receiptHeader, String receiptFooter, String logoUrl,
             Integer roundingStep, @Min(0) Integer creditLimitMmk, String consentMode, Boolean receiptQr,
             Boolean receiptNextVisit, String receiptTemplate, String receiptHeaderFont, String receiptDivider) {}
     public record StaffDto(UUID id, String name, String role, boolean takesBookings, boolean active) {}

@@ -463,4 +463,7 @@ export const dictEn = {
   'setup.logoRemove': 'Remove logo',
   'setup.logoNone': 'No logo yet — the clinic name prints on its own.',
   'setup.logoTooBig': 'That image is too large. Use one under 4 MB.',
+  'setup.receiptHeader': 'Receipt header',
+  'setup.receiptHeaderPlaceholder': 'Address, opening hours, anything you want at the top',
+  'setup.receiptHeaderHint': 'Printed in a ruled band under the clinic name. Leave empty to print the phone and address instead.',
 } satisfies TranslationDictionary;

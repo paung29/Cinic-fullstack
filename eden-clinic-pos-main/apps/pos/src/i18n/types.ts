@@ -461,6 +461,9 @@ export const translationKeys = [
   'setup.logoRemove',
   'setup.logoNone',
   'setup.logoTooBig',
+  'setup.receiptHeader',
+  'setup.receiptHeaderPlaceholder',
+  'setup.receiptHeaderHint',
 ] as const;
 
 export type Locale = 'my' | 'en' | 'zh';

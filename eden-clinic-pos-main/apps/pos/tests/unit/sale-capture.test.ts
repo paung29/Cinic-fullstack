@@ -31,7 +31,7 @@ const clinic: ClinicRow = {
   receipt: {},
   receiptFooter: '',
   logoUrl: '',
-  telegramHandle: '',
+  telegramHandle: '', receiptHeader: '',
   receiptQr: true,
   receiptNextVisit: true,
   receiptTemplate: 'classic',

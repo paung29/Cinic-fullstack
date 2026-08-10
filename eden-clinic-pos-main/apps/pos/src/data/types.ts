@@ -28,6 +28,7 @@ export const clinicSchema = z.object({
   credit_limit_mmk: z.number().int(),
   receipt: jsonObjectSchema,
   receipt_footer: z.string().default(''),
+  receipt_header: z.string().nullable().default(''),
   telegram_handle: z.string().nullable().default(''),
   logo_url: z.string().default(''),
   receipt_qr: z.boolean().default(true),
@@ -45,6 +46,7 @@ export const clinicPatchSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   telegram_handle: z.string().optional(),
+  receipt_header: z.string().optional(),
   receipt_footer: z.string().optional(),
   logo_url: z.string().optional(),
   rounding_step: z.union([z.literal(1), z.literal(100), z.literal(500), z.literal(1_000)]).optional(),
@@ -482,6 +484,7 @@ export type ClinicRow = {
   receipt: Record<string, JsonValue>;
   receiptFooter: string;
   logoUrl: string;
+  receiptHeader: string;
   telegramHandle: string;
   receiptQr: boolean;
   receiptNextVisit: boolean;
@@ -718,6 +721,7 @@ export function toLocalClinic(wire: ClinicWire): ClinicRow {
     receipt: wire.receipt,
     receiptFooter: wire.receipt_footer,
     logoUrl: wire.logo_url,
+    receiptHeader: wire.receipt_header ?? '',
     telegramHandle: wire.telegram_handle ?? '',
     receiptQr: wire.receipt_qr,
     receiptNextVisit: wire.receipt_next_visit,

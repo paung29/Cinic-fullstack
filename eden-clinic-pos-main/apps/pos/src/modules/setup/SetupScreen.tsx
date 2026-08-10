@@ -18,11 +18,11 @@ import { RECEIPT_FONTS } from '@/print/receiptFonts';
 import { clearReceiptLogo, readReceiptLogo, writeReceiptLogo, type LogoBitmap } from '@/print/receiptLogo';
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
 import { createM5PrinterTransport } from '@/print/transport';
-import { AppShell, Button, Input, Modal, Select, Skeleton, Switch, Tag, useToast } from '@/ui';
+import { AppShell, Button, Input, Modal, Select, Skeleton, Switch, Tag, Textarea, useToast } from '@/ui';
 import { isClinicSaveOffline } from './setupSelectors';
 import styles from './SetupScreen.module.css';
 
-type ReceiptDraft = Pick<ClinicPatchWire, 'name' | 'phone' | 'address' | 'telegram_handle' | 'receipt_footer' | 'logo_url' | 'rounding_step' | 'credit_limit_mmk' | 'consent_mode' | 'receipt_qr' | 'receipt_next_visit' | 'receipt_template' | 'receipt_header_font' | 'receipt_divider'>;
+type ReceiptDraft = Pick<ClinicPatchWire, 'name' | 'phone' | 'address' | 'telegram_handle' | 'receipt_header' | 'receipt_footer' | 'logo_url' | 'rounding_step' | 'credit_limit_mmk' | 'consent_mode' | 'receipt_qr' | 'receipt_next_visit' | 'receipt_template' | 'receipt_header_font' | 'receipt_divider'>;
 
 const defaultProfile: PrinterProfile = { version: 1, transport: 'generic-escpos', width: 576 };
 
@@ -206,6 +206,16 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
             <label><span>{t('setup.headerFont')}</span><Select data-testid="receipt-header-font" onChange={(event) => setDraft((current) => ({ ...current, receipt_header_font: event.target.value as ReceiptDraft['receipt_header_font'] }))} value={draft.receipt_header_font ?? 'sans'}>{RECEIPT_FONTS.map((font) => <option key={font.id} value={font.id}>{t(`setup.font.${font.id}`)}</option>)}</Select></label>
             <label><span>{t('setup.divider')}</span><Select data-testid="receipt-divider" onChange={(event) => setDraft((current) => ({ ...current, receipt_divider: event.target.value as ReceiptDraft['receipt_divider'] }))} value={draft.receipt_divider ?? 'line'}>{(['line', 'dots', 'none'] as const).map((value) => <option key={value} value={value}>{t(`setup.divider.${value}`)}</option>)}</Select></label>
           </div>
+          <label className={styles.headerField}>
+            <span>{t('setup.receiptHeader')}</span>
+            <Textarea
+              data-testid="setup-receipt-header"
+              onChange={(event) => setDraft((current) => ({ ...current, receipt_header: event.target.value }))}
+              placeholder={t('setup.receiptHeaderPlaceholder')}
+              value={draft.receipt_header ?? ''}
+            />
+            <small>{t('setup.receiptHeaderHint')}</small>
+          </label>
           <div className={styles.switchRow}><span>{t('setup.receiptQr')}</span><Switch checked={draft.receipt_qr ?? true} label={t('setup.receiptQr')} onCheckedChange={(receipt_qr) => setDraft((current) => ({ ...current, receipt_qr }))} /></div>
           <div className={styles.switchRow}><span>{t('setup.receiptNextVisit')}</span><Switch checked={draft.receipt_next_visit ?? true} label={t('setup.receiptNextVisit')} onCheckedChange={(receipt_next_visit) => setDraft((current) => ({ ...current, receipt_next_visit }))} /></div>
           {offline ? <p className={styles.notice}>{t('setup.saveOffline')}</p> : null}
@@ -241,11 +251,11 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
 }
 
 function toReceiptDraft(clinic: ClinicRow): ReceiptDraft {
-  return { name: clinic.name, phone: clinic.phone, address: clinic.address, telegram_handle: clinic.telegramHandle, receipt_footer: clinic.receiptFooter, logo_url: clinic.logoUrl, rounding_step: clinic.roundingStep, credit_limit_mmk: clinic.creditLimitMmk, consent_mode: clinic.consentMode, receipt_qr: clinic.receiptQr, receipt_next_visit: clinic.receiptNextVisit, receipt_template: clinic.receiptTemplate, receipt_header_font: clinic.receiptHeaderFont, receipt_divider: clinic.receiptDivider };
+  return { name: clinic.name, phone: clinic.phone, address: clinic.address, telegram_handle: clinic.telegramHandle, receipt_header: clinic.receiptHeader, receipt_footer: clinic.receiptFooter, logo_url: clinic.logoUrl, rounding_step: clinic.roundingStep, credit_limit_mmk: clinic.creditLimitMmk, consent_mode: clinic.consentMode, receipt_qr: clinic.receiptQr, receipt_next_visit: clinic.receiptNextVisit, receipt_template: clinic.receiptTemplate, receipt_header_font: clinic.receiptHeaderFont, receipt_divider: clinic.receiptDivider };
 }
 
 function applyDraft(clinic: ClinicRow, draft: ReceiptDraft): ClinicRow {
-  return { ...clinic, name: draft.name ?? clinic.name, phone: draft.phone ?? clinic.phone, address: draft.address ?? clinic.address, telegramHandle: draft.telegram_handle ?? clinic.telegramHandle, receiptFooter: draft.receipt_footer ?? clinic.receiptFooter, logoUrl: draft.logo_url ?? clinic.logoUrl, roundingStep: draft.rounding_step ?? clinic.roundingStep, creditLimitMmk: draft.credit_limit_mmk ?? clinic.creditLimitMmk, consentMode: draft.consent_mode ?? clinic.consentMode, receiptQr: draft.receipt_qr ?? clinic.receiptQr, receiptNextVisit: draft.receipt_next_visit ?? clinic.receiptNextVisit, receiptTemplate: draft.receipt_template ?? clinic.receiptTemplate, receiptHeaderFont: draft.receipt_header_font ?? clinic.receiptHeaderFont, receiptDivider: draft.receipt_divider ?? clinic.receiptDivider };
+  return { ...clinic, name: draft.name ?? clinic.name, phone: draft.phone ?? clinic.phone, address: draft.address ?? clinic.address, telegramHandle: draft.telegram_handle ?? clinic.telegramHandle, receiptHeader: draft.receipt_header ?? clinic.receiptHeader, receiptFooter: draft.receipt_footer ?? clinic.receiptFooter, logoUrl: draft.logo_url ?? clinic.logoUrl, roundingStep: draft.rounding_step ?? clinic.roundingStep, creditLimitMmk: draft.credit_limit_mmk ?? clinic.creditLimitMmk, consentMode: draft.consent_mode ?? clinic.consentMode, receiptQr: draft.receipt_qr ?? clinic.receiptQr, receiptNextVisit: draft.receipt_next_visit ?? clinic.receiptNextVisit, receiptTemplate: draft.receipt_template ?? clinic.receiptTemplate, receiptHeaderFont: draft.receipt_header_font ?? clinic.receiptHeaderFont, receiptDivider: draft.receipt_divider ?? clinic.receiptDivider };
 }
 
 function previewSale(): SaleRow {

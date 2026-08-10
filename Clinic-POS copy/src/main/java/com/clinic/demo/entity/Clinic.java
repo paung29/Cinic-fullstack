@@ -46,6 +46,10 @@ public class Clinic {
     @Builder.Default
     private String telegramHandle = "";
 
+    @Column(name = "receipt_header", length = 512)
+    @Builder.Default
+    private String receiptHeader = "";
+
     @Column(name = "receipt_qr", nullable = false)
     @Builder.Default
     private Boolean receiptQr = true;

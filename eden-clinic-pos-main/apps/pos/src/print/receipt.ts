@@ -25,7 +25,7 @@ export type ReceiptRenderInput = {
 export type ReceiptHeaderFont = string;
 
 export type ReceiptRun = {
-  kind: 'header-latin' | 'header-burmese' | 'body' | 'total' | 'divider' | 'qr' | 'copy-marker' | 'contact' | 'logo' | 'qr-code';
+  kind: 'header-latin' | 'header-burmese' | 'body' | 'total' | 'divider' | 'qr' | 'copy-marker' | 'contact' | 'logo' | 'qr-code' | 'band-rule';
   text: string;
   font: string;
   locale: 'en' | 'my';
@@ -111,12 +111,23 @@ export function buildReceiptLayout(input: ReceiptRenderInput): ReceiptLayout {
     { kind: 'header-burmese', text: burmeseSample, font: 'Padauk', locale: 'my', align, weight: 400 },
   );
 
-  // Phone and address were captured in Set-up but never reached the paper.
-  if (clinic.phone) {
-    runs.push({ kind: 'contact', text: clinic.phone, font: 'Inter', locale: 'en', align, weight: 400 });
-  }
-  if (clinic.address) {
-    runs.push({ kind: 'contact', text: clinic.address, font: 'Inter', locale: 'en', align, weight: 400 });
+  // A clinic-authored header replaces the structured contact lines: it is the
+  // same slot on the paper, and whoever typed it meant it to be the thing that
+  // shows. With none set we fall back so phone and address are never lost.
+  const headerLines = receiptHeaderLines(clinic.receiptHeader);
+  if (headerLines.length > 0) {
+    runs.push({ kind: 'band-rule', text: 'line', font: 'Inter', locale: 'en', align, weight: 400 });
+    for (const line of headerLines) {
+      runs.push({ kind: 'contact', text: line, font: 'Inter', locale: 'en', align: 'center', weight: 400 });
+    }
+    runs.push({ kind: 'band-rule', text: 'line', font: 'Inter', locale: 'en', align, weight: 400 });
+  } else {
+    if (clinic.phone) {
+      runs.push({ kind: 'contact', text: clinic.phone, font: 'Inter', locale: 'en', align, weight: 400 });
+    }
+    if (clinic.address) {
+      runs.push({ kind: 'contact', text: clinic.address, font: 'Inter', locale: 'en', align, weight: 400 });
+    }
   }
 
   runs.push(
@@ -166,6 +177,20 @@ export function buildReceiptLayout(input: ReceiptRenderInput): ReceiptLayout {
   };
 }
 
+// Free text, so it arrives with whatever spacing and blank lines were typed.
+// Trim each line, drop the empties, and cap the count so a pasted essay cannot
+// push the sale itself off the visible part of the receipt.
+export const RECEIPT_HEADER_MAX_LINES = 6;
+
+export function receiptHeaderLines(header: string | null | undefined): string[] {
+  if (header === null || header === undefined) return [];
+  return header
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .slice(0, RECEIPT_HEADER_MAX_LINES);
+}
+
 export const QR_QUIET_MODULES = 4;
 
 export function qrModuleScale(matrix: QrMatrix, width: ReceiptLayout['width']): number {
@@ -189,6 +214,7 @@ function withMetrics(run: UnmeasuredReceiptRun, width: ReceiptLayout['width'], a
     const quiet = QR_QUIET_MODULES * scale;
     return { ...run, fontSize: 0, advance: assets.qr.size * scale + quiet, spacingBefore: quiet };
   }
+  if (run.kind === 'band-rule') return { ...run, fontSize: 0, advance: 10, spacingBefore: 4 };
   if (run.kind === 'contact') return { ...run, fontSize: 15, advance: 22, spacingBefore: 0 };
   if (run.kind === 'copy-marker') {
     return { ...run, fontSize: width === 576 ? 28 : 24, advance: width === 576 ? 44 : 40, spacingBefore: 12 };
@@ -221,7 +247,7 @@ function drawReceipt(context: ReceiptDrawingContext, layout: ReceiptLayout, pale
 
   for (const run of layout.runs) {
     y += run.spacingBefore;
-    if (run.kind === 'divider') {
+    if (run.kind === 'divider' || run.kind === 'band-rule') {
       drawDivider(context, run.text, inset, layout.width - inset, y, palette.line);
       y += run.advance;
       continue;

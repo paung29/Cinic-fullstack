@@ -656,4 +656,7 @@ export const dictZh = {
   'setup.logoRemove': '移除标志', // TODO(native-review)
   'setup.logoNone': '尚未添加标志 — 仅打印诊所名称。', // TODO(native-review)
   'setup.logoTooBig': '图片过大。请使用小于 4 MB 的图片。', // TODO(native-review)
+  'setup.receiptHeader': '收据页眉', // TODO(native-review)
+  'setup.receiptHeaderPlaceholder': '地址、营业时间，或任何想显示在顶部的内容', // TODO(native-review)
+  'setup.receiptHeaderHint': '打印在诊所名称下方的横线区域内。留空则改为打印电话与地址。', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;
