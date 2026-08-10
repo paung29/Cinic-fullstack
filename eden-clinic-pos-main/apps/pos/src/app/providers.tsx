@@ -18,6 +18,12 @@ import { createWebCryptoSessionCrypto } from '@/modules/auth/sessionEnvelope';
 import { ToastProvider } from '@/ui';
 import { PwaUpdateProvider } from './pwaUpdate';
 
+/**
+ * Slow enough to be invisible on a metered connection, quick enough that a
+ * clinic closing with queued sales does not wait until morning to send them.
+ */
+const OUTBOX_RETRY_INTERVAL_MS = 45_000;
+
 export type ClinicRuntime = {
   db: ClinicDb;
   api: ApiClient;
@@ -162,7 +168,23 @@ export function ClinicRuntimeProvider({ children }: { children: ReactNode }) {
           void refreshSync().then(bump, bump);
         };
         window.addEventListener('online', handleOnline);
-        removeOnlineListener = () => window.removeEventListener('online', handleOnline);
+        // The browser fires 'online' when this device's own network interface
+        // comes back — not when the internet is reachable again. A clinic
+        // tablet stays joined to its router for the whole time the upstream
+        // line is down, so that event never arrives, and a queue of sales
+        // could sit unsent until somebody happened to ring up another one.
+        // This retries quietly whenever anything is still waiting, and costs
+        // nothing when the queue is empty.
+        const retryTimer = window.setInterval(() => {
+          void clinicDb.outbox.where('status').equals('pending').count().then(
+            (pending) => { if (pending > 0) void refreshSync().then(bump, bump); },
+            () => undefined,
+          );
+        }, OUTBOX_RETRY_INTERVAL_MS);
+        removeOnlineListener = () => {
+          window.removeEventListener('online', handleOnline);
+          window.clearInterval(retryTimer);
+        };
 
         if (!disposed) {
           setQueryClient(new QueryClient());

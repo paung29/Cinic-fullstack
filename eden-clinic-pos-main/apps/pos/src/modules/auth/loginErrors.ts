@@ -30,3 +30,23 @@ export function loginFailureFor(error: unknown): LoginFailure {
 
   return 'sign-in-failed';
 }
+
+/**
+ * The server's own explanation, when it gave one worth reading.
+ *
+ * Without this every rejection collapsed into "the PIN was accepted, but
+ * sign-in could not finish" — which is true and useless. A malformed email or
+ * an already-initialised server both arrive as a 400 carrying a perfectly
+ * clear sentence, and throwing it away sent people hunting for a network fault
+ * that was never there.
+ *
+ * 5xx bodies are withheld deliberately: an internal stack detail is not
+ * something to put in front of clinic staff. A 401 is already named as a wrong
+ * PIN by the caller above.
+ */
+export function loginFailureDetail(error: unknown): string | undefined {
+  if (!(error instanceof ApiHttpError)) return undefined;
+  if (error.status >= 500 || error.status === 401) return undefined;
+  const message = error.message.trim();
+  return message === '' ? undefined : message;
+}

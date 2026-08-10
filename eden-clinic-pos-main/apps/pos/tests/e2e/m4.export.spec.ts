@@ -148,6 +148,7 @@ test('server offboarding advertises degradation for staff and ends a revoked liv
 async function provisionAsAdmin(page: Page): Promise<void> {
   await page.goto('/login');
   await expect(page.getByTestId('device-setup')).toBeVisible();
+  await page.getByTestId('create-clinic-toggle').click();
   await page.getByTestId('installer-staff-id').fill('s1');
   await enterPin(page, '1234');
   await expect(page.getByTestId('staff-picker')).toBeVisible();

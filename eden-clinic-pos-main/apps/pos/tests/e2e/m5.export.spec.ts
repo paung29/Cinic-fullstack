@@ -4,6 +4,7 @@ import { captureM5ReferenceComparison, captureM5State } from './visuals';
 
 async function provisionAdmin(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/login');
+  await page.getByTestId('create-clinic-toggle').click();
   await page.getByTestId('installer-staff-id').fill('s1');
   for (const digit of ['1', '2', '3', '4']) await page.getByTestId(`pin-key-${digit}`).click();
   await page.getByTestId('pin-submit').click();

@@ -166,6 +166,7 @@ async function securityPolicyViolations(page: Page): Promise<Array<{ effectiveDi
 
 async function provision(page: Page, staffId: string, code: string, baseUrl?: string): Promise<void> {
   await page.goto(baseUrl === undefined ? '/login' : `${baseUrl}/login`);
+  await page.getByTestId('create-clinic-toggle').click();
   await page.getByTestId('installer-staff-id').fill(staffId);
   await pin(page, code);
   await page.getByTestId(`staff-option-${staffId}`).click();
