@@ -148,7 +148,11 @@ export const dictZh = {
   // TODO(native-review)
   'auth.setup.repair': '此会话需要在线登录才能修复此设备。',
   // TODO(native-review)
-  'auth.login.who': '谁在工作？',
+  'auth.login.who': '你好',
+  // TODO(native-review)
+  'field.reveal': '显示',
+  // TODO(native-review)
+  'field.hide': '隐藏',
   // TODO(native-review)
   'auth.login.pin': '输入 PIN',
   // TODO(native-review)
@@ -211,6 +215,8 @@ export const dictZh = {
   // TODO(native-review)
   'sale.discount': '折扣',
   // TODO(native-review)
+  'sale.lineDiscount': '折扣 %',
+  // TODO(native-review)
   'sale.complete': '完成销售',
   // TODO(native-review)
   'sale.tenderTitle': '收款',
@@ -218,6 +224,24 @@ export const dictZh = {
   'sale.cash': '现金',
   // TODO(native-review)
   'sale.kbzpay': 'KBZPay',
+  // TODO(native-review)
+  'sale.kbzpay.scan': '请顾客扫码支付',
+  // TODO(native-review)
+  'sale.kbzpay.noQr': '尚未上传 KBZPay 收款码。请在设置中添加诊所的收款码。',
+  // TODO(native-review)
+  'sale.kbzpay.received': '已收到付款',
+  // TODO(native-review)
+  'setup.paymentQr': 'KBZPay 收款码',
+  // TODO(native-review)
+  'setup.paymentQrHint': '付款时向顾客展示。请上传诊所的 KBZPay 商户收款码 — 金额显示在旁边。',
+  // TODO(native-review)
+  'setup.paymentQrChoose': '选择收款码',
+  // TODO(native-review)
+  'setup.paymentQrReplace': '更换收款码',
+  // TODO(native-review)
+  'setup.paymentQrRemove': '移除收款码',
+  // TODO(native-review)
+  'setup.paymentQrNone': '尚无 KBZPay 收款码 — 收银时无法展示。',
   // TODO(native-review)
   'sale.wave': 'Wave',
   // TODO(native-review)

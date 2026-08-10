@@ -148,7 +148,11 @@ export const dictMy = {
   // TODO(native-review)
   'auth.setup.repair': 'ဤစက်ကို ပြန်လည်ပြုပြင်ရန် အွန်လိုင်း အကောင့်ဝင်ရပါမည်။',
   // TODO(native-review)
-  'auth.login.who': 'မည်သူ အလုပ်လုပ်နေသနည်း?',
+  'auth.login.who': 'မင်္ဂလာပါ',
+  // TODO(native-review)
+  'field.reveal': 'ပြရန်',
+  // TODO(native-review)
+  'field.hide': 'ဖျောက်ရန်',
   // TODO(native-review)
   'auth.login.pin': 'PIN ထည့်ပါ',
   // TODO(native-review)
@@ -211,6 +215,8 @@ export const dictMy = {
   // TODO(native-review)
   'sale.discount': 'လျှော့ဈေး',
   // TODO(native-review)
+  'sale.lineDiscount': 'လျှော့ဈေး %',
+  // TODO(native-review)
   'sale.complete': 'ရောင်းချမှု ပြီးစီးပါ',
   // TODO(native-review)
   'sale.tenderTitle': 'ငွေလက်ခံပါ',
@@ -218,6 +224,24 @@ export const dictMy = {
   'sale.cash': 'ငွေသား',
   // TODO(native-review)
   'sale.kbzpay': 'KBZPay',
+  // TODO(native-review)
+  'sale.kbzpay.scan': 'ဖောက်သည်အား စကင်ဖတ်၍ ငွေပေးချေရန် ပြောပါ',
+  // TODO(native-review)
+  'sale.kbzpay.noQr': 'KBZPay QR မတင်ရသေးပါ။ Setup တွင် ဆေးခန်း၏ QR ကို ထည့်ပါ။',
+  // TODO(native-review)
+  'sale.kbzpay.received': 'ငွေလက်ခံရရှိပြီး',
+  // TODO(native-review)
+  'setup.paymentQr': 'KBZPay QR',
+  // TODO(native-review)
+  'setup.paymentQrHint': 'ငွေပေးချေချိန်တွင် ဖောက်သည်အား ပြသည်။ ဆေးခန်း၏ KBZPay QR ကို တင်ပါ။',
+  // TODO(native-review)
+  'setup.paymentQrChoose': 'QR ရွေးပါ',
+  // TODO(native-review)
+  'setup.paymentQrReplace': 'QR အစားထိုးပါ',
+  // TODO(native-review)
+  'setup.paymentQrRemove': 'QR ဖယ်ရှားပါ',
+  // TODO(native-review)
+  'setup.paymentQrNone': 'KBZPay QR မရှိသေးပါ — ငွေပေးချေချိန်တွင် ပြ၍မရပါ။',
   // TODO(native-review)
   'sale.wave': 'Wave',
   // TODO(native-review)
