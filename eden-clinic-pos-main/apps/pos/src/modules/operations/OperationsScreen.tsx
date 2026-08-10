@@ -9,7 +9,7 @@ import { fmtMMK } from '@/data/money';
 import type { OutboxStatusView } from '@/data/outbox';
 import { toLocalSale, type DailyReportWire, type FollowupWire, type LicenseWire, type ProductRow, type SaleRow } from '@/data/types';
 import { useT } from '@/i18n';
-import { AppShell, Button, Card, EmptyState, Input, Modal, Select, Skeleton, Tag, useToast } from '@/ui';
+import { AppShell, Button, Card, EmptyState, Input, Modal, SecretInput, Select, Skeleton, Tag, useToast } from '@/ui';
 import styles from './OperationsScreen.module.css';
 
 export function OperationsScreen() {
@@ -291,7 +291,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
               </div>
               <div className={styles.fieldRow}>
                 <label className={styles.field}><span>{t('ops.staff.pin')}</span>
-                  <Input data-testid="staff-pin" inputMode="numeric" maxLength={4} onChange={(event) => setStaffPin(event.target.value)} value={staffPin} />
+                  <SecretInput data-testid="staff-pin" hideLabel={t('field.hide')} inputMode="numeric" maxLength={4} onChange={(event) => setStaffPin(event.target.value)} revealLabel={t('field.reveal')} value={staffPin} />
                 </label>
                 <label className={styles.field}><span>{t('ops.staff.role')}</span>
                   <Select onChange={(event) => setStaffRole(event.target.value as typeof staffRole)} value={staffRole}>
@@ -305,7 +305,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
                   <Input onChange={(event) => setStaffEmail(event.target.value)} type="email" value={staffEmail} />
                 </label>
                 <label className={styles.field}><span>{t('ops.staff.password')}</span>
-                  <Input onChange={(event) => setStaffPassword(event.target.value)} type="password" value={staffPassword} />
+                  <SecretInput data-testid="staff-password" hideLabel={t('field.hide')} onChange={(event) => setStaffPassword(event.target.value)} revealLabel={t('field.reveal')} value={staffPassword} />
                 </label>
               </div>
               <div className={styles.cardActions}>
