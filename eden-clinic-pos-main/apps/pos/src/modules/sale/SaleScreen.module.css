@@ -40,3 +40,8 @@
 .manageChip { border-style: dashed; color: var(--mut); }
 .manageChip:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
 .checkboxRow { display: flex !important; align-items: center; gap: 9px; color: var(--ink) !important; font-size: 14px !important; font-weight: 500 !important; }
+
+.cashPad { display: grid; gap: 8px; }
+.cashPad label { display: grid; gap: 6px; color: var(--mut); }
+.quickCash { display: flex; flex-wrap: wrap; gap: 6px; }
+.cashShort { margin: 0; color: var(--red); }

@@ -659,4 +659,10 @@ export const dictMy = {
   'setup.receiptHeader': 'ဘောက်ချာ ခေါင်းစီး', // TODO(native-review)
   'setup.receiptHeaderPlaceholder': 'လိပ်စာ၊ ဖွင့်ချိန် သို့မဟုတ် အထက်တွင် ဖော်ပြလိုသည့် စာသား', // TODO(native-review)
   'setup.receiptHeaderHint': 'ဆေးခန်းအမည်အောက်တွင် မျဉ်းဘောင်ဖြင့် ရိုက်နှိပ်ပါမည်။ ဗလာထားပါက ဖုန်းနှင့် လိပ်စာကို ရိုက်နှိပ်ပါမည်။', // TODO(native-review)
+  'sale.cashReceived': 'လက်ခံရငွေ', // TODO(native-review)
+  'sale.cashShort': 'လိုနေသေး', // TODO(native-review)
+  'setup.openDrawer': 'ငွေအံဆွဲ ဖွင့်ရန်', // TODO(native-review)
+  'setup.openDrawerHint': 'အရောင်းမပါဘဲ အံဆွဲဖွင့်သည်။ စီမံသူ စကားဝှက် လိုအပ်သည်။', // TODO(native-review)
+  'setup.drawerOpened': 'ငွေအံဆွဲ ဖွင့်ပြီးပါပြီ။', // TODO(native-review)
+  'setup.drawerFailed': 'ပရင်တာ မချိတ်ဆက်ထားသဖြင့် အံဆွဲ မဖွင့်နိုင်ပါ။', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

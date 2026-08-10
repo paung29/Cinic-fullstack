@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { saveClinicConfig } from '@/data/clinicConfig';
 import { ApiNetworkError } from '@/data/api';
+import { elevationFailureKey } from '@/data/elevationErrors';
 import { type OutboxStatusView } from '@/data/outbox';
 import { readPrinterProfile, savePrinterProfile, saveReceiptDesignerDraft, type PrinterProfile } from '@/data/printerProfile';
 import { buildSupportOutboxExport } from '@/data/supportExport';
@@ -17,7 +18,7 @@ import { renderReceipt, type ReceiptPalette, type RenderedReceipt } from '@/prin
 import { RECEIPT_FONTS } from '@/print/receiptFonts';
 import { clearReceiptLogo, readReceiptLogo, writeReceiptLogo, type LogoBitmap } from '@/print/receiptLogo';
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
-import { createM5PrinterTransport } from '@/print/transport';
+import { createM5PrinterTransport, NoHardwarePrinterError } from '@/print/transport';
 import { AppShell, Button, Input, Modal, Select, Skeleton, Switch, Tag, Textarea, useToast } from '@/ui';
 import { isClinicSaveOffline } from './setupSelectors';
 import styles from './SetupScreen.module.css';
@@ -47,6 +48,8 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const [logoRevision, setLogoRevision] = useState(0);
   const [elevateOpen, setElevateOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerPassword, setDrawerPassword] = useState('');
   const [password, setPassword] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const [exportPassword, setExportPassword] = useState('');
@@ -173,6 +176,25 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
     } catch (error) { enqueue(error instanceof ApiNetworkError ? t('setup.storage.internetRequired') : t('sync.attention')); }
   };
 
+  // A no-sale till open is the classic way cash walks out of a shop, so it
+  // sits behind the administrator password rather than the staff PIN.
+  const openDrawerWithPassword = async () => {
+    try {
+      await runtime.elevation.elevate(drawerPassword, 'cash-drawer');
+      setDrawerOpen(false);
+      setDrawerPassword('');
+      const transport = createM5PrinterTransport(profile);
+      if (transport.openDrawer === undefined) throw new Error('This transport has no till.');
+      await transport.openDrawer();
+      enqueue(t('setup.drawerOpened'));
+    } catch (error) {
+      setDrawerPassword('');
+      // Unlike the sale path this is an explicit request, so a failure is
+      // reported rather than swallowed.
+      enqueue(error instanceof NoHardwarePrinterError ? t('setup.drawerFailed') : elevationFailureKey(error, t));
+    }
+  };
+
   const save = async (elevationToken = activeElevation.kind === 'active' ? activeElevation.token : undefined) => {
     if (offline || clinic === undefined || elevationToken === undefined) return;
     try {
@@ -237,7 +259,7 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
               {logoUrl === undefined ? null : <Button data-testid="receipt-logo-remove" onClick={() => { void removeLogo(); }} pill size="sm" variant="ghost">{t('setup.logoRemove')}</Button>}
             </div>
           </section>
-          <section className={styles.card}><h2>{t('setup.hardware')}</h2><label><span>{t('setup.width')}</span><Select data-testid="printer-width" onChange={(event) => { const width = Number(event.target.value) as 576 | 384; const next = { ...profile, width }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.width}><option value="576">{t('setup.width80')}</option><option value="384">{t('setup.width58')}</option></Select></label><label><span>{t('setup.transport')}</span><Select onChange={(event) => { const next = { ...profile, transport: event.target.value as PrinterProfile['transport'] }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.transport}>{(['sunmi-sdk', 'xprinter-lan', 'xprinter-bluetooth', 'epson-epos', 'generic-escpos'] as const).map((value) => <option key={value} value={value}>{value}</option>)}</Select></label><Button data-testid="printer-test" disabled={previewReceipt === undefined} onClick={() => { if (previewReceipt === undefined) return; void createM5PrinterTransport(profile).send(previewReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('setup.testPrint')}</Button></section>
+          <section className={styles.card}><h2>{t('setup.hardware')}</h2><label><span>{t('setup.width')}</span><Select data-testid="printer-width" onChange={(event) => { const width = Number(event.target.value) as 576 | 384; const next = { ...profile, width }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.width}><option value="576">{t('setup.width80')}</option><option value="384">{t('setup.width58')}</option></Select></label><label><span>{t('setup.transport')}</span><Select onChange={(event) => { const next = { ...profile, transport: event.target.value as PrinterProfile['transport'] }; setProfile(next); void savePrinterProfile(runtime.db, runtime.deviceId, next); }} value={profile.transport}>{(['sunmi-sdk', 'xprinter-lan', 'xprinter-bluetooth', 'epson-epos', 'generic-escpos'] as const).map((value) => <option key={value} value={value}>{value}</option>)}</Select></label><Button data-testid="open-drawer" onClick={() => setDrawerOpen(true)} pill variant="ghost">{t('setup.openDrawer')}</Button><p className={styles.notice}>{t('setup.openDrawerHint')}</p><Button data-testid="printer-test" disabled={previewReceipt === undefined} onClick={() => { if (previewReceipt === undefined) return; void createM5PrinterTransport(profile).send(previewReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('setup.testPrint')}</Button></section>
           <section className={styles.card}><h2>{t('setup.locale')}</h2><Select data-testid="locale-picker" onChange={(event) => setLocale(event.target.value as typeof locale)} value={locale}><option value="my">{t('locale.my')}</option><option value="en">{t('locale.en')}</option><option value="zh">{t('locale.zh')}</option></Select></section>
           <section className={styles.card} data-testid="storage-diagnostics"><h2>{t('setup.storage')}</h2><p>{storageStatus.kind === 'granted' ? t('setup.storage.granted') : storageStatus.kind === 'unavailable' ? t('setup.storage.unavailable') : t('setup.storage.notGranted')}</p>{storageStatus.kind === 'unavailable' ? null : <p>{t('setup.storage.usage')}: {storageStatus.usage ?? 0} / {storageStatus.quota ?? 0}</p>}<Button data-testid="storage-refresh" onClick={() => { void runtime.storageDiagnostics.refresh().then(setStorageStatus); }} pill size="sm" variant="ghost">{t('setup.storage.refresh')}</Button><Button data-testid="storage-export" onClick={() => setExportOpen(true)} pill size="sm" variant="ghost">{t('setup.storage.export')}</Button></section>
           <section className={styles.card}><h2>{t('setup.operations')}</h2><p>{t('setup.operationsBody')}</p><div className={styles.cardActions}><Button data-testid="open-operations" onClick={() => router.push('/operations')} pill>{t('setup.operationsOpen')}</Button><Button data-testid="open-envelopes" onClick={() => router.push('/security')} pill variant="ghost">{t('auth.envelopes.open')}</Button></div></section>
@@ -245,6 +267,7 @@ function ActiveSetupScreen({ runtime }: { runtime: ClinicRuntime }) {
         </aside>
       </div>
     </AppShell>
+    <Modal closeLabel={t('modal.close')} onClose={() => { setDrawerOpen(false); setDrawerPassword(''); }} open={drawerOpen} testId="drawer-elevation" title={t('setup.openDrawer')}><div className={styles.stack}><label><span>{t('setup.password')}</span><Input data-testid="drawer-password" onChange={(event) => setDrawerPassword(event.target.value)} type="password" value={drawerPassword} /></label><Button data-testid="drawer-submit" onClick={() => { void openDrawerWithPassword(); }}>{t('setup.openDrawer')}</Button></div></Modal>
     <Modal closeLabel={t('modal.close')} onClose={() => setElevateOpen(false)} open={elevateOpen} testId="setup-elevation" title={t('setup.elevate')}><div className={styles.stack}><label><span>{t('setup.password')}</span><Input data-testid="setup-password" onChange={(event) => setPassword(event.target.value)} type="password" value={password} /></label><Button data-testid="setup-elevation-submit" onClick={() => { void runtime.elevation.elevate(password, 'setup').then(() => { const next = runtime.elevation.state(); setElevateOpen(false); setPassword(''); return next.kind === 'active' ? save(next.token) : undefined; }).catch(() => enqueue(t('sync.attention'))); }}>{t('setup.elevate')}</Button></div></Modal>
     <Modal closeLabel={t('modal.close')} onClose={() => setExportOpen(false)} open={exportOpen} title={t('setup.storage.export')}><div className={styles.stack}><label><span>{t('setup.storage.exportPassword')}</span><Input data-testid="storage-export-password" onChange={(event) => setExportPassword(event.target.value)} type="password" value={exportPassword} /></label><Button data-testid="storage-export-confirm" onClick={() => { void exportOutbox(); }}>{t('setup.storage.exportConfirm')}</Button></div></Modal>
   </main>;

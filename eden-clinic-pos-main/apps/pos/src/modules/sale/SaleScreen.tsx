@@ -31,6 +31,7 @@ import { saveTicket } from '@/modules/sale/tickets';
 import { renderReceipt, type ReceiptPalette, type RenderedReceipt } from '@/print/receipt';
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
 import { createM5PrinterTransport, createPngShareTransport } from '@/print/transport';
+import { cashChange, cashPortionOf, cashShortfall, quickCashAmounts, receivedCash } from './tenderSelectors';
 import { AppShell, Button, Input, Modal, PinPad, Skeleton, Tabs, useToast } from '@/ui';
 import { toLocalService } from '@/data/types';
 import type { PatientRow, ProductRow, SaleRow, ServiceRow, StaffRow } from '@/data/types';
@@ -68,6 +69,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [scannerValue, setScannerValue] = useState('');
   const [draft, setDraft] = useState<SaleDraft>({ patientId: null, appointmentId: null, lines: [], discountPct: 0, discountApprovedBy: null });
   const [tenders, setTenders] = useState<TenderDraft[]>([]);
+  const [cashReceived, setCashReceived] = useState('');
   const [creditApprovedBy, setCreditApprovedBy] = useState<string | null>(null);
   const [isCustomDiscount, setCustomDiscount] = useState(false);
   const [pendingLot, setPendingLot] = useState<PendingLot | undefined>();
@@ -221,6 +223,34 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const total = cartDraftTotal(draft, 500);
   const paid = cartSubtotal(tenders.map((tender) => ({ qty: 1, unitPrice: tender.amount })), 1);
   const balance = saleBalanceDue(total, paid);
+  const cashPortion = cashPortionOf(tenders);
+  const cashTendered = cashPortion > 0;
+  const received = cashTendered ? receivedCash(cashReceived, cashPortion) : 0;
+  const changeDue = cashChange(received, cashPortion);
+  const shortfall = cashTendered ? cashShortfall(received, cashPortion) : 0;
+
+  // Only cash opens the till, and only once, as the method is chosen — that is
+  // the moment staff need it to make change. Failure is silent here: a clinic
+  // without a drawer should not get a toast on every cash sale.
+  const kickDrawer = () => {
+    if (printerProfile === undefined) return;
+    const transport = createM5PrinterTransport(printerProfile);
+    void transport.openDrawer?.().catch(() => undefined);
+  };
+
+  // Every method switch clears the received figure. Carrying it over is a
+  // real hazard: tap Cash on a 120,000 sale, then Split, and a stale 120,000
+  // would read as 70,000 change owed when only 50,000 was handed over. Empty
+  // means "the exact cash owed", so clearing is also the correct default.
+  const applyTenders = (next: TenderDraft[]) => {
+    setTenders(next);
+    setCashReceived('');
+  };
+
+  const chooseCash = () => {
+    applyTenders([{ amount: total, id: crypto.randomUUID(), method: 'cash' }]);
+    kickDrawer();
+  };
   // A4 cart guard: it is intentionally independent of outbox/sync state.
   const hasUncommittedCart = draft.lines.length > 0 || tenderOpen;
 
@@ -298,7 +328,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     };
     await saveTicket(runtime.db, ticket);
     setDraft({ patientId: null, appointmentId: null, lines: [], discountPct: 0, discountApprovedBy: null });
-    setTenders([]);
+    applyTenders([]);
     setCreditApprovedBy(null);
     setCustomDiscount(false);
     await refreshLocal();
@@ -309,7 +339,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     if (ticket === undefined) return;
     const resumed = await resumeTicket(runtime.db, ticket.id);
     setDraft(resumed.draft);
-    setTenders([]);
+    applyTenders([]);
     setCreditApprovedBy(null);
     setCustomDiscount(![0, 5, 10, 15, 20].includes(resumed.draft.discountPct));
     await refreshLocal();
@@ -352,7 +382,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       setReceiptImageUrl(undefined);
       setReceipt(captured);
       setDraft({ patientId: null, appointmentId: null, lines: [], discountPct: 0, discountApprovedBy: null });
-      setTenders([]);
+      applyTenders([]);
       setCreditApprovedBy(null);
       setCustomDiscount(false);
       void runtime.refreshSync().then(refreshLocal);
@@ -599,18 +629,47 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
         </div>
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => setUnknownCode(undefined)} open={unknownCode !== undefined} title={t('sale.catalogue')}><p>{t('sale.unknown')} {unknownCode}</p></Modal>
-      <Modal closeLabel={t('modal.close')} onClose={() => setTenderOpen(false)} open={tenderOpen} testId="tender-modal" title={t('sale.tenderTitle')}>
+      <Modal closeLabel={t('modal.close')} onClose={() => { setTenderOpen(false); setCashReceived(''); }} open={tenderOpen} testId="tender-modal" title={t('sale.tenderTitle')}>
         <div className={styles.modalForm}>
           <p>{t('sale.balance')}: <strong>{fmtMMK(balance > 0 ? balance : 0)}</strong></p>
           <div className={styles.tenderChoices}>
-            <Button data-testid="tender-cash" onClick={() => setTenders([{ id: crypto.randomUUID(), method: 'cash', amount: total }])} pill variant="ghost">{t('sale.cash')}</Button>
-            <Button data-testid="tender-kbzpay" onClick={() => setTenders([{ id: crypto.randomUUID(), method: 'kbzpay', amount: total }])} pill variant="ghost">{t('sale.kbzpay')}</Button>
-            <Button data-testid="tender-wave" onClick={() => setTenders([{ id: crypto.randomUUID(), method: 'wave', amount: total }])} pill variant="ghost">{t('sale.wave')}</Button>
-            <Button data-testid="tender-split" onClick={() => { const first = Math.min(50_000, total); setTenders([{ id: crypto.randomUUID(), method: 'cash', amount: first }, { id: crypto.randomUUID(), method: 'wave', amount: saleBalanceDue(total, first) }]); }} pill variant="ghost">{t('sale.split')}</Button>
-            <Button data-testid="tender-pay-later" disabled={draft.patientId === null} onClick={() => setTenders([])} pill variant="ghost">{t('sale.payLater')}</Button>
+            <Button data-testid="tender-cash" onClick={chooseCash} pill variant="ghost">{t('sale.cash')}</Button>
+            <Button data-testid="tender-kbzpay" onClick={() => applyTenders([{ id: crypto.randomUUID(), method: 'kbzpay', amount: total }])} pill variant="ghost">{t('sale.kbzpay')}</Button>
+            <Button data-testid="tender-wave" onClick={() => applyTenders([{ id: crypto.randomUUID(), method: 'wave', amount: total }])} pill variant="ghost">{t('sale.wave')}</Button>
+            <Button data-testid="tender-split" onClick={() => { const first = Math.min(50_000, total); applyTenders([{ id: crypto.randomUUID(), method: 'cash', amount: first }, { id: crypto.randomUUID(), method: 'wave', amount: saleBalanceDue(total, first) }]); }} pill variant="ghost">{t('sale.split')}</Button>
+            <Button data-testid="tender-pay-later" disabled={draft.patientId === null} onClick={() => applyTenders([])} pill variant="ghost">{t('sale.payLater')}</Button>
           </div>
-          <p>{t('sale.change')}: <strong>{fmtMMK(paid > total ? saleBalanceDue(paid, total) : 0)}</strong></p>
-          <Button data-testid="capture-sale" onClick={() => { void requestCapture(); }}>{t('sale.complete')}</Button>
+          {cashTendered ? (
+            <div className={styles.cashPad} data-testid="cash-pad">
+              <label>
+                <span>{t('sale.cashReceived')}</span>
+                <Input
+                  data-testid="cash-received"
+                  inputMode="numeric"
+                  onChange={(event) => setCashReceived(event.target.value)}
+                  placeholder={fmtMMK(cashPortion)}
+                  value={cashReceived}
+                />
+              </label>
+              <div className={styles.quickCash}>
+                {quickCashAmounts(cashPortion).map((amount) => (
+                  <Button
+                    data-testid={`cash-quick-${amount}`}
+                    key={amount}
+                    onClick={() => setCashReceived(String(amount))}
+                    pill
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {fmtMMK(amount)}
+                  </Button>
+                ))}
+              </div>
+              {shortfall > 0 ? <p className={styles.cashShort} data-testid="cash-short">{t('sale.cashShort')}: <strong>{fmtMMK(shortfall)}</strong></p> : null}
+            </div>
+          ) : null}
+          <p>{t('sale.change')}: <strong data-testid="cash-change">{fmtMMK(changeDue)}</strong></p>
+          <Button data-testid="capture-sale" disabled={shortfall > 0} onClick={() => { void requestCapture(); }}>{t('sale.complete')}</Button>
         </div>
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => { setApprovalRequest(undefined); setApprovalPin(''); }} open={approvalRequest !== undefined} testId="approval-modal" title={t('sale.approvalTitle')}>

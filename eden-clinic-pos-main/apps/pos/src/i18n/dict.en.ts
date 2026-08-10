@@ -466,4 +466,10 @@ export const dictEn = {
   'setup.receiptHeader': 'Receipt header',
   'setup.receiptHeaderPlaceholder': 'Address, opening hours, anything you want at the top',
   'setup.receiptHeaderHint': 'Printed in a ruled band under the clinic name. Leave empty to print the phone and address instead.',
+  'sale.cashReceived': 'Cash received',
+  'sale.cashShort': 'Still short',
+  'setup.openDrawer': 'Open cash drawer',
+  'setup.openDrawerHint': 'Opens the till without a sale. Needs the administrator password.',
+  'setup.drawerOpened': 'Cash drawer opened.',
+  'setup.drawerFailed': 'No printer is connected, so the drawer cannot open.',
 } satisfies TranslationDictionary;

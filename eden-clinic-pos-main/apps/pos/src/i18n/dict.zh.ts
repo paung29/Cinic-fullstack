@@ -659,4 +659,10 @@ export const dictZh = {
   'setup.receiptHeader': '收据页眉', // TODO(native-review)
   'setup.receiptHeaderPlaceholder': '地址、营业时间，或任何想显示在顶部的内容', // TODO(native-review)
   'setup.receiptHeaderHint': '打印在诊所名称下方的横线区域内。留空则改为打印电话与地址。', // TODO(native-review)
+  'sale.cashReceived': '收到现金', // TODO(native-review)
+  'sale.cashShort': '尚缺', // TODO(native-review)
+  'setup.openDrawer': '打开钱箱', // TODO(native-review)
+  'setup.openDrawerHint': '无需交易即可打开钱箱。需要管理员密码。', // TODO(native-review)
+  'setup.drawerOpened': '钱箱已打开。', // TODO(native-review)
+  'setup.drawerFailed': '未连接打印机，无法打开钱箱。', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

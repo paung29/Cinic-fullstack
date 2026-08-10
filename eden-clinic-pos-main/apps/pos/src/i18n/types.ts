@@ -464,6 +464,12 @@ export const translationKeys = [
   'setup.receiptHeader',
   'setup.receiptHeaderPlaceholder',
   'setup.receiptHeaderHint',
+  'sale.cashReceived',
+  'sale.cashShort',
+  'setup.openDrawer',
+  'setup.openDrawerHint',
+  'setup.drawerOpened',
+  'setup.drawerFailed',
 ] as const;
 
 export type Locale = 'my' | 'en' | 'zh';
