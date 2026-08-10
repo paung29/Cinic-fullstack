@@ -90,10 +90,15 @@ export function LoginScreen() {
   // everyday PIN screen is what killed sign-in: it defaults to true, so the
   // create-a-clinic validation ran against empty clinic fields and refused
   // every submit — the pad looked alive and did nothing.
-  const creatingClinic = isDeviceSetup && showClinicSetup;
-  // Owner email wins when it is filled in. The staff-ID field stays for the
-  // technician rolling out devices, and for the e2e suite that pairs by ID.
-  const pairingByEmail = isDeviceSetup && !creatingClinic && ownerEmail.trim() !== '' && ownerPassword !== '';
+  //
+  // Which of the three the card is actually doing follows what has been filled
+  // in, not just the toggle. Opening on create-clinic is right for a new
+  // customer, but it must not swallow a technician who typed a staff ID: that
+  // is what happened, and every submit then failed the create-a-clinic
+  // validation against empty fields and returned without a word.
+  const pairingByStaffId = isDeviceSetup && installerStaffId.trim() !== '';
+  const pairingByEmail = isDeviceSetup && !pairingByStaffId && ownerEmail.trim() !== '' && ownerPassword !== '';
+  const creatingClinic = isDeviceSetup && showClinicSetup && !pairingByStaffId && !pairingByEmail;
   // Mirrors the guards in handleSubmit so the button can say "not yet" by being
   // disabled, rather than looking alive and then silently doing nothing.
   const setupReady = pin.length === 4 && !isBusy && (creatingClinic
