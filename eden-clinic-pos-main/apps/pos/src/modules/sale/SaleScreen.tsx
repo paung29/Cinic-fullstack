@@ -4,19 +4,26 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ShoppingCart } from 'lucide-react';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { usePwaUpdate } from '@/app/pwaUpdate';
+import { ApiNetworkError } from '@/data/api';
+import { useClinicBranding } from '@/data/useClinicBranding';
+import { elevationFailureKey } from '@/data/elevationErrors';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
 import { cartSubtotal, fmtMMK } from '@/data/money';
 import { consumeSalePrefill } from '@/data/salePrefill';
 import type { OutboxStatusView } from '@/data/outbox';
 import { authEnvelopeMetaKey } from '@/data/db';
+import { readPaymentQr } from '@/data/paymentQr';
 import { readPrinterProfile, type PrinterProfile } from '@/data/printerProfile';
 import { useT } from '@/i18n';
 import {
   captureSale,
   cartDraftTotal,
+  cartLineTotal,
   saleBalanceDue,
+  steepestDiscountPct,
   type CartLineDraft,
   type SaleDraft,
   type TenderDraft,
@@ -28,7 +35,9 @@ import { saveTicket } from '@/modules/sale/tickets';
 import { renderReceipt, type ReceiptPalette, type RenderedReceipt } from '@/print/receipt';
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
 import { createM5PrinterTransport, createPngShareTransport } from '@/print/transport';
+import { cashChange, cashPortionOf, cashShortfall, quickCashAmounts, receivedCash } from './tenderSelectors';
 import { AppShell, Button, Input, Modal, PinPad, Skeleton, Tabs, useToast } from '@/ui';
+import { toLocalService } from '@/data/types';
 import type { PatientRow, ProductRow, SaleRow, ServiceRow, StaffRow } from '@/data/types';
 import styles from './SaleScreen.module.css';
 
@@ -52,6 +61,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { enqueue } = useToast();
   const pwaUpdate = usePwaUpdate();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [patients, setPatients] = useState<PatientRow[]>([]);
@@ -64,6 +74,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [scannerValue, setScannerValue] = useState('');
   const [draft, setDraft] = useState<SaleDraft>({ patientId: null, appointmentId: null, lines: [], discountPct: 0, discountApprovedBy: null });
   const [tenders, setTenders] = useState<TenderDraft[]>([]);
+  const [cashReceived, setCashReceived] = useState('');
   const [creditApprovedBy, setCreditApprovedBy] = useState<string | null>(null);
   const [isCustomDiscount, setCustomDiscount] = useState(false);
   const [pendingLot, setPendingLot] = useState<PendingLot | undefined>();
@@ -71,6 +82,8 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [weightQuantity, setWeightQuantity] = useState('1');
   const [unknownCode, setUnknownCode] = useState<string | undefined>();
   const [tenderOpen, setTenderOpen] = useState(false);
+  const [kbzQrOpen, setKbzQrOpen] = useState(false);
+  const [kbzQrUrl, setKbzQrUrl] = useState<string | undefined>();
   const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | undefined>();
   const [approvalPin, setApprovalPin] = useState('');
   const [approvalStaffId, setApprovalStaffId] = useState('');
@@ -86,6 +99,18 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
   // armed with inputMode "none" so programmatic focus never raises the tablet's
   // on-screen keyboard; an explicit tap switches to manual typing.
   const [scannerManualEntry, setScannerManualEntry] = useState(false);
+  const [serviceModal, setServiceModal] = useState<'add' | 'edit' | undefined>();
+  const [svcId, setSvcId] = useState('');
+  const [svcNameEn, setSvcNameEn] = useState('');
+  const [svcNameMm, setSvcNameMm] = useState('');
+  const [svcCategory, setSvcCategory] = useState('Skin');
+  const [svcPrice, setSvcPrice] = useState('0');
+  const [svcFollowUp, setSvcFollowUp] = useState('');
+  const [svcRequiresLot, setSvcRequiresLot] = useState(false);
+  const [svcActive, setSvcActive] = useState(true);
+  const [svcElevOpen, setSvcElevOpen] = useState(false);
+  const [svcPassword, setSvcPassword] = useState('');
+  const [allServices, setAllServices] = useState<ServiceRow[]>([]);
   const scannerRef = useRef<HTMLInputElement>(null);
   const prefillChecked = useRef(false);
 
@@ -99,6 +124,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       offlineApprovalsState(runtime.db),
     ]);
     setServices(nextServices.filter((row) => row.active));
+    setAllServices(nextServices);
     setProducts(nextProducts.filter((row) => row.active));
     setPatients(nextPatients);
     setStaff(nextStaff.filter((row) => row.active));
@@ -200,10 +226,57 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     if (activeIdentity === undefined) router.replace('/login');
   }, [activeIdentity, router]);
 
+  // The clinic's merchant QR is a device asset, decoded only while a customer
+  // is actually being asked to scan it, and released the moment the panel
+  // closes — a counter tablet leaves the Sale screen open all day.
+  useEffect(() => {
+    if (!kbzQrOpen) return undefined;
+    let disposed = false;
+    let url: string | undefined;
+    void readPaymentQr(runtime.db).then((blob) => {
+      if (disposed || blob === undefined) return;
+      url = URL.createObjectURL(blob);
+      setKbzQrUrl(url);
+    });
+    return () => {
+      disposed = true;
+      setKbzQrUrl(undefined);
+      if (url !== undefined) URL.revokeObjectURL(url);
+    };
+  }, [kbzQrOpen, runtime.db]);
+
   const selectedPatient = patients.find((patient) => patient.id === draft.patientId);
   const total = cartDraftTotal(draft, 500);
   const paid = cartSubtotal(tenders.map((tender) => ({ qty: 1, unitPrice: tender.amount })), 1);
   const balance = saleBalanceDue(total, paid);
+  const cashPortion = cashPortionOf(tenders);
+  const cashTendered = cashPortion > 0;
+  const received = cashTendered ? receivedCash(cashReceived, cashPortion) : 0;
+  const changeDue = cashChange(received, cashPortion);
+  const shortfall = cashTendered ? cashShortfall(received, cashPortion) : 0;
+
+  // Only cash opens the till, and only once, as the method is chosen — that is
+  // the moment staff need it to make change. Failure is silent here: a clinic
+  // without a drawer should not get a toast on every cash sale.
+  const kickDrawer = () => {
+    if (printerProfile === undefined) return;
+    const transport = createM5PrinterTransport(printerProfile);
+    void transport.openDrawer?.().catch(() => undefined);
+  };
+
+  // Every method switch clears the received figure. Carrying it over is a
+  // real hazard: tap Cash on a 120,000 sale, then Split, and a stale 120,000
+  // would read as 70,000 change owed when only 50,000 was handed over. Empty
+  // means "the exact cash owed", so clearing is also the correct default.
+  const applyTenders = (next: TenderDraft[]) => {
+    setTenders(next);
+    setCashReceived('');
+  };
+
+  const chooseCash = () => {
+    applyTenders([{ amount: total, id: crypto.randomUUID(), method: 'cash' }]);
+    kickDrawer();
+  };
   // A4 cart guard: it is intentionally independent of outbox/sync state.
   const hasUncommittedCart = draft.lines.length > 0 || tenderOpen;
 
@@ -281,7 +354,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     };
     await saveTicket(runtime.db, ticket);
     setDraft({ patientId: null, appointmentId: null, lines: [], discountPct: 0, discountApprovedBy: null });
-    setTenders([]);
+    applyTenders([]);
     setCreditApprovedBy(null);
     setCustomDiscount(false);
     await refreshLocal();
@@ -292,15 +365,16 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     if (ticket === undefined) return;
     const resumed = await resumeTicket(runtime.db, ticket.id);
     setDraft(resumed.draft);
-    setTenders([]);
+    applyTenders([]);
     setCreditApprovedBy(null);
     setCustomDiscount(![0, 5, 10, 15, 20].includes(resumed.draft.discountPct));
     await refreshLocal();
   };
 
   const requestCapture = async () => {
-    if (draft.discountPct > 20 && draft.discountApprovedBy === null) {
-      setApprovalRequest({ kind: 'discount', percent: draft.discountPct });
+    const steepest = steepestDiscountPct(draft);
+    if (steepest > 20 && draft.discountApprovedBy === null) {
+      setApprovalRequest({ kind: 'discount', percent: steepest });
       return;
     }
     const projectedCredit = balance > 0 ? balance : 0;
@@ -335,7 +409,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       setReceiptImageUrl(undefined);
       setReceipt(captured);
       setDraft({ patientId: null, appointmentId: null, lines: [], discountPct: 0, discountApprovedBy: null });
-      setTenders([]);
+      applyTenders([]);
       setCreditApprovedBy(null);
       setCustomDiscount(false);
       void runtime.refreshSync().then(refreshLocal);
@@ -362,6 +436,86 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     }
   };
 
+  const openServiceAdd = () => {
+    setServiceModal('add');
+    setSvcId('');
+    setSvcNameEn('');
+    setSvcNameMm('');
+    setSvcCategory('Skin');
+    setSvcPrice('0');
+    setSvcFollowUp('');
+    setSvcRequiresLot(false);
+    setSvcActive(true);
+  };
+  const openServiceEdit = () => {
+    const first = allServices[0];
+    setServiceModal('edit');
+    pickService(first?.id ?? '');
+  };
+  const pickService = (id: string) => {
+    setSvcId(id);
+    const row = allServices.find((entry) => entry.id === id);
+    if (row === undefined) return;
+    setSvcNameEn(row.nameEn ?? '');
+    setSvcNameMm(row.nameMm);
+    setSvcCategory(row.category);
+    setSvcPrice(String(row.price));
+    setSvcFollowUp(row.defaultFollowupDays === null ? '' : String(row.defaultFollowupDays));
+    setSvcRequiresLot(row.requiresLot);
+    setSvcActive(row.active);
+  };
+  const saveService = async (elevationToken?: string) => {
+    const elevation = runtime.elevation.state();
+    const token = elevationToken ?? (elevation.kind === 'active' ? elevation.token : undefined);
+    if (token === undefined) { setSvcElevOpen(true); return; }
+    const followUp = svcFollowUp.trim() === '' ? null : Number(svcFollowUp) || 0;
+    try {
+      if (serviceModal === 'add') {
+        if (runtime.api.createService === undefined) return;
+        const created = await runtime.api.createService({
+          id: crypto.randomUUID(),
+          category: svcCategory.trim() === '' ? 'Other' : svcCategory.trim(),
+          name_mm: svcNameMm.trim() === '' ? (svcNameEn.trim() === '' ? t('service.pick') : svcNameEn.trim()) : svcNameMm.trim(),
+          name_en: svcNameEn.trim() === '' ? undefined : svcNameEn.trim(),
+          price: Number(svcPrice) || 0,
+          requires_lot: svcRequiresLot,
+          default_followup_days: followUp,
+          active: true,
+        }, token);
+        await runtime.db.services.put(toLocalService(created.service));
+      } else {
+        if (runtime.api.updateService === undefined || svcId === '') return;
+        const updated = await runtime.api.updateService(svcId, {
+          category: svcCategory.trim() === '' ? 'Other' : svcCategory.trim(),
+          name_mm: svcNameMm.trim() === '' ? undefined : svcNameMm.trim(),
+          name_en: svcNameEn.trim() === '' ? null : svcNameEn.trim(),
+          price: Number(svcPrice) || 0,
+          requires_lot: svcRequiresLot,
+          default_followup_days: followUp,
+          active: svcActive,
+        }, token);
+        await runtime.db.services.put(toLocalService(updated));
+      }
+      setServiceModal(undefined);
+      enqueue(t('service.saved'));
+      await refreshLocal();
+    } catch (error) {
+      enqueue(error instanceof ApiNetworkError ? t('auth.setup.internetRequired') : t('sync.attention'));
+    }
+  };
+  const submitServiceElevation = async () => {
+    try {
+      await runtime.elevation.elevate(svcPassword, 'services');
+      setSvcElevOpen(false);
+      setSvcPassword('');
+      const elevation = runtime.elevation.state();
+      if (elevation.kind === 'active') await saveService(elevation.token);
+    } catch (error) {
+      setSvcPassword('');
+      enqueue(elevationFailureKey(error, t));
+    }
+  };
+
   const provisionedAdmins = staff.filter((member) => member.role === 'admin' && provisionedAdminIds.includes(member.id));
   const syncLabels = {
     synced: t('sync.synced'),
@@ -370,7 +524,7 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     attention: t('sync.attention'),
   };
   const syncLabel = syncLabels[syncStatus.state];
-  const storageAttention = runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageAttention');
+  const storageAttention = runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag');
   const serviceCategories: ReadonlyArray<{ id: CatalogueCategory; label: string }> = [
     { id: 'all', label: t('sale.category.all') },
     { id: 'Laser', label: t('sale.category.laser') },
@@ -399,8 +553,8 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
     <main className={styles.root} data-locale={locale} data-testid="sale-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
       <AppShell
         activeTab="sale"
-        brand={t('brand.name')}
-        location={t('brand.location')}
+        brand={branding.brand}
+        location={branding.location}
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         switchUserDisabled={hasUncommittedCart}
@@ -409,16 +563,15 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
           if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
           else { void runtime.session.logout(); router.push('/login'); }
         }); }}
-        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'clients' ? '/clients' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/sale')}
+        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'clients' ? '/clients' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'analytics' ? '/analytics' : id === 'setup' ? '/setup' : '/sale')}
         sync={{ label: syncLabel, state: syncStatus.state, count: syncStatus.pendingCount, onClick: () => { void runtime.refreshSync().then(refreshLocal); } }}
-        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }]}
+        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         storageAttention={storageAttention}
         userName={activeIdentity.name}
-        userRole={t('shell.userRole')}
+        userRole={activeIdentity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}
       >
         <div className={styles.workspace}>
-          {activeIdentity.role === 'admin' ? <div className={styles.envelopeManager}><Button onClick={() => router.push('/security')} pill size="sm" variant="ghost">{t('auth.envelopes.open')}</Button></div> : null}
           <section className={styles.cartPanel} data-testid="sale-cart">
             <header className={styles.panelHeader}><h1>{t('sale.cart')}</h1><strong>{fmtMMK(total)}</strong></header>
             <label className={styles.patientField}>
@@ -430,13 +583,39 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
             </label>
             {selectedPatient?.allergies || selectedPatient?.alertNote ? <p className={styles.allergy} data-testid="allergy-banner">{selectedPatient.allergies ?? selectedPatient.alertNote}</p> : null}
             <div className={styles.cartLines}>
-              {draft.lines.length === 0 ? <p className={styles.empty}>{t('sale.emptyCart')}</p> : draft.lines.map((line) => (
+              {draft.lines.length === 0 ? <div className={styles.cartEmpty}><ShoppingCart aria-hidden="true" size={26} /><p>{t('sale.emptyCart')}</p></div> : draft.lines.map((line) => (
                 <article className={styles.cartLine} data-testid={`cart-line-${line.id}`} key={line.id}>
                   <div><strong>{line.nameSnapshot}</strong><span>{fmtMMK(line.unitPrice)}</span></div>
                   <div className={styles.lineActions}>
                     <Button aria-label={t('sale.quantity')} onClick={() => setDraft((current) => ({ ...current, lines: current.lines.map((entry) => entry.id === line.id ? { ...entry, qty: entry.qty + 1 } : entry) }))} size="sm" variant="ghost">+</Button>
                     <span>{line.qty}</span>
                     <Button aria-label={t('sale.remove')} data-testid="sale-line-remove" onClick={() => setDraft((current) => ({ ...current, lines: current.lines.filter((entry) => entry.id !== line.id) }))} size="sm" variant="ghost">−</Button>
+                  </div>
+                  <div className={styles.lineDiscount}>
+                    <label>
+                      <span>{t('sale.lineDiscount')}</span>
+                      {/* Clearing back to 0 stores null, so an untouched line
+                          stays indistinguishable from one discounted to zero.
+                          Any edit drops a prior approval: it was granted for a
+                          different number. */}
+                      <Input
+                        data-testid={`line-discount-${line.id}`}
+                        inputMode="numeric"
+                        max="100"
+                        min="0"
+                        onChange={(event) => {
+                          const percent = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+                          setDraft((current) => ({
+                            ...current,
+                            discountApprovedBy: null,
+                            lines: current.lines.map((entry) => entry.id === line.id ? { ...entry, discountPct: percent === 0 ? null : percent } : entry),
+                          }));
+                        }}
+                        type="number"
+                        value={line.discountPct ?? 0}
+                      />
+                    </label>
+                    <strong data-testid={`line-total-${line.id}`}>{fmtMMK(cartLineTotal(line, 500))}</strong>
                   </div>
                 </article>
               ))}
@@ -460,22 +639,29 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
             <Tabs activeId={catalogueTab} label={t('sale.catalogue')} onChange={(id) => { setCatalogueTab(id as CatalogueTab); setCatalogueCategory('all'); }} tabs={[{ id: 'services', label: t('sale.services') }, { id: 'products', label: t('sale.products') }]} testId="catalogue-tabs" testIdPrefix="catalogue-tab" />
             <div className={styles.categoryChips} data-testid="category-chips">
               {categories.map((category) => <Button aria-pressed={catalogueCategory === category.id} className={catalogueCategory === category.id ? styles.categoryChipActive : undefined} data-testid={`category-chip-${category.id.toLowerCase().replaceAll(' ', '-')}`} key={category.id} onClick={() => setCatalogueCategory(category.id)} pill size="sm" variant="ghost">{category.label}</Button>)}
+              {catalogueTab === 'services' && activeIdentity.role === 'admin' ? <>
+                <Button className={styles.manageChip} data-testid="service-add-open" onClick={openServiceAdd} pill size="sm" variant="ghost">+ {t('sale.addService')}</Button>
+                <Button className={styles.manageChip} data-testid="service-edit-open" disabled={allServices.length === 0} onClick={openServiceEdit} pill size="sm" variant="ghost">{t('sale.editServices')}</Button>
+              </> : null}
             </div>
-            <Input data-testid="catalogue-search" onChange={(event) => setSearch(event.target.value)} placeholder={t('sale.search')} value={search} />
-            <Input
-            className={styles.scannerInput}
-            data-testid="scanner-input"
-            inputMode={scannerManualEntry ? 'numeric' : 'none'}
-            onBlur={() => setScannerManualEntry(false)}
-            onChange={(event) => setScannerValue(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') scan(); }}
-            onPointerDown={() => setScannerManualEntry(true)}
-            placeholder={t('sale.scanner')}
-            ref={scannerRef}
-            value={scannerValue}
-          />
+            <div className={styles.searchRow}>
+              <Input className={styles.searchInput} data-testid="catalogue-search" onChange={(event) => setSearch(event.target.value)} placeholder={t('sale.search')} value={search} />
+              <Input
+                className={styles.scannerInput}
+                data-testid="scanner-input"
+                inputMode={scannerManualEntry ? 'numeric' : 'none'}
+                onBlur={() => setScannerManualEntry(false)}
+                onChange={(event) => setScannerValue(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') scan(); }}
+                onPointerDown={() => setScannerManualEntry(true)}
+                placeholder={t('sale.scanner')}
+                ref={scannerRef}
+                value={scannerValue}
+              />
+            </div>
             <div className={styles.catalogueList}>
-              {catalogueTab === 'services' ? visibleServices.map((service) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${service.id}`} key={service.id} onClick={() => addService(service)} variant="ghost"><span>{service.nameEn ?? service.nameMm}</span><strong>{fmtMMK(service.price)}</strong></Button>) : visibleProducts.map((product) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${product.id}`} key={product.id} onClick={() => addProduct(product)} variant="ghost"><span>{product.name}</span><strong>{fmtMMK(product.price)}</strong></Button>)}
+              {catalogueTab === 'services' ? visibleServices.map((service) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${service.id}`} key={service.id} onClick={() => addService(service)} variant="ghost"><span className={styles.tileName}>{service.nameEn ?? service.nameMm}</span>{typeof service.nameEn === 'string' && service.nameEn !== service.nameMm ? <small className={styles.tileSub}>{service.nameMm}</small> : null}<strong>{fmtMMK(service.price)}</strong></Button>) : visibleProducts.map((product) => <Button className={styles.catalogueTile} data-testid={`catalogue-item-${product.id}`} key={product.id} onClick={() => addProduct(product)} variant="ghost"><span className={styles.tileName}>{product.name}</span>{product.category === '' ? null : <small className={styles.tileSub}>{product.category}</small>}<strong>{fmtMMK(product.price)}</strong></Button>)}
+              {(catalogueTab === 'services' ? visibleServices : visibleProducts).length === 0 ? <p className={styles.catalogueEmpty}>{t('sale.emptyCatalogue')}</p> : null}
             </div>
           </section>
         </div>
@@ -496,18 +682,63 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
         </div>
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => setUnknownCode(undefined)} open={unknownCode !== undefined} title={t('sale.catalogue')}><p>{t('sale.unknown')} {unknownCode}</p></Modal>
-      <Modal closeLabel={t('modal.close')} onClose={() => setTenderOpen(false)} open={tenderOpen} testId="tender-modal" title={t('sale.tenderTitle')}>
+      <Modal closeLabel={t('modal.close')} onClose={() => { setTenderOpen(false); setCashReceived(''); setKbzQrOpen(false); }} open={tenderOpen} testId="tender-modal" title={t('sale.tenderTitle')}>
         <div className={styles.modalForm}>
           <p>{t('sale.balance')}: <strong>{fmtMMK(balance > 0 ? balance : 0)}</strong></p>
           <div className={styles.tenderChoices}>
-            <Button data-testid="tender-cash" onClick={() => setTenders([{ id: crypto.randomUUID(), method: 'cash', amount: total }])} pill variant="ghost">{t('sale.cash')}</Button>
-            <Button data-testid="tender-kbzpay" onClick={() => setTenders([{ id: crypto.randomUUID(), method: 'kbzpay', amount: total }])} pill variant="ghost">{t('sale.kbzpay')}</Button>
-            <Button data-testid="tender-wave" onClick={() => setTenders([{ id: crypto.randomUUID(), method: 'wave', amount: total }])} pill variant="ghost">{t('sale.wave')}</Button>
-            <Button data-testid="tender-split" onClick={() => { const first = Math.min(50_000, total); setTenders([{ id: crypto.randomUUID(), method: 'cash', amount: first }, { id: crypto.randomUUID(), method: 'wave', amount: saleBalanceDue(total, first) }]); }} pill variant="ghost">{t('sale.split')}</Button>
-            <Button data-testid="tender-pay-later" disabled={draft.patientId === null} onClick={() => setTenders([])} pill variant="ghost">{t('sale.payLater')}</Button>
+            <Button data-testid="tender-cash" onClick={chooseCash} pill variant="ghost">{t('sale.cash')}</Button>
+            <Button data-testid="tender-kbzpay" onClick={() => setKbzQrOpen(true)} pill variant="ghost">{t('sale.kbzpay')}</Button>
+            <Button data-testid="tender-wave" onClick={() => applyTenders([{ id: crypto.randomUUID(), method: 'wave', amount: total }])} pill variant="ghost">{t('sale.wave')}</Button>
+            <Button data-testid="tender-split" onClick={() => { const first = Math.min(50_000, total); applyTenders([{ id: crypto.randomUUID(), method: 'cash', amount: first }, { id: crypto.randomUUID(), method: 'wave', amount: saleBalanceDue(total, first) }]); }} pill variant="ghost">{t('sale.split')}</Button>
+            <Button data-testid="tender-pay-later" disabled={draft.patientId === null} onClick={() => applyTenders([])} pill variant="ghost">{t('sale.payLater')}</Button>
           </div>
-          <p>{t('sale.change')}: <strong>{fmtMMK(paid > total ? saleBalanceDue(paid, total) : 0)}</strong></p>
-          <Button data-testid="capture-sale" onClick={() => { void requestCapture(); }}>{t('sale.complete')}</Button>
+          {kbzQrOpen ? (
+            <div className={styles.qrPanel} data-testid="kbzpay-qr">
+              <p>{t('sale.kbzpay.scan')}</p>
+              <strong data-testid="kbzpay-qr-amount">{fmtMMK(total)}</strong>
+              {kbzQrUrl === undefined
+                ? <p className={styles.qrMissing} data-testid="kbzpay-qr-missing">{t('sale.kbzpay.noQr')}</p>
+                : <img alt={t('sale.kbzpay')} className={styles.qrImage} data-testid="kbzpay-qr-image" src={kbzQrUrl} />}
+              <div className={styles.qrActions}>
+                <Button data-testid="kbzpay-cancel" onClick={() => setKbzQrOpen(false)} pill variant="ghost">{t('modal.close')}</Button>
+                {/* The balance only clears once a human confirms the transfer
+                    landed. Settling on selection, as this used to, told staff a
+                    customer had paid before they had. */}
+                <Button data-testid="kbzpay-confirm" onClick={() => { applyTenders([{ amount: total, id: crypto.randomUUID(), method: 'kbzpay' }]); setKbzQrOpen(false); }} pill>{t('sale.kbzpay.received')}</Button>
+              </div>
+            </div>
+          ) : null}
+          {cashTendered ? (
+            <div className={styles.cashPad} data-testid="cash-pad">
+              <label>
+                <span>{t('sale.cashReceived')}</span>
+                <Input
+                  data-testid="cash-received"
+                  inputMode="numeric"
+                  onChange={(event) => setCashReceived(event.target.value)}
+                  placeholder={fmtMMK(cashPortion)}
+                  value={cashReceived}
+                />
+              </label>
+              <div className={styles.quickCash}>
+                {quickCashAmounts(cashPortion).map((amount) => (
+                  <Button
+                    data-testid={`cash-quick-${amount}`}
+                    key={amount}
+                    onClick={() => setCashReceived(String(amount))}
+                    pill
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {fmtMMK(amount)}
+                  </Button>
+                ))}
+              </div>
+              {shortfall > 0 ? <p className={styles.cashShort} data-testid="cash-short">{t('sale.cashShort')}: <strong>{fmtMMK(shortfall)}</strong></p> : null}
+            </div>
+          ) : null}
+          <p>{t('sale.change')}: <strong data-testid="cash-change">{fmtMMK(changeDue)}</strong></p>
+          <Button data-testid="capture-sale" disabled={shortfall > 0} onClick={() => { void requestCapture(); }}>{t('sale.complete')}</Button>
         </div>
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => { setApprovalRequest(undefined); setApprovalPin(''); }} open={approvalRequest !== undefined} testId="approval-modal" title={t('sale.approvalTitle')}>
@@ -518,6 +749,25 @@ function ActiveSaleScreen({ runtime }: { runtime: ClinicRuntime }) {
       </Modal>
       <Modal closeLabel={t('modal.close')} onClose={() => setReceipt(undefined)} open={receipt !== undefined} title={t('sale.receipt')}>
         {receipt === undefined ? null : <section className={styles.receipt} data-qr-present={renderedReceipt?.layout.runs.some((run) => run.kind === 'qr') ? 'true' : 'false'} data-testid="receipt-view"><h2>{t('sale.receipt')}</h2><p>{t('sale.waitingSync')}</p><strong>{fmtMMK(receipt.total)}</strong>{renderedReceipt === undefined || receiptImageUrl === undefined ? <Skeleton size="receipt" /> : <img alt={t('sale.receipt')} className={styles.receiptCanvas} data-testid="receipt-canvas" src={receiptImageUrl} />}<div className={styles.tenderChoices}><Button data-testid="receipt-print" disabled={renderedReceipt === undefined || printerProfile === undefined} onClick={() => { if (renderedReceipt === undefined || printerProfile === undefined) return; void createM5PrinterTransport(printerProfile).send(renderedReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('sale.print')}</Button><Button data-testid="receipt-share" disabled={renderedReceipt === undefined} onClick={() => { if (renderedReceipt === undefined || navigator.share === undefined) return; void createPngShareTransport((file) => navigator.share({ files: [file] })).send(renderedReceipt).catch(() => enqueue(t('sync.attention'))); }} pill variant="ghost">{t('sale.share')}</Button></div><Button data-testid="sale-complete" onClick={() => setReceipt(undefined)}>{t('sale.done')}</Button></section>}
+      </Modal>
+      <Modal closeLabel={t('modal.close')} onClose={() => setServiceModal(undefined)} open={serviceModal !== undefined} testId="service-modal" title={serviceModal === 'edit' ? t('sale.editServices') : t('sale.addService')}>
+        <div className={styles.modalForm}>
+          {serviceModal === 'edit' ? <label><span>{t('service.pick')}</span><select data-testid="service-pick" onChange={(event) => pickService(event.target.value)} value={svcId}>{allServices.map((row) => <option key={row.id} value={row.id}>{row.nameEn ?? row.nameMm}{row.active ? '' : ' ✕'}</option>)}</select></label> : null}
+          <label><span>{t('service.nameEn')}</span><Input data-testid="service-name-en" onChange={(event) => setSvcNameEn(event.target.value)} value={svcNameEn} /></label>
+          <label><span>{t('service.nameMm')}</span><Input data-testid="service-name-mm" onChange={(event) => setSvcNameMm(event.target.value)} value={svcNameMm} /></label>
+          <label><span>{t('service.category')}</span><Input data-testid="service-category" onChange={(event) => setSvcCategory(event.target.value)} value={svcCategory} /></label>
+          <label><span>{t('service.price')}</span><Input data-testid="service-price" min="0" onChange={(event) => setSvcPrice(event.target.value)} type="number" value={svcPrice} /></label>
+          <label><span>{t('service.followUpDays')}</span><Input data-testid="service-followup" min="0" onChange={(event) => setSvcFollowUp(event.target.value)} type="number" value={svcFollowUp} /></label>
+          <label className={styles.checkboxRow}><input checked={svcRequiresLot} data-testid="service-requires-lot" onChange={(event) => setSvcRequiresLot(event.target.checked)} type="checkbox" />{t('service.requiresLot')}</label>
+          {serviceModal === 'edit' ? <label className={styles.checkboxRow}><input checked={svcActive} data-testid="service-active" onChange={(event) => setSvcActive(event.target.checked)} type="checkbox" />{t('service.active')}</label> : null}
+          <Button data-testid="service-save" disabled={(svcNameEn.trim() === '' && svcNameMm.trim() === '') || (serviceModal === 'edit' && svcId === '')} onClick={() => { void saveService(); }}>{t('service.save')}</Button>
+        </div>
+      </Modal>
+      <Modal closeLabel={t('modal.close')} onClose={() => { setSvcElevOpen(false); setSvcPassword(''); }} open={svcElevOpen} testId="service-elevation" title={t('setup.elevate')}>
+        <div className={styles.modalForm}>
+          <label><span>{t('setup.password')}</span><Input data-testid="service-elevation-password" onChange={(event) => setSvcPassword(event.target.value)} type="password" value={svcPassword} /></label>
+          <Button data-testid="service-elevation-submit" disabled={svcPassword === ''} onClick={() => { void submitServiceElevation(); }}>{t('setup.elevate')}</Button>
+        </div>
       </Modal>
     </main>
   );

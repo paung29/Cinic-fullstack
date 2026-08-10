@@ -1,33 +1,84 @@
 .root { min-height: 100vh; background: var(--bg); }
 .loading { display: grid; min-height: 100vh; place-items: center; background: var(--bg); }
-.workspace { display: grid; grid-template-columns: minmax(320px, .9fr) minmax(0, 1.3fr); gap: 18px; padding: 18px; }
-.envelopeManager { grid-column: 1 / -1; }
-.cartPanel, .cataloguePanel { display: grid; align-content: start; gap: 14px; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--sh-subtle); }
+.workspace { display: grid; min-height: 100%; box-sizing: border-box; grid-template-columns: minmax(320px, .9fr) minmax(0, 1.3fr); align-items: stretch; gap: 18px; padding: 18px; }
+.cartPanel, .cataloguePanel { display: flex; min-height: 0; flex-direction: column; gap: 14px; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--sh-subtle); }
 .panelHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .panelHeader h1 { margin: 0; color: var(--ink); font-size: 20px; }
-.panelHeader strong { color: var(--brand); }
+.panelHeader strong { color: var(--brand); font-size: 21px; letter-spacing: -.01em; }
 .patientField, .discountField, .modalForm label { display: grid; gap: 6px; color: var(--mut); font-size: 13px; font-weight: 700; }
 .patientField select, .modalForm select { min-height: 40px; padding: 0 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-input); color: var(--ink); }
 .allergy { margin: 0; padding: 10px 12px; background: var(--redbg); border-radius: var(--r-input); color: var(--red); font-weight: 700; }
-.cartLines { display: grid; gap: 8px; }
+.cartLines { display: grid; flex: 1; align-content: start; gap: 8px; }
 .cartLine { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; background: var(--chip); border-radius: var(--r-input); }
 .cartLine div:first-child { display: grid; gap: 2px; }
 .cartLine span { color: var(--mut); font-size: 13px; }
 .lineActions, .ticketActions, .tenderChoices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.empty { margin: 0; padding: 28px 12px; color: var(--mut); text-align: center; }
+.cartEmpty { display: grid; flex: 1; place-content: center; justify-items: center; gap: 8px; min-height: 120px; padding: 24px 12px; border: 1.5px dashed var(--line); border-radius: var(--r-input); color: var(--mut); }
+.cartEmpty p { margin: 0; font-size: 13.5px; }
+.cartEmpty svg { opacity: .45; }
 .categoryChips, .discountChips { display: flex; flex-wrap: wrap; gap: 8px; }
 .categoryChips { padding: 2px 0; }
 .categoryChips button, .discountChips button { min-height: 40px; }
 .categoryChips .categoryChipActive { background: var(--ink); border-color: var(--ink); color: var(--panel); }
 .discountChips .discountChipActive { background: var(--brand); border-color: var(--brand); color: var(--panel); }
-.scannerInput { background: var(--accent); border: 1px dashed var(--brand); }
-.catalogueList { display: grid; grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); gap: 10px; align-content: start; }
-.catalogueTile { display: flex; min-height: 92px; flex-direction: column; align-items: start; justify-content: space-between; gap: 8px; padding: 12px; border-radius: var(--r-card); box-shadow: var(--sh-subtle); text-align: left; white-space: normal; }
+.searchRow { display: flex; flex-wrap: wrap; gap: 10px; }
+.searchInput { flex: 1 1 180px; min-width: 0; }
+.scannerInput { flex: 0 1 240px; background: var(--accent); border: 1px dashed var(--brand); }
+.catalogueList { display: grid; flex: 1; grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); align-content: start; gap: 10px; }
+.catalogueEmpty { grid-column: 1 / -1; margin: 0; padding: 30px 12px; border: 1.5px dashed var(--line); border-radius: var(--r-input); color: var(--mut); text-align: center; }
+.catalogueTile { display: flex; min-height: 96px; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; padding: 12px; border-radius: var(--r-card); box-shadow: var(--sh-subtle); text-align: left; white-space: normal; }
 .catalogueTile:hover:not(:disabled) { border-color: var(--brand); }
-.catalogueTile strong { color: var(--brand); font-size: 13.5px; }
+.tileName { font-weight: 700; }
+.tileSub { overflow: hidden; color: var(--mut); font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.catalogueTile strong { margin-top: auto; padding-top: 6px; color: var(--brand); font-size: 13.5px; }
 .modalForm { display: grid; gap: 14px; }
 .receipt { display: grid; gap: 12px; }
 .receipt h2, .receipt p { margin: 0; }
 .receipt > strong { color: var(--brand); font-size: 28px; }
 .receiptCanvas { width: 100%; max-height: 420px; border: 1px solid var(--line); border-radius: var(--r-input); object-fit: contain; }
-@media (max-width: 840px) { .workspace { grid-template-columns: 1fr; padding: 12px; } }
+@media (max-width: 840px) { .workspace { grid-template-columns: 1fr; min-height: 0; padding: 12px; } }
+.manageChip { border-style: dashed; color: var(--mut); }
+.manageChip:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.checkboxRow { display: flex !important; align-items: center; gap: 9px; color: var(--ink) !important; font-size: 14px !important; font-weight: 500 !important; }
+
+.cashPad { display: grid; gap: 8px; }
+.cashPad label { display: grid; gap: 6px; color: var(--mut); }
+.quickCash { display: flex; flex-wrap: wrap; gap: 6px; }
+.cashShort { margin: 0; color: var(--red); }
+
+.qrPanel {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card, 12px);
+  text-align: center;
+}
+.qrPanel > p { margin: 0; color: var(--mut); font-size: 13px; }
+.qrPanel > strong { font-size: 26px; letter-spacing: -0.01em; }
+.qrImage {
+  width: min(260px, 60vw);
+  height: auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}
+.qrMissing { max-width: 34ch; color: var(--amber, var(--mut)); }
+.qrActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+.lineDiscount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+.lineDiscount label { display: flex; align-items: center; gap: 6px; margin: 0; }
+.lineDiscount label span { color: var(--mut); font-size: 11px; white-space: nowrap; }
+.lineDiscount label input { width: 72px; min-height: 32px; padding: 4px 8px; text-align: right; }
+.lineDiscount > strong { font-size: 14px; white-space: nowrap; }

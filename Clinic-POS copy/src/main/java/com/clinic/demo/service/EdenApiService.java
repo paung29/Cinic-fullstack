@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -26,7 +28,15 @@ public class EdenApiService {
     private final StaffRepository staff;
     private final AccountRepository accounts;
     private final ServiceRepository services;
+    /**
+     * Generous next to the 640px JPEG the device actually sends, but it stops
+     * a broken or hostile client parking arbitrary payloads in the clinic's
+     * database through an endpoint any signed-in staff member can reach.
+     */
+    private static final int MAX_PHOTO_BYTES = 2_000_000;
+
     private final ProductRepository products;
+    private final ProductPhotoRepository productPhotos;
     private final PatientRepository patients;
     private final SaleRepository sales;
     private final PaymentRepository payments;
@@ -51,6 +61,34 @@ public class EdenApiService {
         Account account = accounts.findByStaffId(member.getId())
                 .filter(a -> Boolean.TRUE.equals(a.getActive()))
                 .orElseThrow(() -> new TokenInvalidException("This staff member has no active login account."));
+        TokenResponse pair = jwtService.issueTokens(account, clientIp);
+        return new LoginResponse(pair.accessToken(), pair.refreshToken(), staffDto(member), clinicDto(member.getClinic()), now());
+    }
+
+    /**
+     * Pair a device from the owner's email and password rather than a staff
+     * UUID nobody can be expected to type. The PIN is still verified against
+     * the staff record, so the device ends up holding a PIN the server agrees
+     * with and offline unlock keeps working afterwards.
+     *
+     * Every failure returns the same message on purpose. Telling a caller that
+     * the email was right but the password wrong turns this into an account
+     * enumeration oracle on an endpoint that must stay unauthenticated.
+     */
+    @Transactional
+    public LoginResponse loginWithEmail(EmailLoginRequest input, String clientIp) {
+        String email = input.email().trim().toLowerCase();
+        Account account = accounts.findByEmail(email)
+                .filter(candidate -> Boolean.TRUE.equals(candidate.getActive()))
+                .orElseThrow(() -> new TokenInvalidException("Email, password or PIN is incorrect."));
+        if (!passwordEncoder.matches(input.password(), account.getPasswordHash())) {
+            throw new TokenInvalidException("Email, password or PIN is incorrect.");
+        }
+        Staff member = account.getStaff();
+        if (member == null || !Boolean.TRUE.equals(member.getActive())
+                || !passwordEncoder.matches(input.pin(), member.getPinHash())) {
+            throw new TokenInvalidException("Email, password or PIN is incorrect.");
+        }
         TokenResponse pair = jwtService.issueTokens(account, clientIp);
         return new LoginResponse(pair.accessToken(), pair.refreshToken(), staffDto(member), clinicDto(member.getClinic()), now());
     }
@@ -107,6 +145,8 @@ public class EdenApiService {
         if (input.receiptQr() != null) c.setReceiptQr(input.receiptQr());
         if (input.receiptNextVisit() != null) c.setReceiptNextVisit(input.receiptNextVisit());
         if (input.receiptTemplate() != null) c.setReceiptTemplate(input.receiptTemplate());
+        if (input.telegramHandle() != null) c.setTelegramHandle(input.telegramHandle());
+        if (input.receiptHeader() != null) c.setReceiptHeader(input.receiptHeader());
         if (input.receiptHeaderFont() != null) c.setReceiptHeaderFont(input.receiptHeaderFont());
         if (input.receiptDivider() != null) c.setReceiptDivider(input.receiptDivider());
         ClinicDto result = clinicDto(c);
@@ -166,6 +206,46 @@ public class EdenApiService {
     }
 
     @Transactional
+    public ServiceEnvelope createService(Account account, ServiceInput input, UUID elevationToken) {
+        requireElevation(account, elevationToken);
+        UUID clinicId = account.getClinic().getId();
+        com.clinic.demo.entity.Service replay = services.findByIdAndClinicId(input.id(), clinicId).orElse(null);
+        if (replay != null) return new ServiceEnvelope(serviceDto(replay), true);
+        com.clinic.demo.entity.Service s = services.save(com.clinic.demo.entity.Service.builder()
+                .id(input.id()).clinic(account.getClinic())
+                .name(input.nameMm().trim())
+                .nameEn(input.nameEn() == null || input.nameEn().isBlank() ? null : input.nameEn().trim())
+                .category(or(input.category(), "Other"))
+                .price(money(input.price()))
+                .durationMin(input.durationMin())
+                .requiresLot(Boolean.TRUE.equals(input.requiresLot()))
+                .defaultFollowupDays(input.defaultFollowupDays())
+                .active(input.active() == null || input.active())
+                .build());
+        ServiceDto dto = serviceDto(s);
+        emit(account.getClinic(), "service", dto);
+        return new ServiceEnvelope(dto, false);
+    }
+
+    @Transactional
+    public ServiceDto patchService(Account account, UUID id, ServicePatch input, UUID elevationToken) {
+        requireElevation(account, elevationToken);
+        com.clinic.demo.entity.Service s = requireService(account, id);
+        if (input.nameMm() != null) s.setName(input.nameMm().trim());
+        if (input.nameEn() != null) s.setNameEn(input.nameEn().isBlank() ? null : input.nameEn().trim());
+        if (input.category() != null) s.setCategory(input.category());
+        if (input.price() != null) s.setPrice(money(input.price()));
+        if (input.durationMin() != null) s.setDurationMin(input.durationMin());
+        if (input.requiresLot() != null) s.setRequiresLot(input.requiresLot());
+        if (input.defaultFollowupDays() != null) s.setDefaultFollowupDays(input.defaultFollowupDays());
+        if (input.active() != null) s.setActive(input.active());
+        services.save(s);
+        ServiceDto dto = serviceDto(s);
+        emit(account.getClinic(), "service", dto);
+        return dto;
+    }
+
+    @Transactional
     public ProductDto patchProduct(Account account, UUID id, ProductPatch input, UUID elevationToken) {
         requireElevation(account, elevationToken);
         Product p = requireProduct(account, id);
@@ -193,6 +273,78 @@ public class EdenApiService {
         ProductDto result = productDto(p);
         emit(account.getClinic(), "product", result);
         return result;
+    }
+
+    /**
+     * Replace a product's shelf photo. Storing it bumps Product.photoKey, and
+     * that change rides the normal product sync event, so other devices learn
+     * a new photo exists without polling for one.
+     */
+    @Transactional
+    public ProductDto putProductPhoto(Account account, UUID productId, ProductPhotoInput input) {
+        Product product = requireProduct(account, productId);
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(input.data());
+        } catch (IllegalArgumentException error) {
+            throw new AppBusinessException("The photo payload is not valid base64.");
+        }
+        if (bytes.length == 0 || bytes.length > MAX_PHOTO_BYTES) {
+            throw new AppBusinessException("A product photo must be between 1 byte and 2 MB.");
+        }
+        String key = fingerprint(bytes);
+        productPhotos.save(ProductPhoto.builder()
+                .productId(product.getId())
+                .clinicId(account.getClinic().getId())
+                .contentType(input.contentType())
+                .photoKey(key)
+                .bytes(bytes)
+                .updatedAt(now())
+                .build());
+        product.setPhotoKey(key);
+        ProductDto result = productDto(product);
+        emit(account.getClinic(), "product", result);
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public ProductPhotoResponse productPhoto(Account account, UUID productId) {
+        requireProduct(account, productId);
+        ProductPhoto photo = productPhotos.findById(productId)
+                .filter(row -> row.getClinicId().equals(account.getClinic().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Product photo", "productId", productId.toString()));
+        return new ProductPhotoResponse(productId, photo.getPhotoKey(), photo.getContentType(),
+                Base64.getEncoder().encodeToString(photo.getBytes()));
+    }
+
+    @Transactional
+    public ProductDto deleteProductPhoto(Account account, UUID productId) {
+        Product product = requireProduct(account, productId);
+        productPhotos.findById(productId)
+                .filter(row -> row.getClinicId().equals(account.getClinic().getId()))
+                .ifPresent(productPhotos::delete);
+        product.setPhotoKey(null);
+        ProductDto result = productDto(product);
+        emit(account.getClinic(), "product", result);
+        return result;
+    }
+
+    /**
+     * Half a SHA-256 over the bytes. Long enough that two different photos will
+     * not collide in any clinic's catalogue, short enough to sit on every
+     * product row that goes over the wire.
+     */
+    private static String fingerprint(byte[] bytes) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder hex = new StringBuilder(32);
+            for (int index = 0; index < 16; index += 1) {
+                hex.append(String.format("%02x", digest[index]));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is unavailable in this runtime.", error);
+        }
     }
 
     @Transactional
@@ -424,7 +576,7 @@ public class EdenApiService {
         receipt.put("header", c.getName()); receipt.put("phone", or(c.getPhone(), "")); receipt.put("footer", or(c.getReceiptFooter(), ""));
         receipt.put("logo", or(c.getLogoUrl(), "")); receipt.put("qr", Boolean.TRUE.equals(c.getReceiptQr())); receipt.put("fu", Boolean.TRUE.equals(c.getReceiptNextVisit())); receipt.put("width", 80);
         return new ClinicDto(c.getId(), c.getName(), or(c.getPhone(), ""), or(c.getAddress(), ""), or(c.getRoundingStep(), 500),
-                or(c.getCreditLimitMmk(), 0), receipt, or(c.getReceiptFooter(), ""), or(c.getLogoUrl(), ""),
+                or(c.getCreditLimitMmk(), 0), receipt, or(c.getReceiptFooter(), ""), or(c.getReceiptHeader(), ""), or(c.getTelegramHandle(), ""), or(c.getLogoUrl(), ""),
                 Boolean.TRUE.equals(c.getReceiptQr()), Boolean.TRUE.equals(c.getReceiptNextVisit()), or(c.getReceiptTemplate(), "classic"),
                 or(c.getReceiptHeaderFont(), "sans"), or(c.getReceiptDivider(), "line"), or(c.getConsentMode(), "warn"),
                 DEFAULT_ADDONS, DEFAULT_FEATURE_FLAGS);

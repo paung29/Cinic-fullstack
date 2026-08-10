@@ -1,16 +1,19 @@
-.shell { min-height: 100vh; background: var(--bg); }
-.brandBar { display: flex; min-height: 56px; align-items: center; gap: 12px; padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.shell { display: grid; grid-template-rows: 56px minmax(0, 1fr); grid-template-columns: 212px minmax(0, 1fr); height: 100dvh; background: var(--bg); }
+.brandBar { grid-column: 1 / -1; display: flex; min-height: 56px; align-items: center; gap: 12px; padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .brandLockup, .user { display: grid; gap: 1px; min-width: 0; }
 .brandLockup strong, .user strong { overflow: hidden; color: var(--ink); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .brandLockup span, .user span { color: var(--mut); font-size: 11px; }
 .grow { flex: 1; }
-.tabRail { padding: 10px 14px 2px; background: var(--bg); }
-.attention { padding: 0 14px 10px; background: var(--bg); }
-.storageAttention { margin: 0; padding: 6px 14px; background: var(--amber-bg); border-bottom: 1px solid var(--line); color: var(--ink); font-size: 12px; line-height: 1.35; }
-.content { min-width: 0; }
+.attentionTag { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sideRail { grid-row: 2; grid-column: 1; padding: 14px 10px; background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; }
+.content { grid-row: 2; grid-column: 2; min-width: 0; overflow-y: auto; }
 
 @media (max-width: 700px) {
+  .shell { grid-template-rows: 56px auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
   .brandBar { padding: 0 12px; }
   .user { display: none; }
   .logoutText { display: none; }
+  .attentionTag { max-width: 120px; }
+  .sideRail { grid-row: 2; grid-column: 1; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: visible; }
+  .content { grid-row: 3; grid-column: 1; }
 }

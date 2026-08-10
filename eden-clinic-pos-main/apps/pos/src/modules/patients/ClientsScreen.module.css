@@ -12,3 +12,7 @@
 .form { display: grid; gap: 12px; }
 .telegram { display: flex; min-height: 40px; align-items: center; gap: 8px; color: var(--ink); }
 @media (max-width: 640px) { .toolbar { display: grid; } }
+.sexField { display: grid; gap: 6px; color: var(--mut); font-size: 13px; font-weight: 700; }
+.sexChoices { display: flex; gap: 8px; }
+.sexChoices button { flex: 1; }
+.sexChoiceActive { background: var(--brand) !important; border-color: var(--brand) !important; color: var(--panel) !important; }

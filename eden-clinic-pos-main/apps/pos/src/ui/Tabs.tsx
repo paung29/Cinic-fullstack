@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import styles from './Tabs.module.css';
 
 export type TabItem = { id: string; label: string };
@@ -10,13 +11,16 @@ export type TabsProps = {
   label: string;
   testId?: string;
   testIdPrefix?: string;
+  orientation?: 'horizontal' | 'vertical';
+  icons?: Record<string, ReactNode>;
 };
 
-export function Tabs({ activeId, label, onChange, tabs, testId, testIdPrefix = 'shell-tab' }: TabsProps) {
+export function Tabs({ activeId, icons, label, onChange, orientation = 'horizontal', tabs, testId, testIdPrefix = 'shell-tab' }: TabsProps) {
   return (
-    <div aria-label={label} className={styles.tabs} data-testid={testId} role="tablist">
+    <div aria-label={label} className={[styles.tabs, orientation === 'vertical' ? styles.vertical : ''].filter(Boolean).join(' ')} data-testid={testId} role="tablist">
       {tabs.map((tab) => {
         const active = tab.id === activeId;
+        const icon = icons?.[tab.id];
         return (
           <button
             aria-selected={active}
@@ -27,7 +31,8 @@ export function Tabs({ activeId, label, onChange, tabs, testId, testIdPrefix = '
             role="tab"
             type="button"
           >
-            {tab.label}
+            {icon === undefined ? null : <span aria-hidden="true" className={styles.icon}>{icon}</span>}
+            <span className={styles.label}>{tab.label}</span>
           </button>
         );
       })}

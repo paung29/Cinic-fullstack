@@ -1,8 +1,8 @@
 import type { SessionProvider } from '@/data/api';
 import type { AuthClient } from '@/data/auth';
 import type { Clock } from '@/data/bootstrap';
-import { authEnvelopeMetaKey, type ClinicDb } from '@/data/db';
-import type { LoginWire } from '@/data/types';
+import { authEnvelopeMetaKey, authRepairMetaKey, type ClinicDb } from '@/data/db';
+import type { EmailLoginWire, LoginResponseWire, LoginWire } from '@/data/types';
 import {
   decryptSessionSecret,
   encryptSessionSecret,
@@ -34,6 +34,7 @@ export type SessionController = {
   state(): SessionState;
   subscribe(listener: () => void): () => void;
   beginOnlineSignIn(input: LoginWire): Promise<PendingOnlineSignIn>;
+  beginOnlineSignInWithEmail(input: EmailLoginWire): Promise<PendingOnlineSignIn>;
   unlockOffline(staffId: string, pin: string): Promise<SessionIdentity>;
   verifyOfflineAdmin(staffId: string, pin: string): Promise<SessionIdentity>;
   beginCaptureBoundary(): () => void;
@@ -163,14 +164,85 @@ export function createSessionController(options: {
     setState({ kind: 'active', identity });
   }
 
+  /**
+   * Everything after a successful server sign-in, shared by the staff-ID and
+   * the email paths. The PIN is what encrypts the envelope either way, so the
+   * device is left able to unlock offline no matter how it was paired.
+   */
+  async function completeOnlineSignIn(response: LoginResponseWire, pin: string): Promise<PendingOnlineSignIn> {
+    const identity: SessionIdentity = {
+      staffId: response.staff.id,
+      name: response.staff.name,
+      role: response.staff.role,
+      validUntil: new Date(Date.parse(response.server_time) + identityLifetimeMs).toISOString(),
+    };
+    const secret: SessionSecret = {
+      identity,
+      credential: {
+        refreshToken: response.refresh,
+        refreshedAt: response.server_time,
+      },
+    };
+    const encrypted = await encryptSessionSecret({ secret, crypto: options.crypto, pin });
+    let abandoned = false;
+    let committed = false;
+
+    accessToken = response.token;
+    activeSecret = secret;
+    activeKey = encrypted.key;
+    activeSalt = encrypted.salt;
+    setState({ kind: 'active', identity });
+
+    return {
+      identity,
+      async commit() {
+        if (abandoned) {
+          throw new Error('Cannot commit an abandoned online sign-in.');
+        }
+        if (committed) {
+          return;
+        }
+
+        await options.db.meta.put({ key: authEnvelopeMetaKey(identity.staffId), value: encrypted.envelope });
+        // A fresh server sign-in is exactly the repair the flag asks for.
+        await options.db.meta.delete(authRepairMetaKey(identity.staffId));
+        committed = true;
+      },
+      abandon() {
+        if (committed || abandoned) {
+          return;
+        }
+
+        abandoned = true;
+        clearMemory();
+        setState({ kind: 'signed-out' });
+      },
+    };
+  }
+
   return {
     provider: {
       getAccessToken() {
         return accessToken;
       },
       refresh,
-      onAuthFailure() {
+      // Reached once the server has answered 401 and a refresh could not rescue
+      // it, so the stored credential is dead. The envelope is deliberately KEPT
+      // — it carries the offline identity and the device must keep taking sales
+      // when the server is unreachable. Instead we flag the staff member for
+      // online repair: without it the PIN screen keeps unlocking offline into a
+      // session whose every protected call 401s, which staff see as "wrong PIN"
+      // with no way out.
+      async onAuthFailure() {
         accessToken = undefined;
+        const staffId = activeSecret?.identity.staffId;
+        if (staffId !== undefined) {
+          try {
+            await options.db.meta.put({ key: authRepairMetaKey(staffId), value: true });
+          } catch {
+            // Best effort: a failed flag write must not mask the auth failure.
+          }
+        }
         if (activeSecret !== undefined) {
           setState({ kind: 'auth-required', identity: activeSecret.identity });
         } else {
@@ -188,53 +260,13 @@ export function createSessionController(options: {
       };
     },
     async beginOnlineSignIn(input) {
-      const response = await options.auth.login(input);
-      const identity: SessionIdentity = {
-        staffId: response.staff.id,
-        name: response.staff.name,
-        role: response.staff.role,
-        validUntil: new Date(Date.parse(response.server_time) + identityLifetimeMs).toISOString(),
-      };
-      const secret: SessionSecret = {
-        identity,
-        credential: {
-          refreshToken: response.refresh,
-          refreshedAt: response.server_time,
-        },
-      };
-      const encrypted = await encryptSessionSecret({ secret, crypto: options.crypto, pin: input.pin });
-      let abandoned = false;
-      let committed = false;
-
-      accessToken = response.token;
-      activeSecret = secret;
-      activeKey = encrypted.key;
-      activeSalt = encrypted.salt;
-      setState({ kind: 'active', identity });
-
-      return {
-        identity,
-        async commit() {
-          if (abandoned) {
-            throw new Error('Cannot commit an abandoned online sign-in.');
-          }
-          if (committed) {
-            return;
-          }
-
-          await options.db.meta.put({ key: authEnvelopeMetaKey(identity.staffId), value: encrypted.envelope });
-          committed = true;
-        },
-        abandon() {
-          if (committed || abandoned) {
-            return;
-          }
-
-          abandoned = true;
-          clearMemory();
-          setState({ kind: 'signed-out' });
-        },
-      };
+      return completeOnlineSignIn(await options.auth.login(input), input.pin);
+    },
+    async beginOnlineSignInWithEmail(input) {
+      if (options.auth.loginWithEmail === undefined) {
+        throw new Error('This server does not offer email sign-in.');
+      }
+      return completeOnlineSignIn(await options.auth.loginWithEmail(input), input.pin);
     },
     async unlockOffline(staffId, pin) {
       let decrypted: { secret: SessionSecret; key: CryptoKey; salt: Uint8Array };

@@ -13,13 +13,13 @@ Dexie.dependencies.IDBKeyRange = IDBKeyRange;
 
 const existingClinic: ClinicRow = {
   id: 'clinic-1', name: 'Before', phone: '', address: '', roundingStep: 500, creditLimitMmk: 100_000,
-  receipt: {}, receiptFooter: '', logoUrl: '', receiptQr: true, receiptNextVisit: true,
+  receipt: {}, receiptFooter: '', logoUrl: '', telegramHandle: '', receiptHeader: '', receiptQr: true, receiptNextVisit: true,
   receiptTemplate: 'classic', receiptHeaderFont: 'sans', receiptDivider: 'line', consentMode: 'warn', addons: {}, featureFlags: {},
 };
 
 const serverClinic: ClinicWire = {
   id: 'clinic-1', name: 'After', phone: '09 123', address: 'Lashio', rounding_step: 1_000, credit_limit_mmk: 90_000,
-  receipt: {}, receipt_footer: 'See you', logo_url: '', receipt_qr: false, receipt_next_visit: false,
+  receipt: {}, receipt_footer: 'See you', logo_url: '', telegram_handle: '', receipt_header: '', receipt_qr: false, receipt_next_visit: false,
   receipt_template: 'boxed', receipt_header_font: 'display', receipt_divider: 'none', consent_mode: 'block', addons: {}, feature_flags: {},
 };
 

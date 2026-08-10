@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { createAppointment, isSlotOccupied, setAppointmentStatus } from '@/data/appointmentRecords';
 import { createPatient } from '@/data/patientRecords';
 import { stageSalePrefill } from '@/data/salePrefill';
@@ -28,6 +29,7 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
@@ -81,6 +83,10 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
   const appointmentForSlot = (staffId: string, time: string) => dayAppointments.find((row) => row.staffId === staffId && row.time === time && row.status !== 'cancelled');
   const cancelledAppointmentForSlot = (staffId: string, time: string) => dayAppointments.find((row) => row.staffId === staffId && row.time === time && row.status === 'cancelled');
   const appointmentLabel = (status: AppointmentRow['status']) => t(`calendar.status.${status}`);
+  const localDateIso = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
 
   const openBooking = (slot: Slot) => {
     setBookingSlot(slot);
@@ -143,40 +149,50 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
     <main className={styles.root} data-locale={locale} data-testid="calendar-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
       <AppShell
         activeTab="calendar"
-        brand={t('brand.name')}
-        location={t('brand.location')}
+        brand={branding.brand}
+        location={branding.location}
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}
-        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageAttention')}
+        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         onLogout={logout}
-        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'clients' ? '/clients' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/calendar')}
+        onTabChange={(id) => router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'clients' ? '/clients' : id === 'stocks' ? '/stocks' : id === 'analytics' ? '/analytics' : id === 'setup' ? '/setup' : '/calendar')}
         sync={{ label: t('sync.synced'), state: 'synced', onClick: () => { void runtime.refreshSync().then(refreshLocal, refreshLocal); } }}
-        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }]}
+        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]}
         userName={identity.name}
         userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}
       >
         <section className={styles.content}>
           <header className={styles.toolbar}>
-            <div><p>{t('calendar.day')}</p><h1>{t('calendar.title')}</h1></div>
-            <Input data-testid="calendar-date" onChange={(event) => setDate(event.target.value)} type="date" value={date} />
-            <Button data-testid="calendar-book" onClick={() => openBooking({ staffId: columns[0]?.id ?? '', time: slotTimes[0]! })} pill>{t('calendar.book')}</Button>
+            <div className={styles.toolbarTitle}><p>{t('calendar.day')}</p><h1>{t('calendar.title')}</h1></div>
+            <div className={styles.toolbarActions}>
+              <Input data-testid="calendar-date" onChange={(event) => setDate(event.target.value)} type="date" value={date} />
+              <Button data-testid="calendar-today" onClick={() => setDate(localDateIso())} pill size="sm" variant="ghost">{t('calendar.todayJump')}</Button>
+              <Button data-testid="calendar-book" onClick={() => openBooking({ staffId: columns[0]?.id ?? '', time: slotTimes[0]! })} pill>{t('calendar.book')}</Button>
+            </div>
           </header>
-          {columns.length === 0 ? <Card><p>{t('calendar.noBookings')}</p></Card> : <div className={styles.grid} data-testid="calendar-grid">
+          {columns.length === 0 ? <Card><p>{t('calendar.noBookings')}</p></Card> : <div className={styles.grid} data-cols={String(Math.min(columns.length, 6))} data-testid="calendar-grid">
             <div className={styles.corner}>{t('calendar.time')}</div>
-            {columns.map((member) => <div className={styles.staffHeader} key={member.id}>{member.name}</div>)}
+            {columns.map((member) => <div className={styles.staffHeader} key={member.id}><span aria-hidden="true" className={styles.staffAvatar}>{staffInitials(member.name)}</span><span className={styles.staffMeta}><strong>{member.name}</strong><small>{dayAppointments.filter((row) => row.staffId === member.id && row.status !== 'cancelled').length} · {t('calendar.status.booked')}</small></span></div>)}
             {slotTimes.flatMap((time) => [
               <div className={styles.timeLabel} key={`${time}-label`}>{time}</div>,
               ...columns.map((member) => {
                 const appointment = appointmentForSlot(member.id, time);
                 const cancelledAppointment = cancelledAppointmentForSlot(member.id, time);
                 return <div className={styles.slot} key={`${member.id}-${time}`}>
-                  {appointment === undefined ? <>{cancelledAppointment === undefined ? null : <button className={[styles.appointment, styles[appointmentBlockClass(cancelledAppointment.status)]].join(' ')} data-testid={`calendar-appointment-${cancelledAppointment.id}`} disabled type="button"><strong>{patients.find((patient) => patient.id === cancelledAppointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(cancelledAppointment.status)}</span></button>}<Button data-testid={`calendar-slot-${member.id}-${time}`} onClick={() => openBooking({ staffId: member.id, time })} size="sm" variant="ghost">{t('calendar.book')}</Button></> : <button className={[styles.appointment, styles[appointmentBlockClass(appointment.status)]].join(' ')} data-testid={`calendar-appointment-${appointment.id}`} onClick={() => setSelectedAppointment(appointment)} type="button"><strong>{patients.find((patient) => patient.id === appointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(appointment.status)}</span>{appointment.syncConflict ? <Tag tone="amber">{t('calendar.conflict')}</Tag> : null}</button>}
+                  {appointment === undefined ? <>{cancelledAppointment === undefined ? null : <button className={[styles.appointment, styles[appointmentBlockClass(cancelledAppointment.status)]].join(' ')} data-testid={`calendar-appointment-${cancelledAppointment.id}`} disabled type="button"><strong>{patients.find((patient) => patient.id === cancelledAppointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(cancelledAppointment.status)}</span></button>}<Button className={styles.slotBook} data-testid={`calendar-slot-${member.id}-${time}`} onClick={() => openBooking({ staffId: member.id, time })} size="sm" variant="ghost">{t('calendar.book')}</Button></> : <button className={[styles.appointment, styles[appointmentBlockClass(appointment.status)]].join(' ')} data-testid={`calendar-appointment-${appointment.id}`} onClick={() => setSelectedAppointment(appointment)} type="button"><strong>{patients.find((patient) => patient.id === appointment.patientId)?.name ?? t('calendar.patient')}</strong><span>{appointmentLabel(appointment.status)}</span>{appointment.syncConflict ? <Tag tone="amber">{t('calendar.conflict')}</Tag> : null}</button>}
                 </div>;
               }),
             ])}
           </div>}
+          <footer className={styles.legend}>
+            <span className={styles.legendItem}><span className={styles.legendDot} />{t('calendar.status.booked')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendHere].join(' ')} />{t('calendar.status.here')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendDone].join(' ')} />{t('calendar.status.done')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendCancelled].join(' ')} />{t('calendar.status.cancelled')}</span>
+            <span className={styles.legendItem}><span className={[styles.legendDot, styles.legendConflict].join(' ')} />{t('calendar.conflict')}</span>
+          </footer>
         </section>
       </AppShell>
       <Modal closeLabel={t('modal.close')} onClose={() => setBookingSlot(undefined)} open={bookingSlot !== undefined} testId="calendar-booking-modal" title={t('calendar.bookTitle')}>
@@ -207,4 +223,8 @@ function ActiveCalendarScreen({ runtime }: { runtime: ClinicRuntime }) {
       </Modal>
     </main>
   );
+}
+
+function staffInitials(name: string): string {
+  return name.split(' ').filter((part) => part !== '').slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
 }

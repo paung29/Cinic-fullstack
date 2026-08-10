@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { closeShift, type ShiftCloseRecord } from '@/data/shiftClose';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { cashDifference, expectedCash, fmtMMK } from '@/data/money';
 import { readPrinterProfile, type PrinterProfile } from '@/data/printerProfile';
 import { summarizeToday, type TodaySummary } from '@/data/todaySummary';
@@ -13,7 +14,7 @@ import { drawerDifferenceTone } from '@/modules/today/shiftPresentation';
 import { useT } from '@/i18n';
 import { buildConfirmedReceiptInput } from '@/print/receiptInput';
 import { renderReceipt, type ReceiptPalette } from '@/print/receipt';
-import { AppShell, Button, Card, EmptyState, Input, Modal, Skeleton, StatTile, Tag, useToast } from '@/ui';
+import { AppShell, Button, Card, Input, Modal, Skeleton, StatTile, Tag, useToast } from '@/ui';
 import type { ClinicRow, PatientRow, ProductRow, SaleRow, StaffRow } from '@/data/types';
 import type { OutboxStatusView } from '@/data/outbox';
 import styles from './TodayScreen.module.css';
@@ -32,11 +33,16 @@ function ActiveTodayScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const session = runtime.session.state();
-  // The session boundary deliberately precedes every local data read: an
-  // auth-required identity may be useful to the login repair flow, but cannot
-  // open Today or inspect its Dexie-backed operational data.
-  const identity = session.kind === 'active' ? session.identity : undefined;
+  // Today renders purely from local Dexie data, so a dead *server* credential
+  // is no reason to eject anyone. Every sibling screen — Sale, Clients, Stocks,
+  // Calendar, Analytics, Setup — already tolerates 'auth-required' and keeps
+  // working offline. Today bouncing alone, as the home tab, turned a silent
+  // background 401 into what staff read as the app logging them out at random.
+  // Keep the screen open and say plainly that the session needs reconnecting.
+  const identity = session.kind === 'active' || session.kind === 'auth-required' ? session.identity : undefined;
+  const needsReconnect = session.kind === 'auth-required';
   const [data, setData] = useState<LocalData>();
   const [summary, setSummary] = useState<TodaySummary>();
   const [closeOpen, setCloseOpen] = useState(false);
@@ -78,8 +84,8 @@ function ActiveTodayScreen({ runtime }: { runtime: ClinicRuntime }) {
   const differenceTone = drawerDifferenceTone(difference);
   const blocksClose = data.status.pendingCount > 0 || data.status.attentionCount > 0;
   const storageStatus = runtime.storageDiagnostics.state();
-  const storageAttention = storageStatus.kind === 'granted' ? undefined : t('shell.storageAttention');
-  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }];
+  const storageAttention = storageStatus.kind === 'granted' ? undefined : t('shell.storageTag');
+  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }];
   const route = (id: string) => id === 'today' ? '/' : `/${id}`;
 
   const confirmClose = async () => {
@@ -92,18 +98,19 @@ function ActiveTodayScreen({ runtime }: { runtime: ClinicRuntime }) {
   };
 
   return <main className={styles.root} data-locale={locale} data-testid="today-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
-    <AppShell activeTab="today" brand={t('brand.name')} location={t('brand.location')} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} switchUserDisabled={false} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={storageAttention} onLogout={() => { void runtime.outbox.status().then((status) => { if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(route(id))} sync={{ label: t(`sync.${data.status.state}`), state: data.status.state, count: data.status.pendingCount, onClick: () => { void runtime.refreshSync(); } }} tabs={tabs} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
+    <AppShell activeTab="today" brand={branding.brand} location={branding.location} logoutLabel={t('shell.logout')} switchUserLabel={t('shell.switchUser')} switchUserDisabled={false} onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }} storageAttention={storageAttention} onLogout={() => { void runtime.outbox.status().then((status) => { if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked')); else { void runtime.session.logout(); router.push('/login'); } }); }} onTabChange={(id) => router.push(route(id))} sync={{ label: t(`sync.${data.status.state}`), state: data.status.state, count: data.status.pendingCount, onClick: () => { void runtime.refreshSync(); } }} tabs={tabs} userName={identity.name} userRole={identity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}>
       <div className={styles.content}>
-        <header className={styles.heading}><div><p>{t('today.title')}</p><h1>{t('today.totalCollected')}</h1></div><strong data-testid="today-total-collected">{fmtMMK(summary.methodTotals.totalCollected)}</strong></header>
+        {needsReconnect ? <Card><div className={styles.row} data-testid="today-reconnect-notice"><div className={styles.closeCopy}><h2>{t('auth.sessionExpired')}</h2></div><Button data-testid="today-reconnect" onClick={() => router.push('/login')} pill variant="ghost">{t('auth.login.pin')}</Button></div></Card> : null}
+        <header className={styles.heading}><div><p>{t('today.title')}</p><h1>{t('today.totalCollected')}</h1><span className={styles.headingDate}>{new Intl.DateTimeFormat(locale === 'zh' ? 'zh-Hans' : locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}</span></div><strong data-testid="today-total-collected">{fmtMMK(summary.methodTotals.totalCollected)}</strong></header>
         <div className={styles.stats}>{[['cash', summary.methodTotals.cash, t('sale.cash')], ['kbzpay', summary.methodTotals.kbzpay, t('sale.kbzpay')], ['wave', summary.methodTotals.wave, t('sale.wave')], ['credit', summary.methodTotals.credit, t('today.creditOutstanding')]].map(([id, value, label]) => <StatTile data-testid={`today-method-${id}`} key={String(id)} label={String(label)} value={fmtMMK(Number(value))} />)}</div>
         {summary.methodTotals.otherMethods === 0 ? null : <p className={styles.other} data-testid="today-other-methods">{t('today.otherMethods')}: <strong>{fmtMMK(summary.methodTotals.otherMethods)}</strong></p>}
         <div className={styles.grid}>
           <Card><h2>{t('today.staffBreakdown')}</h2>{summary.staffBreakdown.map((row) => <p data-testid={`today-staff-${row.staffId}`} key={row.staffId}>{row.name}<strong>{fmtMMK(row.total)}</strong></p>)}</Card>
-          <Card><h2>{t('today.needsReview')}</h2><p>{summary.needsReviewCount}</p><h2>{t('today.pendingSync')}</h2><p>{summary.pendingCount + summary.attentionCount}</p></Card>
-          <Card><h2>{t('today.debtors')}</h2><div data-testid="today-debtors">{summary.debtors.length === 0 ? <EmptyState body={t('today.noDebtors')} heading={t('today.debtors')} /> : summary.debtors.map((row) => <p key={row.patient.id}>{row.patient.name}<span><Tag tone="low">{t(`today.age.${row.band}`)}</Tag> <strong>{fmtMMK(row.outstanding)}</strong></span></p>)}</div></Card>
-          <Card><h2>{t('today.lowStock')}</h2><div data-testid="today-low-stock">{summary.lowStock.length === 0 ? <EmptyState body={t('today.noLowStock')} heading={t('today.lowStock')} /> : summary.lowStock.map((row) => <p key={row.id}>{row.name}<Tag tone="low">{row.stockQty}</Tag></p>)}</div></Card>
+          <Card><div className={styles.cardHead}><h2>{t('today.pendingSync')}</h2>{summary.needsReviewCount + summary.pendingCount + summary.attentionCount === 0 ? <Tag tone="ok">{t('today.allClear')}</Tag> : null}</div><div className={styles.queueCells}><div><small>{t('today.needsReview')}</small><strong>{summary.needsReviewCount}</strong></div><div><small>{t('today.pendingSync')}</small><strong>{summary.pendingCount + summary.attentionCount}</strong></div></div></Card>
+          <Card><h2>{t('today.debtors')}</h2><div data-testid="today-debtors">{summary.debtors.length === 0 ? <p className={styles.emptyLine}>{t('today.noDebtors')}</p> : summary.debtors.map((row) => <p key={row.patient.id}>{row.patient.name}<span><Tag tone="low">{t(`today.age.${row.band}`)}</Tag> <strong>{fmtMMK(row.outstanding)}</strong></span></p>)}</div></Card>
+          <Card><h2>{t('today.lowStock')}</h2><div data-testid="today-low-stock">{summary.lowStock.length === 0 ? <p className={styles.emptyLine}>{t('today.noLowStock')}</p> : summary.lowStock.map((row) => <p key={row.id}>{row.name}<Tag tone="low">{row.stockQty}</Tag></p>)}</div></Card>
         </div>
-        <Card><div className={styles.row}><h2>{t('shift.close')}</h2><Button data-testid="shift-close" disabled={identity.role !== 'admin' || blocksClose} onClick={() => setCloseOpen(true)} pill variant="ghost">{t('shift.close')}</Button></div>{latestClose === undefined ? null : <p>{t('shift.expectedCash')}: {fmtMMK(latestClose.expectedCash)}</p>}</Card>
+        <Card><div className={styles.row}><div className={styles.closeCopy}><h2>{t('shift.close')}</h2>{blocksClose ? <span>{t('shift.blockedSync')}</span> : null}</div><Button data-testid="shift-close" disabled={identity.role !== 'admin' || blocksClose} onClick={() => setCloseOpen(true)} pill variant="ghost">{t('shift.close')}</Button></div>{latestClose === undefined ? null : <p>{t('shift.expectedCash')}: {fmtMMK(latestClose.expectedCash)}</p>}</Card>
         <Card><h2>{t('today.recentSales')}</h2>{summary.currentDaySales.map((sale) => <div className={styles.saleRow} data-testid={`sale-history-row-${sale.id}`} key={sale.id}><span>{sale.no ?? sale.id}</span><strong>{fmtMMK(sale.total)}</strong><Button data-testid={`reprint-sale-${sale.id}`} onClick={() => { setReprint(sale); setReprintUrl(undefined); }} pill size="sm" variant="ghost">{t('today.reprint')}</Button></div>)}</Card>
       </div>
     </AppShell>

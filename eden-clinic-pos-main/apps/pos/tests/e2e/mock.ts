@@ -17,6 +17,15 @@ export async function offboardMockStaff(request: APIRequestContext, staffId: str
   }
 }
 
+/** The server forgets a staff member without telling the device — a reset
+ *  database or a restored backup, as distinct from a deliberate offboarding. */
+export async function forgetMockStaff(request: APIRequestContext, staffId: string): Promise<void> {
+  const response = await request.post(`${mockBaseUrl}/__staff/${encodeURIComponent(staffId)}/forget`);
+  if (!response.ok()) {
+    throw new Error(`Mock staff forget failed with HTTP ${response.status()}.`);
+  }
+}
+
 export async function readMockSales(request: APIRequestContext): Promise<Array<{ id: string; staff_id: string }>> {
   const response = await request.get(`${mockBaseUrl}/__state`);
   if (!response.ok()) throw new Error(`Mock state read failed with HTTP ${response.status()}.`);

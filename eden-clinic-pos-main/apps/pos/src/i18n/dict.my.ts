@@ -6,10 +6,6 @@ export const dictMy = {
   // TODO(native-review)
   'brand.location': 'လားရှိုး · မြန်မာ',
   // TODO(native-review)
-  'shell.userName': 'ဒေါက်တာ ခေါင်မိုင်',
-  // TODO(native-review)
-  'shell.userRole': 'စီမံခန့်ခွဲသူ',
-  // TODO(native-review)
   'shell.logout': 'ထွက်ရန်',
   // TODO(native-review)
   'shell.tab.home': 'ပင်မ',
@@ -126,11 +122,11 @@ export const dictMy = {
   // TODO(native-review)
   'locale.label': 'ဘာသာစကား နမူနာ',
   // TODO(native-review)
-  'locale.my': 'မြန်မာ',
+  'locale.my': 'မြန်မာ (MY)',
   // TODO(native-review)
-  'locale.en': 'အင်္ဂလိပ်',
+  'locale.en': 'English (EN)',
   // TODO(native-review)
-  'locale.zh': 'တရုတ် (ရိုးရှင်း)',
+  'locale.zh': '简体中文 (ZH)',
   // TODO(native-review)
   'demo.burmeseSample': 'ကျေးဇူးတင်ပါသည်',
   // TODO(native-review): intentionally omitted M1 dev-only fallback fixture.
@@ -148,16 +144,38 @@ export const dictMy = {
   // TODO(native-review)
   'auth.setup.staffId': 'တပ်ဆင်သူ ဝန်ထမ်း ID',
   // TODO(native-review)
+  'auth.setup.ownerEmail': 'ပိုင်ရှင် အီးမေးလ်',
+  // TODO(native-review)
+  'auth.setup.ownerPassword': 'ပိုင်ရှင် စကားဝှက်',
+  // TODO(native-review)
+  'auth.setup.pairHint': 'ဤစက်ကို ထည့်ရန် ဆေးခန်းပိုင်ရှင် အကောင့်ဖြင့် ဝင်ပါ။ ထို့နောက် နေ့စဉ်သုံး PIN ကို ရွေးပါ။',
+  // TODO(native-review)
+  'auth.setup.passwordHint': 'အနည်းဆုံး စာလုံး ၈ လုံး။ အခြားစက်တွင် ဝင်ရန်နှင့် လျှော့ဈေး ခွင့်ပြုရန် သုံးသည် — နေ့စဉ် ငွေကောင်တာအတွက် မဟုတ်ပါ။',
+  // TODO(native-review)
+  'auth.setup.pinNew': 'ယခု PIN ၄ လုံး ရွေးပါ။ ၎င်းသည် ဝန်ထမ်းများ နေ့စဉ် ကောင်တာတွင် ရိုက်ထည့်မည့် နံပါတ်ဖြစ်ပြီး၊ အထက်ပါ အကောင့်စကားဝှက် မဟုတ်ပါ။',
+  // TODO(native-review)
+  'auth.setup.pinExisting': 'ဤအကောင့်အတွက် ဝန်ထမ်း PIN ၄ လုံး ထည့်ပါ — အထက်ပါ အကောင့်စကားဝှက် မဟုတ်ပါ။',
+  // TODO(native-review)
+  'auth.setup.createSubmit': 'ဆေးခန်း ဖွင့်ရန်',
+  // TODO(native-review)
+  'auth.setup.pairSubmit': 'ဤစက်ကို ထည့်ရန်',
+  // TODO(native-review)
   'auth.setup.internetRequired': 'ဤစက်ကို အင်တာနက်ချိတ်ဆက်မှုဖြင့် တစ်ကြိမ် စတင်ပြင်ဆင်ရပါမည်။',
   // TODO(native-review)
   'auth.setup.repair': 'ဤစက်ကို ပြန်လည်ပြုပြင်ရန် အွန်လိုင်း အကောင့်ဝင်ရပါမည်။',
   // TODO(native-review)
-  'auth.login.who': 'မည်သူ အလုပ်လုပ်နေသနည်း?',
+  'auth.login.who': 'မင်္ဂလာပါ',
+  // TODO(native-review)
+  'field.reveal': 'ပြရန်',
+  // TODO(native-review)
+  'field.hide': 'ဖျောက်ရန်',
   // TODO(native-review)
   'auth.login.pin': 'PIN ထည့်ပါ',
   // TODO(native-review)
   'auth.login.wrongPin': 'PIN မမှန်ပါ',
   'auth.login.signInFailed': 'PIN ကို လက်ခံခဲ့သော်လည်း အကောင့်ဝင်ခြင်း မပြီးဆုံးနိုင်ပါ။ ထပ်မံကြိုးစားပါ။',
+  'auth.sessionExpired': 'ဤစက်ကို ဆာဗာမှ ထွက်စေခဲ့သည်။ ပြန်ချိတ်ဆက်ရန် ဝန်ထမ်း PIN ကို ထပ်ထည့်ပါ။', // TODO(native-review)
+  'auth.adminPasswordWrong': 'စီမံသူ စကားဝှက် မမှန်ပါ။', // TODO(native-review)
   // TODO(native-review)
   'auth.login.wait': 'ထပ်မံမကြိုးစားမီ စောင့်ပါ',
   // TODO(native-review)
@@ -213,6 +231,8 @@ export const dictMy = {
   // TODO(native-review)
   'sale.discount': 'လျှော့ဈေး',
   // TODO(native-review)
+  'sale.lineDiscount': 'လျှော့ဈေး %',
+  // TODO(native-review)
   'sale.complete': 'ရောင်းချမှု ပြီးစီးပါ',
   // TODO(native-review)
   'sale.tenderTitle': 'ငွေလက်ခံပါ',
@@ -220,6 +240,24 @@ export const dictMy = {
   'sale.cash': 'ငွေသား',
   // TODO(native-review)
   'sale.kbzpay': 'KBZPay',
+  // TODO(native-review)
+  'sale.kbzpay.scan': 'ဖောက်သည်အား စကင်ဖတ်၍ ငွေပေးချေရန် ပြောပါ',
+  // TODO(native-review)
+  'sale.kbzpay.noQr': 'KBZPay QR မတင်ရသေးပါ။ Setup တွင် ဆေးခန်း၏ QR ကို ထည့်ပါ။',
+  // TODO(native-review)
+  'sale.kbzpay.received': 'ငွေလက်ခံရရှိပြီး',
+  // TODO(native-review)
+  'setup.paymentQr': 'KBZPay QR',
+  // TODO(native-review)
+  'setup.paymentQrHint': 'ငွေပေးချေချိန်တွင် ဖောက်သည်အား ပြသည်။ ဆေးခန်း၏ KBZPay QR ကို တင်ပါ။',
+  // TODO(native-review)
+  'setup.paymentQrChoose': 'QR ရွေးပါ',
+  // TODO(native-review)
+  'setup.paymentQrReplace': 'QR အစားထိုးပါ',
+  // TODO(native-review)
+  'setup.paymentQrRemove': 'QR ဖယ်ရှားပါ',
+  // TODO(native-review)
+  'setup.paymentQrNone': 'KBZPay QR မရှိသေးပါ — ငွေပေးချေချိန်တွင် ပြ၍မရပါ။',
   // TODO(native-review)
   'sale.wave': 'Wave',
   // TODO(native-review)
@@ -429,6 +467,11 @@ export const dictMy = {
   'setup.locale': 'ဘာသာစကား', // TODO(native-review)
   'setup.addons': 'လိုင်စင်ပါ အပိုပရိုဂရမ်များ', // TODO(native-review)
   'stocks.title': 'ကုန်ပစ္စည်းလက်ကျန်', // TODO(native-review)
+  'stocks.photo': 'ဓာတ်ပုံ', // TODO(native-review)
+  'stocks.photoNone': 'ဓာတ်ပုံ မရှိသေးပါ — ဝန်ထမ်းများ အမည်သာ မြင်ရပါမည်။', // TODO(native-review)
+  'stocks.photoAdd': 'ဓာတ်ပုံ ထည့်ရန်', // TODO(native-review)
+  'stocks.photoReplace': 'ဓာတ်ပုံ အစားထိုးရန်', // TODO(native-review)
+  'stocks.photoRemove': 'ဓာတ်ပုံ ဖယ်ရှားရန်', // TODO(native-review)
   'stocks.add': 'ကုန်ပစ္စည်း ထည့်ပါ', // TODO(native-review)
   'stocks.receive': 'ကုန်ပစ္စည်း လက်ခံပါ', // TODO(native-review)
   'stocks.edit': 'ကုန်ပစ္စည်း ပြင်ပါ', // TODO(native-review)
@@ -442,7 +485,7 @@ export const dictMy = {
   'stocks.price': 'ရောင်းစျေး', // TODO(native-review)
   'stocks.stock': 'လက်ကျန်', // TODO(native-review)
   'stocks.lowStock': 'လက်ကျန်နည်း', // TODO(native-review)
-  'stocks.type': 'အမျိုးအစား', // TODO(native-review)
+  'stocks.type': 'ပစ္စည်းအမျိုးအစား', // TODO(native-review)
   'stocks.lot': 'အတွဲနံပါတ်', // TODO(native-review)
   'stocks.expiry': 'သက်တမ်းကုန်', // TODO(native-review)
   'stocks.lookup': 'ဘားကုဒ် ရှာပါ', // TODO(native-review)
@@ -565,4 +608,102 @@ export const dictMy = {
   'ops.export.submit': 'ဒေတာ ဒေါင်းလုဒ်လုပ်ရန်', // TODO(native-review)
   'ops.adminOnly': 'စီမံခန့်ခွဲသူများသာ လုပ်ငန်းစီမံမှုကို ဖွင့်နိုင်ပါသည်။', // TODO(native-review)
   'ops.failed': 'လုပ်ဆောင်၍ မရပါ။ အင်တာနက်ကို စစ်ပြီး ထပ်ကြိုးစားပါ။', // TODO(native-review)
+  'shell.storageTag': 'သိုလှောင်မှု မကာကွယ်ရသေး', // TODO(native-review)
+  'today.allClear': 'အားလုံး ရှင်းလင်း', // TODO(native-review)
+  'calendar.todayJump': 'ယနေ့', // TODO(native-review)
+  'sale.emptyCatalogue': 'ဤအမျိုးအစားတွင် မရှိသေးပါ။', // TODO(native-review)
+  'stocks.empty': 'ကုန်ပစ္စည်း မရှိသေးပါ — ထည့်ပါ သို့မဟုတ် ကုန်လက်ခံပါ။', // TODO(native-review)
+  'analytics.locked': 'ခွဲခြမ်းစိတ်ဖြာမှု သော့ခတ်ထား', // TODO(native-review)
+  'analytics.lockedBody': 'လုပ်ငန်းတစ်ခုလုံး၏ ငွေကြေးကိန်းဂဏန်းများကို အက်ဒမင်စကားဝှက်ဖြင့် ကာကွယ်ထားသည်။', // TODO(native-review)
+  'analytics.unlock': 'ဖွင့်ရန်', // TODO(native-review)
+  'analytics.tab.overview': 'ခြုံငုံသုံးသပ်', // TODO(native-review)
+  'analytics.tab.payroll': 'လစာ', // TODO(native-review)
+  'analytics.tab.expenses': 'အသုံးစရိတ်', // TODO(native-review)
+  'analytics.range.daily': 'နေ့စဉ်', // TODO(native-review)
+  'analytics.range.weekly': 'အပတ်စဉ်', // TODO(native-review)
+  'analytics.range.monthly': 'လစဉ်', // TODO(native-review)
+  'analytics.range.yearly': 'နှစ်စဉ်', // TODO(native-review)
+  'analytics.revenue': 'ဝင်ငွေ', // TODO(native-review)
+  'analytics.costOfGoods': 'ကုန်ကျစရိတ်', // TODO(native-review)
+  'analytics.grossProfit': 'အကြမ်းအမြတ်', // TODO(native-review)
+  'analytics.netProfit': 'အသားတင်အမြတ်', // TODO(native-review)
+  'analytics.margin': 'အမြတ်နှုန်း', // TODO(native-review)
+  'analytics.profitLine': 'ဝင်ငွေမှ ကုန်ကျစရိတ်အားလုံးနုတ်ပြီး။', // TODO(native-review)
+  'analytics.total': 'စုစုပေါင်း', // TODO(native-review)
+  'analytics.avg.daily': 'နေ့စဉ်ပျမ်းမျှ', // TODO(native-review)
+  'analytics.avg.weekly': 'အပတ်စဉ်ပျမ်းမျှ', // TODO(native-review)
+  'analytics.avg.monthly': 'လစဉ်ပျမ်းမျှ', // TODO(native-review)
+  'analytics.avg.yearly': 'နှစ်စဉ်ပျမ်းမျှ', // TODO(native-review)
+  'analytics.payrollHint': 'ဝန်ထမ်းတစ်ဦးချင်း ပုံသေလစာ။ ဤစက်တွင် သိမ်းဆည်းသည်။', // TODO(native-review)
+  'analytics.salary': 'လစဉ်လစာ', // TODO(native-review)
+  'analytics.totalPayroll': 'စုစုပေါင်းလစာ', // TODO(native-review)
+  'analytics.expensesHint': 'ကုန်ပစ္စည်းမပါ အခြားအသုံးစရိတ်။ ဤစက်တွင် သိမ်းဆည်းသည်။', // TODO(native-review)
+  'analytics.addExpense': 'အသုံးစရိတ်ထည့်', // TODO(native-review)
+  'analytics.expenseLabel': 'ဖော်ပြချက်', // TODO(native-review)
+  'analytics.amount': 'ပမာဏ', // TODO(native-review)
+  'analytics.thisMonth': 'ဤလ', // TODO(native-review)
+  'analytics.removeExpense': 'အသုံးစရိတ်ဖျက်ရန်', // TODO(native-review)
+  'analytics.cat.rent': 'အခန်းငှား', // TODO(native-review)
+  'analytics.cat.utilities': 'မီး/ရေ', // TODO(native-review)
+  'analytics.cat.supplies': 'ထောက်ပံ့ပစ္စည်း', // TODO(native-review)
+  'analytics.cat.marketing': 'ကြော်ငြာ', // TODO(native-review)
+  'analytics.cat.equipment': 'စက်ပစ္စည်း', // TODO(native-review)
+  'analytics.cat.other': 'အခြား', // TODO(native-review)
+  'sale.addService': 'ဝန်ဆောင်မှုထည့်', // TODO(native-review)
+  'sale.editServices': 'ဝန်ဆောင်မှုပြင်ရန်', // TODO(native-review)
+  'service.nameEn': 'အမည် (အင်္ဂလိပ်)', // TODO(native-review)
+  'service.nameMm': 'အမည် (မြန်မာ)', // TODO(native-review)
+  'service.category': 'အမျိုးအစား', // TODO(native-review)
+  'service.price': 'ဈေးနှုန်း', // TODO(native-review)
+  'service.durationMin': 'ကြာချိန် (မိနစ်)', // TODO(native-review)
+  'service.followUpDays': 'နောက်ဆက်တွဲ (ရက်)', // TODO(native-review)
+  'service.requiresLot': 'လော့နံပါတ်လိုအပ်', // TODO(native-review)
+  'service.active': 'ရောင်းချ/ဘွတ်ကင်နိုင်သည်', // TODO(native-review)
+  'service.save': 'ဝန်ဆောင်မှု သိမ်းရန်', // TODO(native-review)
+  'service.saved': 'ဝန်ဆောင်မှု သိမ်းပြီးပါပြီ။', // TODO(native-review)
+  'service.pick': 'ဝန်ဆောင်မှု', // TODO(native-review)
+  'clients.form.sexF': 'မ', // TODO(native-review)
+  'clients.form.sexM': 'ကျား', // TODO(native-review)
+  'photo.library': 'ဓာတ်ပုံမှတ်တမ်း', // TODO(native-review)
+  'photo.hint': 'အလှည့်တစ်ခုစီအတွက် မကုသမီ/ကုသပြီး ပုံများ။', // TODO(native-review)
+  'photo.addSession': 'အလှည့်ထည့်', // TODO(native-review)
+  'photo.framePair': 'မကုသမီ/ကုသပြီး', // TODO(native-review)
+  'photo.before': 'မကုသမီ', // TODO(native-review)
+  'photo.after': 'ကုသပြီး', // TODO(native-review)
+  'photo.dropBefore': 'မကုသမီပုံထည့်ပါ', // TODO(native-review)
+  'photo.dropAfter': 'ကုသပြီးပုံထည့်ပါ', // TODO(native-review)
+  'photo.note': 'မှတ်ချက် — အလင်း၊ ထောင့်၊ ကုသသည့်နေရာ', // TODO(native-review)
+  'photo.title': 'ကုသမှု', // TODO(native-review)
+  'photo.defaultTitle': 'လာရောက်မှုအသစ်', // TODO(native-review)
+  'photo.improvement': 'တိုးတက်မှု', // TODO(native-review)
+  'photo.grNone': 'မရှိ', // TODO(native-review)
+  'photo.grSlight': 'အနည်းငယ်', // TODO(native-review)
+  'photo.grModerate': 'အသင့်အတင့်', // TODO(native-review)
+  'photo.grMarked': 'သိသာ', // TODO(native-review)
+  'photo.grPending': 'အဆင့်မသတ်မှတ်ရသေး', // TODO(native-review)
+  'photo.noPhotosTitle': 'ဓာတ်ပုံမရှိသေးပါ', // TODO(native-review)
+  'photo.noPhotosBody': 'ဤလူနာအတွက် မှတ်တမ်းစတင်ရန် အလှည့်တစ်ခုထည့်ပါ။', // TODO(native-review)
+  'photo.viewPhotos': 'ဓာတ်ပုံကြည့်', // TODO(native-review)
+  'photo.done': 'ပြီးပါပြီ', // TODO(native-review)
+  'photo.removeSession': 'အလှည့်ဖျက်ရန်', // TODO(native-review)
+  'setup.telegramHandle': 'Telegram အမည်', // TODO(native-review)
+  'setup.font.geometric': 'ဂျီဩမေတြီ (Montserrat)', // TODO(native-review)
+  'setup.font.rounded': 'ဝိုင်းစက် (Poppins)', // TODO(native-review)
+  'setup.font.elegant': 'သပ်ရပ် (Cormorant Garamond)', // TODO(native-review)
+  'setup.logo': 'အမှတ်တံဆိပ် လိုဂို', // TODO(native-review)
+  'setup.logoHint': 'ဆေးခန်းအမည်အထက်တွင် ရိုက်နှိပ်ပါမည်။ ပရင်တာအတွက် အဖြူအမည်း ပြောင်းပါမည်။', // TODO(native-review)
+  'setup.logoChoose': 'လိုဂို ရွေးပါ', // TODO(native-review)
+  'setup.logoReplace': 'လိုဂို လဲပါ', // TODO(native-review)
+  'setup.logoRemove': 'လိုဂို ဖယ်ပါ', // TODO(native-review)
+  'setup.logoNone': 'လိုဂို မရှိသေးပါ — ဆေးခန်းအမည်သာ ရိုက်နှိပ်ပါမည်။', // TODO(native-review)
+  'setup.logoTooBig': 'ပုံ အရွယ်အစား ကြီးလွန်းသည်။ 4 MB အောက် သုံးပါ။', // TODO(native-review)
+  'setup.receiptHeader': 'ဘောက်ချာ ခေါင်းစီး', // TODO(native-review)
+  'setup.receiptHeaderPlaceholder': 'လိပ်စာ၊ ဖွင့်ချိန် သို့မဟုတ် အထက်တွင် ဖော်ပြလိုသည့် စာသား', // TODO(native-review)
+  'setup.receiptHeaderHint': 'ဆေးခန်းအမည်အောက်တွင် မျဉ်းဘောင်ဖြင့် ရိုက်နှိပ်ပါမည်။ ဗလာထားပါက ဖုန်းနှင့် လိပ်စာကို ရိုက်နှိပ်ပါမည်။', // TODO(native-review)
+  'sale.cashReceived': 'လက်ခံရငွေ', // TODO(native-review)
+  'sale.cashShort': 'လိုနေသေး', // TODO(native-review)
+  'setup.openDrawer': 'ငွေအံဆွဲ ဖွင့်ရန်', // TODO(native-review)
+  'setup.openDrawerHint': 'အရောင်းမပါဘဲ အံဆွဲဖွင့်သည်။ စီမံသူ စကားဝှက် လိုအပ်သည်။', // TODO(native-review)
+  'setup.drawerOpened': 'ငွေအံဆွဲ ဖွင့်ပြီးပါပြီ။', // TODO(native-review)
+  'setup.drawerFailed': 'ပရင်တာ မချိတ်ဆက်ထားသဖြင့် အံဆွဲ မဖွင့်နိုင်ပါ။', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

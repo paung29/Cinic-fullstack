@@ -6,10 +6,6 @@ export const dictZh = {
   // TODO(native-review)
   'brand.location': '腊戍 · 缅甸',
   // TODO(native-review)
-  'shell.userName': 'Hkawn Mai 医生',
-  // TODO(native-review)
-  'shell.userRole': '管理员',
-  // TODO(native-review)
   'shell.logout': '退出登录',
   // TODO(native-review)
   'shell.tab.home': '主页',
@@ -126,11 +122,11 @@ export const dictZh = {
   // TODO(native-review)
   'locale.label': '预览语言',
   // TODO(native-review)
-  'locale.my': '缅甸语',
+  'locale.my': 'မြန်မာ (MY)',
   // TODO(native-review)
-  'locale.en': '英语',
+  'locale.en': 'English (EN)',
   // TODO(native-review)
-  'locale.zh': '简体中文',
+  'locale.zh': '简体中文 (ZH)',
   // TODO(native-review)
   'demo.burmeseSample': 'ကျေးဇူးတင်ပါသည်',
   // TODO(native-review): intentionally omitted M1 dev-only fallback fixture.
@@ -148,16 +144,38 @@ export const dictZh = {
   // TODO(native-review)
   'auth.setup.staffId': '安装人员员工 ID',
   // TODO(native-review)
+  'auth.setup.ownerEmail': '所有者邮箱',
+  // TODO(native-review)
+  'auth.setup.ownerPassword': '所有者密码',
+  // TODO(native-review)
+  'auth.setup.pairHint': '使用诊所所有者账户登录以添加此设备，然后设置日常使用的 PIN。',
+  // TODO(native-review)
+  'auth.setup.passwordHint': '至少 8 个字符。用于在其他设备登录和批准折扣 — 不用于日常收银。',
+  // TODO(native-review)
+  'auth.setup.pinNew': '现在设置 4 位 PIN。这是员工每天在收银台输入的密码，不是上面的账户密码。',
+  // TODO(native-review)
+  'auth.setup.pinExisting': '请输入此账户的 4 位员工 PIN — 不是上面的账户密码。',
+  // TODO(native-review)
+  'auth.setup.createSubmit': '创建诊所',
+  // TODO(native-review)
+  'auth.setup.pairSubmit': '添加此设备',
+  // TODO(native-review)
   'auth.setup.internetRequired': '此设备必须先连接互联网完成一次设置。',
   // TODO(native-review)
   'auth.setup.repair': '此会话需要在线登录才能修复此设备。',
   // TODO(native-review)
-  'auth.login.who': '谁在工作？',
+  'auth.login.who': '你好',
+  // TODO(native-review)
+  'field.reveal': '显示',
+  // TODO(native-review)
+  'field.hide': '隐藏',
   // TODO(native-review)
   'auth.login.pin': '输入 PIN',
   // TODO(native-review)
   'auth.login.wrongPin': 'PIN 不正确',
   'auth.login.signInFailed': 'PIN 已通过验证，但登录未能完成。请重试。',
+  'auth.sessionExpired': '服务器已将此设备登出。请重新输入员工 PIN 以重新连接。', // TODO(native-review)
+  'auth.adminPasswordWrong': '管理员密码不正确。', // TODO(native-review)
   // TODO(native-review)
   'auth.login.wait': '请稍候再试',
   // TODO(native-review)
@@ -213,6 +231,8 @@ export const dictZh = {
   // TODO(native-review)
   'sale.discount': '折扣',
   // TODO(native-review)
+  'sale.lineDiscount': '折扣 %',
+  // TODO(native-review)
   'sale.complete': '完成销售',
   // TODO(native-review)
   'sale.tenderTitle': '收款',
@@ -220,6 +240,24 @@ export const dictZh = {
   'sale.cash': '现金',
   // TODO(native-review)
   'sale.kbzpay': 'KBZPay',
+  // TODO(native-review)
+  'sale.kbzpay.scan': '请顾客扫码支付',
+  // TODO(native-review)
+  'sale.kbzpay.noQr': '尚未上传 KBZPay 收款码。请在设置中添加诊所的收款码。',
+  // TODO(native-review)
+  'sale.kbzpay.received': '已收到付款',
+  // TODO(native-review)
+  'setup.paymentQr': 'KBZPay 收款码',
+  // TODO(native-review)
+  'setup.paymentQrHint': '付款时向顾客展示。请上传诊所的 KBZPay 商户收款码 — 金额显示在旁边。',
+  // TODO(native-review)
+  'setup.paymentQrChoose': '选择收款码',
+  // TODO(native-review)
+  'setup.paymentQrReplace': '更换收款码',
+  // TODO(native-review)
+  'setup.paymentQrRemove': '移除收款码',
+  // TODO(native-review)
+  'setup.paymentQrNone': '尚无 KBZPay 收款码 — 收银时无法展示。',
   // TODO(native-review)
   'sale.wave': 'Wave',
   // TODO(native-review)
@@ -429,6 +467,11 @@ export const dictZh = {
   'setup.locale': '语言', // TODO(native-review)
   'setup.addons': '许可附加组件', // TODO(native-review)
   'stocks.title': '库存', // TODO(native-review)
+  'stocks.photo': '照片', // TODO(native-review)
+  'stocks.photoNone': '尚无照片 — 员工只能看到名称。', // TODO(native-review)
+  'stocks.photoAdd': '添加照片', // TODO(native-review)
+  'stocks.photoReplace': '更换照片', // TODO(native-review)
+  'stocks.photoRemove': '移除照片', // TODO(native-review)
   'stocks.add': '添加产品', // TODO(native-review)
   'stocks.receive': '收货', // TODO(native-review)
   'stocks.edit': '编辑产品', // TODO(native-review)
@@ -565,4 +608,102 @@ export const dictZh = {
   'ops.export.submit': '下载导出数据', // TODO(native-review)
   'ops.adminOnly': '只有管理员才能打开运营管理。', // TODO(native-review)
   'ops.failed': '操作未能完成。请检查网络后重试。', // TODO(native-review)
+  'shell.storageTag': '存储未受保护', // TODO(native-review)
+  'today.allClear': '全部正常', // TODO(native-review)
+  'calendar.todayJump': '今天', // TODO(native-review)
+  'sale.emptyCatalogue': '该分类暂无项目。', // TODO(native-review)
+  'stocks.empty': '暂无商品 — 添加或收货。', // TODO(native-review)
+  'analytics.locked': '分析已锁定', // TODO(native-review)
+  'analytics.lockedBody': '全店财务数据由管理员密码保护，与员工密码分开。', // TODO(native-review)
+  'analytics.unlock': '解锁', // TODO(native-review)
+  'analytics.tab.overview': '概览', // TODO(native-review)
+  'analytics.tab.payroll': '薪资', // TODO(native-review)
+  'analytics.tab.expenses': '支出', // TODO(native-review)
+  'analytics.range.daily': '按日', // TODO(native-review)
+  'analytics.range.weekly': '按周', // TODO(native-review)
+  'analytics.range.monthly': '按月', // TODO(native-review)
+  'analytics.range.yearly': '按年', // TODO(native-review)
+  'analytics.revenue': '营收', // TODO(native-review)
+  'analytics.costOfGoods': '商品成本', // TODO(native-review)
+  'analytics.grossProfit': '毛利', // TODO(native-review)
+  'analytics.netProfit': '净利', // TODO(native-review)
+  'analytics.margin': '利润率', // TODO(native-review)
+  'analytics.profitLine': '营收减去所有成本、薪资与支出。', // TODO(native-review)
+  'analytics.total': '合计', // TODO(native-review)
+  'analytics.avg.daily': '日均', // TODO(native-review)
+  'analytics.avg.weekly': '周均', // TODO(native-review)
+  'analytics.avg.monthly': '月均', // TODO(native-review)
+  'analytics.avg.yearly': '年均', // TODO(native-review)
+  'analytics.payrollHint': '每位员工的固定月薪。保存在此设备上。', // TODO(native-review)
+  'analytics.salary': '月薪', // TODO(native-review)
+  'analytics.totalPayroll': '月薪总额', // TODO(native-review)
+  'analytics.expensesHint': '库存以外的经常性与一次性支出。保存在此设备上。', // TODO(native-review)
+  'analytics.addExpense': '添加支出', // TODO(native-review)
+  'analytics.expenseLabel': '说明', // TODO(native-review)
+  'analytics.amount': '金额', // TODO(native-review)
+  'analytics.thisMonth': '本月', // TODO(native-review)
+  'analytics.removeExpense': '删除支出', // TODO(native-review)
+  'analytics.cat.rent': '租金', // TODO(native-review)
+  'analytics.cat.utilities': '水电', // TODO(native-review)
+  'analytics.cat.supplies': '耗材', // TODO(native-review)
+  'analytics.cat.marketing': '营销', // TODO(native-review)
+  'analytics.cat.equipment': '设备', // TODO(native-review)
+  'analytics.cat.other': '其他', // TODO(native-review)
+  'sale.addService': '添加服务', // TODO(native-review)
+  'sale.editServices': '编辑服务', // TODO(native-review)
+  'service.nameEn': '名称（英文）', // TODO(native-review)
+  'service.nameMm': '名称（缅文）', // TODO(native-review)
+  'service.category': '类别', // TODO(native-review)
+  'service.price': '价格', // TODO(native-review)
+  'service.durationMin': '时长（分钟）', // TODO(native-review)
+  'service.followUpDays': '复诊间隔（天）', // TODO(native-review)
+  'service.requiresLot': '需要批号', // TODO(native-review)
+  'service.active': '可预约与销售', // TODO(native-review)
+  'service.save': '保存服务', // TODO(native-review)
+  'service.saved': '服务已保存。', // TODO(native-review)
+  'service.pick': '服务', // TODO(native-review)
+  'clients.form.sexF': '女', // TODO(native-review)
+  'clients.form.sexM': '男', // TODO(native-review)
+  'photo.library': '照片库', // TODO(native-review)
+  'photo.hint': '每次疗程的前后对比照片与改善评级。', // TODO(native-review)
+  'photo.addSession': '添加疗程', // TODO(native-review)
+  'photo.framePair': '术前术后一组', // TODO(native-review)
+  'photo.before': '术前', // TODO(native-review)
+  'photo.after': '术后', // TODO(native-review)
+  'photo.dropBefore': '放入术前照片', // TODO(native-review)
+  'photo.dropAfter': '放入术后照片', // TODO(native-review)
+  'photo.note': '备注 — 光线、角度、治疗部位', // TODO(native-review)
+  'photo.title': '治疗', // TODO(native-review)
+  'photo.defaultTitle': '新到访', // TODO(native-review)
+  'photo.improvement': '改善程度', // TODO(native-review)
+  'photo.grNone': '无', // TODO(native-review)
+  'photo.grSlight': '轻微', // TODO(native-review)
+  'photo.grModerate': '中等', // TODO(native-review)
+  'photo.grMarked': '显著', // TODO(native-review)
+  'photo.grPending': '未评级', // TODO(native-review)
+  'photo.noPhotosTitle': '暂无照片', // TODO(native-review)
+  'photo.noPhotosBody': '添加疗程以开始该患者的前后对比记录。', // TODO(native-review)
+  'photo.viewPhotos': '查看照片', // TODO(native-review)
+  'photo.done': '完成', // TODO(native-review)
+  'photo.removeSession': '删除疗程', // TODO(native-review)
+  'setup.telegramHandle': 'Telegram 账号', // TODO(native-review)
+  'setup.font.geometric': '几何 (Montserrat)', // TODO(native-review)
+  'setup.font.rounded': '圆润 (Poppins)', // TODO(native-review)
+  'setup.font.elegant': '优雅 (Cormorant Garamond)', // TODO(native-review)
+  'setup.logo': '品牌标志', // TODO(native-review)
+  'setup.logoHint': '打印在诊所名称上方。会转换为黑白以适配收据打印机。', // TODO(native-review)
+  'setup.logoChoose': '选择标志', // TODO(native-review)
+  'setup.logoReplace': '更换标志', // TODO(native-review)
+  'setup.logoRemove': '移除标志', // TODO(native-review)
+  'setup.logoNone': '尚未添加标志 — 仅打印诊所名称。', // TODO(native-review)
+  'setup.logoTooBig': '图片过大。请使用小于 4 MB 的图片。', // TODO(native-review)
+  'setup.receiptHeader': '收据页眉', // TODO(native-review)
+  'setup.receiptHeaderPlaceholder': '地址、营业时间，或任何想显示在顶部的内容', // TODO(native-review)
+  'setup.receiptHeaderHint': '打印在诊所名称下方的横线区域内。留空则改为打印电话与地址。', // TODO(native-review)
+  'sale.cashReceived': '收到现金', // TODO(native-review)
+  'sale.cashShort': '尚缺', // TODO(native-review)
+  'setup.openDrawer': '打开钱箱', // TODO(native-review)
+  'setup.openDrawerHint': '无需交易即可打开钱箱。需要管理员密码。', // TODO(native-review)
+  'setup.drawerOpened': '钱箱已打开。', // TODO(native-review)
+  'setup.drawerFailed': '未连接打印机，无法打开钱箱。', // TODO(native-review)
 } satisfies Partial<TranslationDictionary>;

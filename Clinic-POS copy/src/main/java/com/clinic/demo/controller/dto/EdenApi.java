@@ -13,6 +13,17 @@ public final class EdenApi {
     public record HealthResponse(boolean ok, OffsetDateTime serverTime) {}
 
     public record LoginRequest(@NotNull UUID staffId, @NotBlank @Pattern(regexp = "\\d{4}") String pin) {}
+
+    /**
+     * Pairing a device by the owner's email instead of a staff UUID. The UUID
+     * form above is unusable by a human at a counter, so it stays for machines
+     * and this is what the login screen asks for.
+     */
+    public record EmailLoginRequest(
+            @Email @NotBlank String email,
+            @NotBlank String password,
+            @NotBlank @Pattern(regexp = "\\d{4}") String pin
+    ) {}
     public record RefreshRequest(@NotBlank String refresh) {}
     public record LogoutRequest(@NotBlank String refresh) {}
     public record ElevationRequest(@NotBlank String password, String screen) {}
@@ -21,10 +32,10 @@ public final class EdenApi {
     public record ElevationResponse(UUID elevationToken, OffsetDateTime expiresAt) {}
 
     public record ClinicDto(UUID id, String name, String phone, String address, int roundingStep,
-            int creditLimitMmk, Map<String,Object> receipt, String receiptFooter, String logoUrl,
+            int creditLimitMmk, Map<String,Object> receipt, String receiptFooter, String receiptHeader, String telegramHandle, String logoUrl,
             boolean receiptQr, boolean receiptNextVisit, String receiptTemplate, String receiptHeaderFont,
             String receiptDivider, String consentMode, Map<String,Object> addons, Map<String,Object> featureFlags) {}
-    public record ClinicPatch(String name, String phone, String address, String receiptFooter, String logoUrl,
+    public record ClinicPatch(String name, String phone, String address, String telegramHandle, String receiptHeader, String receiptFooter, String logoUrl,
             Integer roundingStep, @Min(0) Integer creditLimitMmk, String consentMode, Boolean receiptQr,
             Boolean receiptNextVisit, String receiptTemplate, String receiptHeaderFont, String receiptDivider) {}
     public record StaffDto(UUID id, String name, String role, boolean takesBookings, boolean active) {}
@@ -34,6 +45,25 @@ public final class EdenApi {
             Boolean takesBookings) {}
     public record ServiceDto(UUID id, String category, String nameMm, String nameEn, long price,
             Integer durationMin, boolean requiresLot, Integer defaultFollowupDays, boolean active) {}
+
+    public record ServiceInput(@NotNull UUID id, String category, @NotBlank String nameMm, String nameEn,
+                               @NotNull @Min(0) Long price, Integer durationMin, Boolean requiresLot,
+                               Integer defaultFollowupDays, Boolean active) {}
+
+    public record ServicePatch(String category, String nameMm, String nameEn, @Min(0) Long price,
+                               Integer durationMin, Boolean requiresLot, Integer defaultFollowupDays, Boolean active) {}
+
+    public record ServiceEnvelope(ServiceDto service, Boolean replayed) {}
+    /**
+     * Photos travel as base64 in JSON rather than multipart. The device queues
+     * uploads in the same offline outbox as sales, and that queue stores JSON
+     * payloads — a multipart body could not sit in it and wait for a
+     * connection, which is the whole point on a clinic's patchy internet.
+     */
+    public record ProductPhotoInput(@NotBlank String contentType, @NotBlank String data) {}
+
+    public record ProductPhotoResponse(UUID productId, String photoKey, String contentType, String data) {}
+
     public record ProductDto(UUID id, String name, String category, String subcategory, int sortOrder,
             String barcode, long cost, long price, BigDecimal stockQty, BigDecimal lowStockAt,
             BigDecimal reorderAt, String stockType, String soldBy, boolean requiresLot,

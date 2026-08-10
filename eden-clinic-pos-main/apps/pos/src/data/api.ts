@@ -21,12 +21,17 @@ import {
   licenseSchema,
   loginResponseSchema,
   loginSchema,
+  productPhotoInputSchema,
+  productPhotoResponseSchema,
   patientResponseSchema,
   patientSchema,
   paymentResponseSchema,
   paymentSchema,
   productResponseSchema,
   productPatchSchema,
+  serviceSchema,
+  servicePatchSchema,
+  serviceCreateResponseSchema,
   productSchema,
   saleResponseSchema,
   saleSchema,
@@ -61,6 +66,11 @@ import {
   type PaymentWire,
   type ProductResponseWire,
   type ProductPatchWire,
+  type ProductPhotoInputWire,
+  type ProductPhotoResponseWire,
+  type ServiceWire,
+  type ServicePatchWire,
+  type ServiceCreateResponseWire,
   type ProductWire,
   type SaleResponseWire,
   type SaleWire,
@@ -106,11 +116,17 @@ export interface ApiClient {
   updateClinic(input: ClinicPatchWire, elevationToken: string): Promise<ClinicWire>;
   updatePatient(id: string, input: PatientWire): Promise<PatientWire>;
   updateProduct(id: string, input: ProductPatchWire, elevationToken: string): Promise<ProductWire>;
+  createService?(input: ServiceWire, elevationToken: string): Promise<ServiceCreateResponseWire>;
+  updateService?(id: string, input: ServicePatchWire, elevationToken: string): Promise<ServiceWire>;
   adjustStock(input: StockAdjustWire, elevationToken: string): Promise<ProductWire>;
   voidSale(id: string, reason: string, elevationToken: string): Promise<SaleResponseWire>;
   followups(from?: string, to?: string): Promise<FollowupWire[]>;
   dailyReport(date: string, elevationToken: string): Promise<DailyReportWire>;
   lookupBarcode(code: string): Promise<BarcodeLookupWire>;
+  /** Optional so a mock server without photo storage still satisfies the client. */
+  putProductPhoto?(productId: string, input: ProductPhotoInputWire): Promise<ProductWire>;
+  getProductPhoto?(productId: string): Promise<ProductPhotoResponseWire>;
+  deleteProductPhoto?(productId: string): Promise<ProductWire>;
   clinicalRecords?(patientId: string, elevationToken: string): Promise<ClinicalRecordWire[]>;
   createClinicalRecord?(patientId: string, input: ClinicalRecordInputWire, elevationToken: string): Promise<ClinicalRecordWire>;
   createStaffAccount?(input: StaffAccountInputWire): Promise<StaffWire>;
@@ -146,7 +162,7 @@ export class ApiHttpError extends Error {
 }
 
 type RequestOptions<TSchema extends z.ZodType> = {
-  method: 'GET' | 'POST' | 'PATCH';
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   path: string;
   schema: TSchema;
   body?: unknown;
@@ -184,7 +200,7 @@ export function createApiClient(options: {
   }
 
   async function sendRequest(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     path: string,
     body: unknown | undefined,
     needsToken: boolean,
@@ -315,6 +331,26 @@ export function createApiClient(options: {
         elevationToken,
       });
     },
+    createService(input, elevationToken): Promise<ServiceCreateResponseWire> {
+      return request({
+        method: 'POST',
+        path: '/services',
+        body: serviceSchema.parse(input),
+        schema: serviceCreateResponseSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
+    updateService(id, input, elevationToken): Promise<ServiceWire> {
+      return request({
+        method: 'PATCH',
+        path: `/services/${encodeURIComponent(id)}`,
+        body: servicePatchSchema.parse(input),
+        schema: serviceSchema,
+        protected: true,
+        elevationToken,
+      });
+    },
     adjustStock(input, elevationToken): Promise<ProductWire> {
       return request({
         method: 'POST',
@@ -356,6 +392,31 @@ export function createApiClient(options: {
         method: 'GET',
         path: `/barcode-lookup?code=${encodeURIComponent(code)}`,
         schema: barcodeLookupSchema,
+        protected: true,
+      });
+    },
+    putProductPhoto(productId, input): Promise<ProductWire> {
+      return request({
+        method: 'PUT',
+        path: `/products/${encodeURIComponent(productId)}/photo`,
+        body: productPhotoInputSchema.parse(input),
+        schema: productSchema,
+        protected: true,
+      });
+    },
+    getProductPhoto(productId): Promise<ProductPhotoResponseWire> {
+      return request({
+        method: 'GET',
+        path: `/products/${encodeURIComponent(productId)}/photo`,
+        schema: productPhotoResponseSchema,
+        protected: true,
+      });
+    },
+    deleteProductPhoto(productId): Promise<ProductWire> {
+      return request({
+        method: 'DELETE',
+        path: `/products/${encodeURIComponent(productId)}/photo`,
+        schema: productSchema,
         protected: true,
       });
     },

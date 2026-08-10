@@ -11,9 +11,9 @@ import { createOutbox, type OutboxStatusView } from '@/data/outbox';
 import { readApiBaseUrl } from '@/data/runtimeConfig';
 import { createStorageDiagnostics, type StorageDiagnostics } from '@/data/storageDiagnostics';
 import { readLocalePreference, saveLocalePreference } from '@/data/printerProfile';
-import type { LoginWire, SetupRequestWire } from '@/data/types';
+import type { EmailLoginWire, LoginWire, SetupRequestWire } from '@/data/types';
 import { useLocaleControl, useT } from '@/i18n';
-import { createSessionController, type SessionController, type SessionIdentity } from '@/modules/auth/sessionController';
+import { createSessionController, type PendingOnlineSignIn, type SessionController, type SessionIdentity } from '@/modules/auth/sessionController';
 import { createWebCryptoSessionCrypto } from '@/modules/auth/sessionEnvelope';
 import { ToastProvider } from '@/ui';
 import { PwaUpdateProvider } from './pwaUpdate';
@@ -30,6 +30,7 @@ export type ClinicRuntime = {
   beginCaptureBoundary(): () => void;
   refreshSync(): Promise<OutboxStatusView>;
   provision(input: LoginWire): Promise<SessionIdentity>;
+  provisionByEmail(input: EmailLoginWire): Promise<SessionIdentity>;
   install(input: SetupRequestWire): Promise<SessionIdentity>;
   signInOnline(input: LoginWire): Promise<SessionIdentity>;
   unlockOffline(staffId: string, pin: string): Promise<SessionIdentity>;
@@ -101,8 +102,9 @@ export function ClinicRuntimeProvider({ children }: { children: ReactNode }) {
             setContext((current) => ({ ...current, revision: current.revision + 1 }));
           }
         };
-        const completeOnlineSignIn = async (input: LoginWire): Promise<SessionIdentity> => {
-          const pending = await session.beginOnlineSignIn(input);
+        // Bootstrap-then-commit is identical however the device proved itself,
+        // so both sign-in doors hand their pending session to the same finisher.
+        const finishSignIn = async (pending: PendingOnlineSignIn): Promise<SessionIdentity> => {
           try {
             const syncStaffResult = await bootstrap({ db: clinicDb, api, deviceId, clock });
             await pending.commit();
@@ -115,6 +117,10 @@ export function ClinicRuntimeProvider({ children }: { children: ReactNode }) {
             throw error;
           }
         };
+        const completeOnlineSignIn = async (input: LoginWire): Promise<SessionIdentity> =>
+          finishSignIn(await session.beginOnlineSignIn(input));
+        const completeEmailSignIn = async (input: EmailLoginWire): Promise<SessionIdentity> =>
+          finishSignIn(await session.beginOnlineSignInWithEmail(input));
         const runtime: ClinicRuntime = {
           db: clinicDb,
           api,
@@ -129,6 +135,7 @@ export function ClinicRuntimeProvider({ children }: { children: ReactNode }) {
           },
           refreshSync,
           provision: completeOnlineSignIn,
+          provisionByEmail: completeEmailSignIn,
           async install(input) {
             if (auth.setup === undefined) throw new Error('Clinic setup is unavailable.');
             const created = await auth.setup(input);

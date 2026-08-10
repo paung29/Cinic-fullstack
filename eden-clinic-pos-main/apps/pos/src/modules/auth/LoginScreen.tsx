@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ApiHttpError, ApiNetworkError } from '@/data/api';
-import { authEnvelopeMetaKey } from '@/data/db';
+import { authEnvelopeMetaKey, authRepairMetaKey } from '@/data/db';
 import { returnToAfterSignIn } from '@/data/returnTo';
 import { useClinicRuntimeStatus } from '@/app/providers';
 import { useLocaleControl, useT, type Locale } from '@/i18n';
-import {
-  InvalidStoredEnvelopeError,
-  pinDelayMs,
-  type SessionIdentity,
-} from '@/modules/auth/sessionController';
-import { Button, Card, Field, Input, PinPad, Skeleton } from '@/ui';
+import { loginFailureFor } from '@/modules/auth/loginErrors';
+import { pinDelayMs, type SessionIdentity } from '@/modules/auth/sessionController';
+import { Button, Card, Field, Input, PinPad, SecretInput, Skeleton } from '@/ui';
 import styles from './LoginScreen.module.css';
 
 const showDevelopmentLocaleOverride = process.env.NODE_ENV === 'development';
@@ -27,7 +23,14 @@ export function LoginScreen() {
   const [staff, setStaff] = useState<SessionIdentity[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<SessionIdentity | undefined>();
   const [installerStaffId, setInstallerStaffId] = useState('');
-  const [showClinicSetup, setShowClinicSetup] = useState(false);
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPassword, setOwnerPassword] = useState('');
+  // A device with no staff on it opens straight into create-clinic. Leading
+  // with the installer staff ID stranded the one user who cannot possibly have
+  // one — a brand-new clinic whose server is still empty — behind a secondary
+  // ghost button. Joining an existing clinic is a technician's job and stays
+  // one tap away on the toggle.
+  const [showClinicSetup, setShowClinicSetup] = useState(true);
   const [clinicName, setClinicName] = useState('');
   const [clinicPhone, setClinicPhone] = useState('');
   const [clinicAddress, setClinicAddress] = useState('');
@@ -83,6 +86,14 @@ export function LoginScreen() {
   const lang = locale === 'zh' ? 'zh-Hans' : locale;
   const isDeviceSetup = runtime !== undefined && staff.length === 0;
   const activeStaffId = isDeviceSetup ? installerStaffId : selectedStaff?.staffId;
+  // Owner email wins when it is filled in. The staff-ID field stays for the
+  // technician rolling out devices, and for the e2e suite that pairs by ID.
+  const pairingByEmail = isDeviceSetup && !showClinicSetup && ownerEmail.trim() !== '' && ownerPassword !== '';
+  // Mirrors the guards in handleSubmit so the button can say "not yet" by being
+  // disabled, rather than looking alive and then silently doing nothing.
+  const setupReady = pin.length === 4 && !isBusy && (showClinicSetup
+    ? clinicName.trim() !== '' && adminName.trim() !== '' && adminPhone.trim() !== '' && adminEmail.trim() !== '' && adminPassword.length >= 8
+    : pairingByEmail || (activeStaffId !== undefined && activeStaffId !== ''));
 
   const clearForFailedPin = () => {
     setPin('');
@@ -93,9 +104,16 @@ export function LoginScreen() {
   };
 
   const handleSubmit = async () => {
-    const invalidExistingClinic = !showClinicSetup && (activeStaffId === undefined || activeStaffId === '');
+    const invalidExistingClinic = !showClinicSetup && !pairingByEmail && (activeStaffId === undefined || activeStaffId === '');
     const invalidNewClinic = showClinicSetup && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
-    if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy || isWaiting) {
+    if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy) {
+      return;
+    }
+    if (isWaiting) {
+      // Naming the backoff matters: the submit is refused for up to 30s, and
+      // without a message the pad just goes dead and staff retype into a
+      // screen they read as broken. Deliberately does not restart the timer.
+      setMessage('wait');
       return;
     }
 
@@ -114,24 +132,48 @@ export function LoginScreen() {
           password: adminPassword,
           pin,
         });
+      } else if (pairingByEmail) {
+        await runtime.provisionByEmail({ email: ownerEmail.trim(), password: ownerPassword, pin });
       } else if (isDeviceSetup) {
         await runtime.provision({ staff_id: activeStaffId!, pin });
       } else if (needsOnlineRepair || await runtime.db.meta.get(authEnvelopeMetaKey(activeStaffId!)) === undefined) {
         await runtime.signInOnline({ staff_id: activeStaffId!, pin });
+      } else if (await runtime.db.meta.get(authRepairMetaKey(activeStaffId!)) !== undefined) {
+        // The server previously rejected this stored credential. Prefer a real
+        // sign-in so the device stops unlocking into a session that cannot use
+        // any protected feature — but ANY failure falls back to the envelope,
+        // not just an unreachable server. A server that has forgotten this
+        // staff member — reset database, redeploy, backup restored from before
+        // the account existed — answers 401 TOKEN_INVALID, indistinguishable
+        // from a wrong PIN. Treating that as a refusal would lock the clinic
+        // out of the one device holding its patients and its queued sales,
+        // which is the exact failure offline-first exists to prevent.
+        try {
+          await runtime.signInOnline({ staff_id: activeStaffId!, pin });
+        } catch {
+          // The offline attempt's own error is the one worth surfacing, so the
+          // server's is deliberately dropped here. A wrong PIN throws
+          // WrongPinError below and reads as a wrong PIN; an envelope no PIN
+          // can open throws InvalidStoredEnvelopeError and asks for repair.
+          // Preferring the server's 401 over either would relabel a broken
+          // envelope as a bad PIN and send staff retyping one that cannot work.
+          await runtime.unlockOffline(activeStaffId!, pin);
+        }
       } else {
         await runtime.unlockOffline(activeStaffId!, pin);
       }
       const destination = returnToAfterSignIn(isDeviceSetup, returnTo);
       if (destination !== undefined) router.push(destination);
     } catch (error) {
-      if (error instanceof InvalidStoredEnvelopeError) {
+      const failure = loginFailureFor(error);
+      if (failure === 'wrong-pin') {
+        clearForFailedPin();
+      } else if (failure === 'repair') {
         setPin('');
         setNeedsOnlineRepair(true);
         setMessage('repair');
-      } else if (error instanceof ApiNetworkError) {
+      } else if (failure === 'internet-required') {
         setMessage('internet-required');
-      } else if (error instanceof ApiHttpError && error.status === 401 && error.code === 'TOKEN_INVALID') {
-        clearForFailedPin();
       } else {
         setPin('');
         setMessage('sign-in-failed');
@@ -156,6 +198,15 @@ export function LoginScreen() {
               <h1>{t('auth.setup.title')}</h1>
               <span>{t('auth.setup.internetRequired')}</span>
             </header>
+            {showClinicSetup ? null : <div className={styles.setupFields}>
+              <Field htmlFor="owner-email" label={t('auth.setup.ownerEmail')}>
+                <Input autoComplete="email" data-testid="owner-email" id="owner-email" onChange={(event) => setOwnerEmail(event.target.value)} type="email" value={ownerEmail} />
+              </Field>
+              <Field htmlFor="owner-password" label={t('auth.setup.ownerPassword')}>
+                <SecretInput autoComplete="current-password" data-testid="owner-password" hideLabel={t('field.hide')} id="owner-password" onChange={(event) => setOwnerPassword(event.target.value)} revealLabel={t('field.reveal')} value={ownerPassword} />
+              </Field>
+              <p>{t('auth.setup.pairHint')}</p>
+            </div>}
             <Field htmlFor="installer-staff-id" label={t('auth.setup.staffId')}>
               <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
             </Field>
@@ -169,12 +220,21 @@ export function LoginScreen() {
               <Field htmlFor="admin-name" label={t('auth.setup.adminName')}><Input data-testid="admin-name" id="admin-name" onChange={(event) => setAdminName(event.target.value)} value={adminName} /></Field>
               <Field htmlFor="admin-phone" label={t('auth.setup.adminPhone')}><Input id="admin-phone" onChange={(event) => setAdminPhone(event.target.value)} value={adminPhone} /></Field>
               <Field htmlFor="admin-email" label={t('auth.setup.adminEmail')}><Input id="admin-email" onChange={(event) => setAdminEmail(event.target.value)} type="email" value={adminEmail} /></Field>
-              <Field htmlFor="admin-password" label={t('auth.setup.adminPassword')}><Input id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} type="password" value={adminPassword} /></Field>
+              <Field htmlFor="admin-password" label={t('auth.setup.adminPassword')}><SecretInput autoComplete="new-password" data-testid="admin-password" hideLabel={t('field.hide')} id="admin-password" onChange={(event) => setAdminPassword(event.target.value)} revealLabel={t('field.reveal')} value={adminPassword} /></Field>
+              <p>{t('auth.setup.passwordHint')}</p>
             </div> : null}
             <LoginMessage message={message} t={t} />
+            {/* The pad is the second of two secrets on this card and staff had
+                no way to tell it apart from the account password above it. */}
+            <p>{showClinicSetup ? t('auth.setup.pinNew') : t('auth.setup.pinExisting')}</p>
             <div className={message === 'wrong-pin' ? styles.shake : undefined}>
               <PinPad backspaceLabel={t('pin.backspace')} onChange={setPin} onSubmit={handleSubmit} submitLabel={t('pin.submit')} testId="login-pinpad" displayTestId="login-pin-display" value={pin} />
             </div>
+            {/* The tick on the pad reads as another key, so the real action
+                gets its own named button. The pad still submits on ✓. */}
+            <Button data-testid="device-setup-submit" disabled={!setupReady} onClick={() => { void handleSubmit(); }}>
+              {showClinicSetup ? t('auth.setup.createSubmit') : t('auth.setup.pairSubmit')}
+            </Button>
           </Card>
         ) : selectedStaff === undefined ? (
           <Card className={styles.card} data-testid="staff-picker">
@@ -189,10 +249,12 @@ export function LoginScreen() {
                   setMessage(undefined);
                   setPin('');
                 }} pill variant="ghost">
+                  <span aria-hidden="true" className={styles.staffAvatar}>{member.name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
                   <span className={styles.staffIdentity}>
                     <strong>{member.name}</strong>
                     <small>{member.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}</small>
                   </span>
+                  <span aria-hidden="true" className={styles.staffChevron}>&rsaquo;</span>
                 </Button>
               ))}
             </div>

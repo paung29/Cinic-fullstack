@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { adjustExistingStock } from '@/data/inventoryRecords';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { fmtMMK } from '@/data/money';
 import type { OutboxStatusView } from '@/data/outbox';
 import { toLocalSale, type DailyReportWire, type FollowupWire, type LicenseWire, type ProductRow, type SaleRow } from '@/data/types';
 import { useT } from '@/i18n';
-import { AppShell, Button, Card, EmptyState, Input, Modal, Select, Skeleton, Tag, useToast } from '@/ui';
+import { AppShell, Button, Card, EmptyState, Input, Modal, SecretInput, Select, Skeleton, Tag, useToast } from '@/ui';
 import styles from './OperationsScreen.module.css';
 
 export function OperationsScreen() {
@@ -33,6 +34,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const session = runtime.session.state();
   const identity = session.kind === 'active' ? session.identity : undefined;
   const [sales, setSales] = useState<SaleRow[]>([]);
@@ -95,7 +97,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
   if (identity === undefined) return <main className={styles.loading}><Skeleton size="loading" /></main>;
 
   const syncLabels = { synced: t('sync.synced'), syncing: t('sync.syncing'), offline: t('sync.offline'), attention: t('sync.attention') };
-  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }];
+  const tabs = [{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }];
 
   const runAction = async (action: typeof pendingAction, token: string) => {
     if (action === 'report') {
@@ -184,8 +186,8 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
   return <main className={styles.root} data-locale={locale} data-testid="operations-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
     <AppShell
       activeTab="setup"
-      brand={t('brand.name')}
-      location={t('brand.location')}
+      brand={branding.brand}
+      location={branding.location}
       logoutLabel={t('shell.logout')}
       onLogout={() => { void runtime.outbox.status().then((status) => {
         if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
@@ -233,6 +235,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
               {voidableSales.length === 0 ? <p className={styles.emptyLine}>{t('ops.void.empty')}</p> : <>
                 <label className={styles.field}><span>{t('ops.void.sale')}</span>
                   <Select data-testid="void-sale-select" onChange={(event) => setSaleId(event.target.value)} value={saleId}>
+                    <option value="" />
                     {voidableSales.map((sale) => <option key={sale.id} value={sale.id}>{sale.no ?? sale.id.slice(0, 8)} · {fmtMMK(sale.total)}</option>)}
                   </Select>
                 </label>
@@ -248,6 +251,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
               <h2>{t('ops.adjust.title')}</h2>
               <label className={styles.field}><span>{t('ops.adjust.product')}</span>
                 <Select data-testid="adjust-product-select" onChange={(event) => setProductId(event.target.value)} value={productId}>
+                  <option value="" />
                   {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.stockQty})</option>)}
                 </Select>
               </label>
@@ -287,7 +291,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
               </div>
               <div className={styles.fieldRow}>
                 <label className={styles.field}><span>{t('ops.staff.pin')}</span>
-                  <Input data-testid="staff-pin" inputMode="numeric" maxLength={4} onChange={(event) => setStaffPin(event.target.value)} value={staffPin} />
+                  <SecretInput data-testid="staff-pin" hideLabel={t('field.hide')} inputMode="numeric" maxLength={4} onChange={(event) => setStaffPin(event.target.value)} revealLabel={t('field.reveal')} value={staffPin} />
                 </label>
                 <label className={styles.field}><span>{t('ops.staff.role')}</span>
                   <Select onChange={(event) => setStaffRole(event.target.value as typeof staffRole)} value={staffRole}>
@@ -301,7 +305,7 @@ function ActiveOperationsScreen({ runtime }: { runtime: ClinicRuntime }) {
                   <Input onChange={(event) => setStaffEmail(event.target.value)} type="email" value={staffEmail} />
                 </label>
                 <label className={styles.field}><span>{t('ops.staff.password')}</span>
-                  <Input onChange={(event) => setStaffPassword(event.target.value)} type="password" value={staffPassword} />
+                  <SecretInput data-testid="staff-password" hideLabel={t('field.hide')} onChange={(event) => setStaffPassword(event.target.value)} revealLabel={t('field.reveal')} value={staffPassword} />
                 </label>
               </div>
               <div className={styles.cardActions}>

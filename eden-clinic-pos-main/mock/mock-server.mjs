@@ -32,7 +32,7 @@ function seed() {
   db = {
     clinic: {
       id: 'clinic-1', name: 'Eden Aesthetic Clinic', rounding_step: 500, credit_limit_mmk: 100000,
-      phone: '09 000 000 000', address: 'Lashio · Myanmar', receipt_footer: 'ကျေးဇူးတင်ပါသည်', logo_url: '',
+      phone: '09 000 000 000', address: 'Lashio · Myanmar', receipt_footer: 'ကျေးဇူးတင်ပါသည်', telegram_handle: '', receipt_header: '', logo_url: '',
       receipt_qr: true, receipt_next_visit: true, receipt_template: 'classic', receipt_header_font: 'sans', receipt_divider: 'line', consent_mode: 'warn',
       receipt: { header: 'EDEN AESTHETIC CLINIC', sub: 'အလှပြင်ဆေးခန်း · လားရှိုးမြို့', phone: '09 000 000 000', footer: 'ကျေးဇူးတင်ပါသည်', logo: true, qr: true, fu: true, width: 80 },
       addons: { brief: true, careloop: true, recall: true, outcomes: true, insights: true },
@@ -148,6 +148,20 @@ const server = http.createServer(async (req, res) => {
     staff.active = false; bump('staff', staff);
     return send(res, 200, { staff: publicStaff(staff) });
   }
+  // Harness-only: the server forgets a staff member WITHOUT emitting a delta,
+  // which is what a reset database or a backup restored from before the
+  // account existed looks like to a device. Deliberately unlike /offboard,
+  // where the delta reaches the client and purges its envelope: here the
+  // device keeps a valid envelope the server no longer recognises.
+  const forgetMatch = path.match(/^\/__staff\/([^/]+)\/forget$/);
+  if (forgetMatch && req.method === 'POST') {
+    const index = db.staff.findIndex(s => s.id === forgetMatch[1]);
+    if (index === -1) return err(res, 404, 'NOT_FOUND', 'unknown staff');
+    db.staff.splice(index, 1);
+    for (const [token, id] of tokens) if (id === forgetMatch[1]) tokens.delete(token);
+    for (const [token, id] of refreshes) if (id === forgetMatch[1]) refreshes.delete(token);
+    return send(res, 200, { ok: true });
+  }
 
   if (path === '/api/setup' && req.method === 'POST') {
     // First-run clinic install: mirrors the backend's /api/setup so the
@@ -221,7 +235,7 @@ const server = http.createServer(async (req, res) => {
   if (path === '/clinic' && req.method === 'PATCH') {
     if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
     const b = await body(req);
-    const allowed = ['name', 'phone', 'address', 'receipt_footer', 'logo_url', 'rounding_step', 'credit_limit_mmk', 'consent_mode', 'receipt_qr', 'receipt_next_visit', 'receipt_template', 'receipt_header_font', 'receipt_divider'];
+    const allowed = ['name', 'phone', 'address', 'telegram_handle', 'receipt_header', 'receipt_footer', 'logo_url', 'rounding_step', 'credit_limit_mmk', 'consent_mode', 'receipt_qr', 'receipt_next_visit', 'receipt_template', 'receipt_header_font', 'receipt_divider'];
     if (!strictPatch(b, allowed)) return err(res, 400, 'MALFORMED', 'clinic update must include only mutable fields');
     if ('rounding_step' in b && !isOneOf(b.rounding_step, [1, 100, 500, 1000])) return err(res, 400, 'MALFORMED', 'invalid rounding_step');
     if ('credit_limit_mmk' in b && (!Number.isInteger(b.credit_limit_mmk) || b.credit_limit_mmk < 0)) return err(res, 400, 'MALFORMED', 'invalid credit_limit_mmk');
@@ -229,7 +243,7 @@ const server = http.createServer(async (req, res) => {
     if ('receipt_template' in b && !isOneOf(b.receipt_template, ['classic', 'modern', 'minimal', 'boxed'])) return err(res, 400, 'MALFORMED', 'invalid receipt_template');
     if ('receipt_header_font' in b && !isOneOf(b.receipt_header_font, ['sans', 'serif', 'display'])) return err(res, 400, 'MALFORMED', 'invalid receipt_header_font');
     if ('receipt_divider' in b && !isOneOf(b.receipt_divider, ['line', 'dots', 'none'])) return err(res, 400, 'MALFORMED', 'invalid receipt_divider');
-    if (['name', 'phone', 'address', 'receipt_footer', 'logo_url'].some(key => key in b && typeof b[key] !== 'string')) return err(res, 400, 'MALFORMED', 'clinic text fields must be strings');
+    if (['name', 'phone', 'address', 'telegram_handle', 'receipt_header', 'receipt_footer', 'logo_url'].some(key => key in b && typeof b[key] !== 'string')) return err(res, 400, 'MALFORMED', 'clinic text fields must be strings');
     if (['receipt_qr', 'receipt_next_visit'].some(key => key in b && typeof b[key] !== 'boolean')) return err(res, 400, 'MALFORMED', 'receipt options must be booleans');
     Object.assign(db.clinic, b); bump('clinic', db.clinic);
     return send(res, 200, db.clinic);
@@ -321,6 +335,28 @@ const server = http.createServer(async (req, res) => {
   }
 
   /* ---- PRODUCTS: idempotent + barcode merge ---- */
+  if (path === '/services' && req.method === 'POST') {
+    if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
+    const b = await body(req);
+    if (!b?.id || !b.name_mm || !Number.isInteger(b.price) || b.price < 0) return err(res, 400, 'MALFORMED', 'service requires id, name_mm, price');
+    const existing = db.services.find(v => v.id === b.id);
+    if (existing) return send(res, 200, { service: existing, replayed: true });
+    const v = { category: 'Other', name_en: null, duration_min: null, requires_lot: false, default_followup_days: null, active: true, ...b };
+    db.services.push(v); bump('service', v);
+    return send(res, 200, { service: v, replayed: false });
+  }
+  if ((m = path.match(/^\/services\/([^/]+)$/)) && req.method === 'PATCH') {
+    if (!elevated()) return err(res, 403, 'ELEVATION_REQUIRED', 'admin elevation required');
+    const b = await body(req);
+    const allowed = ['category', 'name_mm', 'name_en', 'price', 'duration_min', 'requires_lot', 'default_followup_days', 'active'];
+    if (!strictPatch(b, allowed)) return err(res, 400, 'MALFORMED', 'service update must include only mutable fields');
+    if ('name_mm' in b && (typeof b.name_mm !== 'string' || b.name_mm === '')) return err(res, 400, 'MALFORMED', 'invalid service name');
+    if ('price' in b && (!Number.isInteger(b.price) || b.price < 0)) return err(res, 400, 'MALFORMED', 'invalid service price');
+    const v = db.services.find(entry => entry.id === m[1]);
+    if (!v) return err(res, 404, 'NOT_FOUND', 'unknown service');
+    Object.assign(v, b); bump('service', v);
+    return send(res, 200, v);
+  }
   if (path === '/products' && req.method === 'POST') {
     const b = await body(req);
     if (!b?.id || !b.name) return err(res, 400, 'MALFORMED', 'product requires id, name');

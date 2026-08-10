@@ -26,6 +26,7 @@ public class EdenApiController {
 
     @GetMapping("/health") public HealthResponse health() { return new HealthResponse(true, OffsetDateTime.now(ZoneOffset.UTC)); }
     @PostMapping("/auth/login") public LoginResponse login(@Valid @RequestBody LoginRequest input, HttpServletRequest request) { return api.login(input, request.getRemoteAddr()); }
+    @PostMapping("/auth/login-email") public LoginResponse loginEmail(@Valid @RequestBody EmailLoginRequest input, HttpServletRequest request) { return api.loginWithEmail(input, request.getRemoteAddr()); }
     @PostMapping("/auth/refresh") public TokenPair refresh(@Valid @RequestBody RefreshRequest input, HttpServletRequest request) { return api.refresh(input.refresh(), request.getRemoteAddr()); }
     @PostMapping("/auth/logout") public void logout(@Valid @RequestBody LogoutRequest input) { api.logout(input.refresh()); }
     @PostMapping("/auth/elevate") public ElevationResponse elevate(Authentication auth, @Valid @RequestBody ElevationRequest input) { return api.elevate(account(auth), input); }
@@ -36,7 +37,12 @@ public class EdenApiController {
     @PatchMapping("/patients/{id}") public PatientDto patientPatch(Authentication auth, @PathVariable UUID id, @Valid @RequestBody PatientDto input) { return api.patchPatient(account(auth), id, input); }
     @PostMapping("/products") public ProductEnvelope product(Authentication auth, @Valid @RequestBody ProductInput input) { return api.createProduct(account(auth), input); }
     @PatchMapping("/products/{id}") public ProductDto productPatch(Authentication auth, @PathVariable UUID id, @Valid @RequestBody ProductPatch input, @RequestHeader("X-Elevation") UUID elevation) { return api.patchProduct(account(auth), id, input, elevation); }
+    @PostMapping("/services") public ServiceEnvelope serviceCreate(Authentication auth, @Valid @RequestBody ServiceInput input, @RequestHeader("X-Elevation") UUID elevation) { return api.createService(account(auth), input, elevation); }
+    @PatchMapping("/services/{id}") public ServiceDto servicePatch(Authentication auth, @PathVariable UUID id, @Valid @RequestBody ServicePatch input, @RequestHeader("X-Elevation") UUID elevation) { return api.patchService(account(auth), id, input, elevation); }
     @GetMapping("/barcode-lookup") public BarcodeLookup barcode(Authentication auth, @RequestParam String code) { return api.barcode(account(auth), code); }
+    @PutMapping("/products/{id}/photo") public ProductDto productPhotoPut(Authentication auth, @PathVariable UUID id, @Valid @RequestBody ProductPhotoInput input) { return api.putProductPhoto(account(auth), id, input); }
+    @GetMapping("/products/{id}/photo") public ProductPhotoResponse productPhotoGet(Authentication auth, @PathVariable UUID id) { return api.productPhoto(account(auth), id); }
+    @DeleteMapping("/products/{id}/photo") public ProductDto productPhotoDelete(Authentication auth, @PathVariable UUID id) { return api.deleteProductPhoto(account(auth), id); }
     @PostMapping("/stock/receive") public ProductEnvelope receive(Authentication auth, @Valid @RequestBody StockReceive input) { return api.receive(account(auth), input); }
     @PostMapping("/stock/adjust") public ProductDto adjust(Authentication auth, @Valid @RequestBody StockAdjust input, @RequestHeader("X-Elevation") UUID elevation) { return api.adjust(account(auth), input, elevation); }
     @PostMapping("/appointments") public AppointmentEnvelope appointment(Authentication auth, @Valid @RequestBody AppointmentDto input) { return api.createAppointment(account(auth), input); }

@@ -2,7 +2,9 @@ spring:
   application:
     name: demo
   datasource:
-    url: jdbc:h2:mem:clinicdb
+    # File-backed so a backend restart does not destroy every issued refresh
+    # token and log every device out. Delete the ./data folder to reset blank.
+    url: jdbc:h2:file:./data/clinicdb;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -14,7 +16,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:

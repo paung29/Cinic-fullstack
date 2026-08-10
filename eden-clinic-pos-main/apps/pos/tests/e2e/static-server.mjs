@@ -80,9 +80,16 @@ createServer((request, response) => {
     filePath = filePath + '.html';
   }
 
+  let status = 200;
   if (!existsSync(filePath) || statSync(filePath).isDirectory()) {
-    send(response, 404, 'Not found');
-    return;
+    // Serve the exported not-found page the way a production static host would.
+    const notFoundPath = resolve(root, '404.html');
+    if (!existsSync(notFoundPath)) {
+      send(response, 404, 'Not found');
+      return;
+    }
+    filePath = notFoundPath;
+    status = 404;
   }
 
   const relativeName = relative(root, filePath).replaceAll('\\', '/');
@@ -99,6 +106,6 @@ createServer((request, response) => {
   if (relativeName.startsWith('_next/static/')) {
     headers['cache-control'] = 'public, max-age=31536000, immutable';
   }
-  response.writeHead(200, headers);
+  response.writeHead(status, headers);
   createReadStream(filePath).pipe(response);
 }).listen(port, host);

@@ -28,11 +28,13 @@ export const clinicSchema = z.object({
   credit_limit_mmk: z.number().int(),
   receipt: jsonObjectSchema,
   receipt_footer: z.string().default(''),
+  receipt_header: z.string().nullable().default(''),
+  telegram_handle: z.string().nullable().default(''),
   logo_url: z.string().default(''),
   receipt_qr: z.boolean().default(true),
   receipt_next_visit: z.boolean().default(true),
   receipt_template: z.enum(['classic', 'modern', 'minimal', 'boxed']).default('classic'),
-  receipt_header_font: z.enum(['sans', 'serif', 'display']).default('sans'),
+  receipt_header_font: z.string().default('sans'),
   receipt_divider: z.enum(['line', 'dots', 'none']).default('line'),
   consent_mode: z.enum(['off', 'warn', 'block']).default('warn'),
   addons: jsonObjectSchema,
@@ -43,6 +45,8 @@ export const clinicPatchSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  telegram_handle: z.string().optional(),
+  receipt_header: z.string().optional(),
   receipt_footer: z.string().optional(),
   logo_url: z.string().optional(),
   rounding_step: z.union([z.literal(1), z.literal(100), z.literal(500), z.literal(1_000)]).optional(),
@@ -51,7 +55,7 @@ export const clinicPatchSchema = z.object({
   receipt_qr: z.boolean().optional(),
   receipt_next_visit: z.boolean().optional(),
   receipt_template: z.enum(['classic', 'modern', 'minimal', 'boxed']).optional(),
-  receipt_header_font: z.enum(['sans', 'serif', 'display']).optional(),
+  receipt_header_font: z.string().optional(),
   receipt_divider: z.enum(['line', 'dots', 'none']).optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'At least one clinic field is required.' });
 
@@ -89,11 +93,11 @@ export const serverExportSchema = jsonObjectSchema;
 
 export const serviceSchema = z.object({
   id: z.string(),
-  category: z.string().optional(),
+  category: z.string().nullable().optional(),
   name_mm: z.string(),
-  name_en: z.string().optional(),
+  name_en: z.string().nullable().optional(),
   price: z.number().int(),
-  duration_min: z.number().int().optional(),
+  duration_min: z.number().int().nullable().optional(),
   requires_lot: z.boolean().optional(),
   default_followup_days: z.number().int().nullable().optional(),
   active: z.boolean().optional(),
@@ -118,6 +122,22 @@ export const productSchema = z.object({
   unit_label: z.string().nullable().optional(),
   photo_key: z.string().nullable().optional(),
   active: z.boolean().optional(),
+});
+
+export const servicePatchSchema = z.object({
+  category: z.string().optional(),
+  name_mm: z.string().min(1).optional(),
+  name_en: z.string().nullable().optional(),
+  price: z.number().int().nonnegative().optional(),
+  duration_min: z.number().int().nullable().optional(),
+  requires_lot: z.boolean().optional(),
+  default_followup_days: z.number().int().nullable().optional(),
+  active: z.boolean().optional(),
+});
+
+export const serviceCreateResponseSchema = z.object({
+  service: serviceSchema,
+  replayed: z.boolean().optional(),
 });
 
 export const productPatchSchema = z.object({
@@ -277,6 +297,26 @@ export const loginSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
 });
 
+export const productPhotoInputSchema = z.object({
+  content_type: z.string().min(1),
+  data: z.string().min(1),
+});
+
+export const productPhotoResponseSchema = z.object({
+  product_id: z.string(),
+  photo_key: z.string(),
+  content_type: z.string(),
+  data: z.string(),
+});
+
+// Pairing a device by the owner's email. Answers with the same shape as the
+// staff-ID login, so everything downstream of sign-in stays identical.
+export const emailLoginSchema = z.object({
+  email: z.string().min(1),
+  password: z.string().min(1),
+  pin: z.string().regex(/^\d{4}$/),
+});
+
 export const loginResponseSchema = z.object({
   token: z.string(),
   refresh: z.string(),
@@ -419,6 +459,8 @@ export type LicenseWire = z.infer<typeof licenseSchema>;
 export type ServiceWire = z.infer<typeof serviceSchema>;
 export type ProductWire = z.infer<typeof productSchema>;
 export type ProductPatchWire = z.infer<typeof productPatchSchema>;
+export type ServicePatchWire = z.infer<typeof servicePatchSchema>;
+export type ServiceCreateResponseWire = z.infer<typeof serviceCreateResponseSchema>;
 export type BarcodeLookupWire = z.infer<typeof barcodeLookupSchema>;
 export type PatientWire = z.infer<typeof patientSchema>;
 export type SaleLineWire = z.infer<typeof saleLineSchema>;
@@ -433,6 +475,9 @@ export type StockAdjustWire = z.infer<typeof stockAdjustSchema>;
 export type FollowupWire = z.infer<typeof followupSchema>;
 export type DailyReportWire = z.infer<typeof dailyReportSchema>;
 export type LoginWire = z.infer<typeof loginSchema>;
+export type EmailLoginWire = z.infer<typeof emailLoginSchema>;
+export type ProductPhotoInputWire = z.infer<typeof productPhotoInputSchema>;
+export type ProductPhotoResponseWire = z.infer<typeof productPhotoResponseSchema>;
 export type LoginResponseWire = z.infer<typeof loginResponseSchema>;
 export type RefreshRequestWire = z.infer<typeof refreshRequestSchema>;
 export type RefreshResponseWire = z.infer<typeof refreshResponseSchema>;
@@ -462,10 +507,12 @@ export type ClinicRow = {
   receipt: Record<string, JsonValue>;
   receiptFooter: string;
   logoUrl: string;
+  receiptHeader: string;
+  telegramHandle: string;
   receiptQr: boolean;
   receiptNextVisit: boolean;
   receiptTemplate: 'classic' | 'modern' | 'minimal' | 'boxed';
-  receiptHeaderFont: 'sans' | 'serif' | 'display';
+  receiptHeaderFont: string;
   receiptDivider: 'line' | 'dots' | 'none';
   consentMode: 'off' | 'warn' | 'block';
   addons: Record<string, JsonValue>;
@@ -530,6 +577,19 @@ export type PatientRow = {
   alertNote: string | null;
   telegramLinked: boolean;
   followupDate: string | null;
+};
+
+export type PhotoGrade = 'none' | 'slight' | 'moderate' | 'marked';
+
+export type PhotoSessionRow = {
+  id: string;
+  patientId: string;
+  title: string;
+  at: string;
+  note: string;
+  grade: PhotoGrade | null;
+  before: Blob | null;
+  after: Blob | null;
 };
 
 export type SaleLineRow = {
@@ -661,6 +721,18 @@ export type MetaRow = {
   value: JsonValue;
 };
 
+// Binary receipt assets live outside `meta` so its value stays JSON-typed.
+export type ReceiptAssetRow = {
+  key: string;
+  blob: Blob;
+  /**
+   * For product photos, the server fingerprint this copy was downloaded at.
+   * Optional because the receipt logo and payment QR are device-only assets
+   * with no server counterpart to compare against.
+   */
+  photoKey?: string;
+};
+
 export type DeferredRemoteChange = {
   entity: z.infer<typeof deltaEntitySchema>;
   op: 'upsert' | 'delete';
@@ -678,6 +750,8 @@ export function toLocalClinic(wire: ClinicWire): ClinicRow {
     receipt: wire.receipt,
     receiptFooter: wire.receipt_footer,
     logoUrl: wire.logo_url,
+    receiptHeader: wire.receipt_header ?? '',
+    telegramHandle: wire.telegram_handle ?? '',
     receiptQr: wire.receipt_qr,
     receiptNextVisit: wire.receipt_next_visit,
     receiptTemplate: wire.receipt_template,

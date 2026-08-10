@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClinicRuntimeStatus, type ClinicRuntime } from '@/app/providers';
 import { offlineApprovalsState } from '@/data/adminEnvelopes';
+import { useClinicBranding } from '@/data/useClinicBranding';
 import { fmtMMK, patientOutstanding } from '@/data/money';
 import { createPatient } from '@/data/patientRecords';
 import { useT } from '@/i18n';
@@ -24,6 +25,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const { locale, t } = useT();
   const { enqueue } = useToast();
   const { revision } = useClinicRuntimeStatus();
+  const branding = useClinicBranding(runtime, { brand: t('brand.name'), location: t('brand.location') });
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [query, setQuery] = useState('');
@@ -32,7 +34,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
   const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [sex, setSex] = useState('');
+  const [sex, setSex] = useState('Female');
   const [allergies, setAllergies] = useState('');
   const [telegramLinked, setTelegramLinked] = useState(false);
   const [hasAdminEnvelope, setHasAdminEnvelope] = useState(true);
@@ -95,7 +97,7 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
     setNewPatientOpen(false);
     setName('');
     setPhone('');
-    setSex('');
+    setSex('Female');
     setAllergies('');
     setTelegramLinked(false);
     await refreshLocal();
@@ -107,20 +109,20 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
     <main className={styles.root} data-locale={locale} data-testid="clients-root" lang={locale === 'zh' ? 'zh-Hans' : locale}>
       <AppShell
         activeTab="clients"
-        brand={t('brand.name')}
-        location={t('brand.location')}
+        brand={branding.brand}
+        location={branding.location}
         logoutLabel={t('shell.logout')}
         switchUserLabel={t('shell.switchUser')}
         onSwitchUser={() => { runtime.session.switchUser(); router.push('/login'); }}
-        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageAttention')}
+        storageAttention={runtime.storageDiagnostics.state().kind === 'granted' ? undefined : t('shell.storageTag')}
         offlineAdminAttention={hasAdminEnvelope ? undefined : t('shell.offlineAdminAttention')}
         onLogout={() => { void runtime.outbox.status().then((status) => {
           if (status.pendingCount > 0 || status.attentionCount > 0) enqueue(t('auth.logout.blocked'));
           else { void runtime.session.logout(); router.push('/login'); }
         }); }}
-        onTabChange={(id) => { router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'setup' ? '/setup' : '/clients'); }}
+        onTabChange={(id) => { router.push(id === 'today' ? '/' : id === 'sale' ? '/sale' : id === 'calendar' ? '/calendar' : id === 'stocks' ? '/stocks' : id === 'analytics' ? '/analytics' : id === 'setup' ? '/setup' : '/clients'); }}
         sync={{ label: t('sync.synced'), state: 'synced', onClick: () => { void runtime.refreshSync().then(refreshLocal, refreshLocal); } }}
-        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'setup', label: t('shell.tab.setup') }]}
+        tabs={[{ id: 'today', label: t('shell.tab.today') }, { id: 'calendar', label: t('shell.tab.calendar') }, { id: 'clients', label: t('shell.tab.clients') }, { id: 'sale', label: t('shell.tab.sale') }, { id: 'stocks', label: t('shell.tab.stocks') }, { id: 'analytics', label: t('shell.tab.analytics') }, { id: 'setup', label: t('shell.tab.setup') }]}
         userName={activeIdentity.name}
         userRole={activeIdentity.role === 'admin' ? t('auth.role.admin') : t('auth.role.staff')}
       >
@@ -143,7 +145,10 @@ function ActiveClientsScreen({ runtime }: { runtime: ClinicRuntime }) {
         <div className={styles.form}>
           <Field htmlFor="patient-name" label={t('clients.form.name')}><Input data-testid="new-patient-name" id="patient-name" onChange={(event) => setName(event.target.value)} value={name} /></Field>
           <Field htmlFor="patient-phone" label={t('clients.form.phone')}><Input data-testid="new-patient-phone" id="patient-phone" onChange={(event) => setPhone(event.target.value)} value={phone} /></Field>
-          <Field htmlFor="patient-sex" label={t('clients.form.sex')}><Input id="patient-sex" onChange={(event) => setSex(event.target.value)} value={sex} /></Field>
+          <div className={styles.sexField}><span>{t('clients.form.sex')}</span><div className={styles.sexChoices}>
+            <Button aria-pressed={sex === 'Female'} className={sex === 'Female' ? styles.sexChoiceActive : undefined} data-testid="patient-sex-f" onClick={() => setSex('Female')} pill size="sm" variant="ghost">{t('clients.form.sexF')}</Button>
+            <Button aria-pressed={sex === 'Male'} className={sex === 'Male' ? styles.sexChoiceActive : undefined} data-testid="patient-sex-m" onClick={() => setSex('Male')} pill size="sm" variant="ghost">{t('clients.form.sexM')}</Button>
+          </div></div>
           <Field htmlFor="patient-allergies" label={t('clients.form.allergies')}><Input id="patient-allergies" onChange={(event) => setAllergies(event.target.value)} value={allergies} /></Field>
           <label className={styles.telegram}><input checked={telegramLinked} onChange={(event) => setTelegramLinked(event.target.checked)} type="checkbox" />{t('clients.form.telegram')}</label>
           <Button data-testid="new-patient-save" disabled={name.trim() === '' || phone.trim() === ''} onClick={() => { void savePatient(); }}>{t('clients.form.save')}</Button>

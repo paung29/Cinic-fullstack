@@ -58,7 +58,7 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PathRequest.toH2Console()).permitAll()
-                        .requestMatchers("/api/setup", "/api/auth/login", "/api/auth/refresh", "/health", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
+                        .requestMatchers("/api/setup", "/api/auth/login", "/api/auth/refresh", "/health", "/auth/login", "/auth/login-email", "/auth/refresh", "/auth/logout").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(securityExceptionHandler)
