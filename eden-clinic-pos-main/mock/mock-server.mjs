@@ -148,6 +148,20 @@ const server = http.createServer(async (req, res) => {
     staff.active = false; bump('staff', staff);
     return send(res, 200, { staff: publicStaff(staff) });
   }
+  // Harness-only: the server forgets a staff member WITHOUT emitting a delta,
+  // which is what a reset database or a backup restored from before the
+  // account existed looks like to a device. Deliberately unlike /offboard,
+  // where the delta reaches the client and purges its envelope: here the
+  // device keeps a valid envelope the server no longer recognises.
+  const forgetMatch = path.match(/^\/__staff\/([^/]+)\/forget$/);
+  if (forgetMatch && req.method === 'POST') {
+    const index = db.staff.findIndex(s => s.id === forgetMatch[1]);
+    if (index === -1) return err(res, 404, 'NOT_FOUND', 'unknown staff');
+    db.staff.splice(index, 1);
+    for (const [token, id] of tokens) if (id === forgetMatch[1]) tokens.delete(token);
+    for (const [token, id] of refreshes) if (id === forgetMatch[1]) refreshes.delete(token);
+    return send(res, 200, { ok: true });
+  }
 
   if (path === '/api/setup' && req.method === 'POST') {
     // First-run clinic install: mirrors the backend's /api/setup so the

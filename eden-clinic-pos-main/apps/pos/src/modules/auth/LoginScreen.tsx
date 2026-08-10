@@ -121,13 +121,28 @@ export function LoginScreen() {
       } else if (await runtime.db.meta.get(authRepairMetaKey(activeStaffId!)) !== undefined) {
         // The server previously rejected this stored credential. Prefer a real
         // sign-in so the device stops unlocking into a session that cannot use
-        // any protected feature — but if we simply cannot reach the server,
-        // still let staff in offline so the clinic can keep taking sales.
+        // any protected feature — but ANY failure falls back to the envelope,
+        // not just an unreachable server. A server that has forgotten this
+        // staff member — reset database, redeploy, backup restored from before
+        // the account existed — answers 401 TOKEN_INVALID, indistinguishable
+        // from a wrong PIN. Treating that as a refusal would lock the clinic
+        // out of the one device holding its patients and its queued sales,
+        // which is the exact failure offline-first exists to prevent.
         try {
           await runtime.signInOnline({ staff_id: activeStaffId!, pin });
-        } catch (error) {
-          if (!(error instanceof ApiNetworkError)) throw error;
-          await runtime.unlockOffline(activeStaffId!, pin);
+        } catch (onlineError) {
+          try {
+            await runtime.unlockOffline(activeStaffId!, pin);
+          } catch (offlineError) {
+            // The envelope is present and this PIN does not open it. With a
+            // reachable server having rejected the same PIN, two independent
+            // checks agree it is simply wrong, so report that rather than
+            // sending a mistyped digit down the online-repair path.
+            if (offlineError instanceof InvalidStoredEnvelopeError && !(onlineError instanceof ApiNetworkError)) {
+              throw onlineError;
+            }
+            throw offlineError;
+          }
         }
       } else {
         await runtime.unlockOffline(activeStaffId!, pin);
