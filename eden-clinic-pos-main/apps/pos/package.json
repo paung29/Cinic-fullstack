@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:unit": "vitest run",
-    "build:e2e": "NEXT_PUBLIC_EDEN_API_BASE_URL=http://127.0.0.1:4010 next build && NEXT_PUBLIC_EDEN_API_BASE_URL=http://127.0.0.1:4010 node scripts/build-pwa.mjs",
+    "build:e2e": "cross-env-shell NEXT_PUBLIC_EDEN_API_BASE_URL=http://127.0.0.1:4010 \"next build && node scripts/build-pwa.mjs\"",
     "test:e2e": "npm run build:e2e && playwright test",
     "verify": "npm run typecheck && npm run lint && npm run test:unit && npm run build && npm run test:e2e"
   },
@@ -30,6 +30,7 @@
     "@types/node": "26.1.2",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "cross-env": "10.1.0",
     "eslint": "9.39.5",
     "eslint-config-next": "16.2.12",
     "fake-indexeddb": "6.2.5",

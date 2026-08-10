@@ -2,16 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ApiHttpError, ApiNetworkError } from '@/data/api';
 import { authEnvelopeMetaKey, authRepairMetaKey } from '@/data/db';
 import { returnToAfterSignIn } from '@/data/returnTo';
 import { useClinicRuntimeStatus } from '@/app/providers';
 import { useLocaleControl, useT, type Locale } from '@/i18n';
-import {
-  InvalidStoredEnvelopeError,
-  pinDelayMs,
-  type SessionIdentity,
-} from '@/modules/auth/sessionController';
+import { loginFailureFor } from '@/modules/auth/loginErrors';
+import { pinDelayMs, type SessionIdentity } from '@/modules/auth/sessionController';
 import { Button, Card, Field, Input, PinPad, Skeleton } from '@/ui';
 import styles from './LoginScreen.module.css';
 
@@ -95,7 +91,14 @@ export function LoginScreen() {
   const handleSubmit = async () => {
     const invalidExistingClinic = !showClinicSetup && (activeStaffId === undefined || activeStaffId === '');
     const invalidNewClinic = showClinicSetup && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
-    if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy || isWaiting) {
+    if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy) {
+      return;
+    }
+    if (isWaiting) {
+      // Naming the backoff matters: the submit is refused for up to 30s, and
+      // without a message the pad just goes dead and staff retype into a
+      // screen they read as broken. Deliberately does not restart the timer.
+      setMessage('wait');
       return;
     }
 
@@ -130,19 +133,14 @@ export function LoginScreen() {
         // which is the exact failure offline-first exists to prevent.
         try {
           await runtime.signInOnline({ staff_id: activeStaffId!, pin });
-        } catch (onlineError) {
-          try {
-            await runtime.unlockOffline(activeStaffId!, pin);
-          } catch (offlineError) {
-            // The envelope is present and this PIN does not open it. With a
-            // reachable server having rejected the same PIN, two independent
-            // checks agree it is simply wrong, so report that rather than
-            // sending a mistyped digit down the online-repair path.
-            if (offlineError instanceof InvalidStoredEnvelopeError && !(onlineError instanceof ApiNetworkError)) {
-              throw onlineError;
-            }
-            throw offlineError;
-          }
+        } catch {
+          // The offline attempt's own error is the one worth surfacing, so the
+          // server's is deliberately dropped here. A wrong PIN throws
+          // WrongPinError below and reads as a wrong PIN; an envelope no PIN
+          // can open throws InvalidStoredEnvelopeError and asks for repair.
+          // Preferring the server's 401 over either would relabel a broken
+          // envelope as a bad PIN and send staff retyping one that cannot work.
+          await runtime.unlockOffline(activeStaffId!, pin);
         }
       } else {
         await runtime.unlockOffline(activeStaffId!, pin);
@@ -150,14 +148,15 @@ export function LoginScreen() {
       const destination = returnToAfterSignIn(isDeviceSetup, returnTo);
       if (destination !== undefined) router.push(destination);
     } catch (error) {
-      if (error instanceof InvalidStoredEnvelopeError) {
+      const failure = loginFailureFor(error);
+      if (failure === 'wrong-pin') {
+        clearForFailedPin();
+      } else if (failure === 'repair') {
         setPin('');
         setNeedsOnlineRepair(true);
         setMessage('repair');
-      } else if (error instanceof ApiNetworkError) {
+      } else if (failure === 'internet-required') {
         setMessage('internet-required');
-      } else if (error instanceof ApiHttpError && error.status === 401 && error.code === 'TOKEN_INVALID') {
-        clearForFailedPin();
       } else {
         setPin('');
         setMessage('sign-in-failed');
