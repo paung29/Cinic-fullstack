@@ -86,12 +86,17 @@ export function LoginScreen() {
   const lang = locale === 'zh' ? 'zh-Hans' : locale;
   const isDeviceSetup = runtime !== undefined && staff.length === 0;
   const activeStaffId = isDeviceSetup ? installerStaffId : selectedStaff?.staffId;
+  // showClinicSetup is only meaningful on the first-run card. Reading it on the
+  // everyday PIN screen is what killed sign-in: it defaults to true, so the
+  // create-a-clinic validation ran against empty clinic fields and refused
+  // every submit — the pad looked alive and did nothing.
+  const creatingClinic = isDeviceSetup && showClinicSetup;
   // Owner email wins when it is filled in. The staff-ID field stays for the
   // technician rolling out devices, and for the e2e suite that pairs by ID.
-  const pairingByEmail = isDeviceSetup && !showClinicSetup && ownerEmail.trim() !== '' && ownerPassword !== '';
+  const pairingByEmail = isDeviceSetup && !creatingClinic && ownerEmail.trim() !== '' && ownerPassword !== '';
   // Mirrors the guards in handleSubmit so the button can say "not yet" by being
   // disabled, rather than looking alive and then silently doing nothing.
-  const setupReady = pin.length === 4 && !isBusy && (showClinicSetup
+  const setupReady = pin.length === 4 && !isBusy && (creatingClinic
     ? clinicName.trim() !== '' && adminName.trim() !== '' && adminPhone.trim() !== '' && adminEmail.trim() !== '' && adminPassword.length >= 8
     : pairingByEmail || (activeStaffId !== undefined && activeStaffId !== ''));
 
@@ -104,8 +109,8 @@ export function LoginScreen() {
   };
 
   const handleSubmit = async () => {
-    const invalidExistingClinic = !showClinicSetup && !pairingByEmail && (activeStaffId === undefined || activeStaffId === '');
-    const invalidNewClinic = showClinicSetup && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
+    const invalidExistingClinic = !creatingClinic && !pairingByEmail && (activeStaffId === undefined || activeStaffId === '');
+    const invalidNewClinic = creatingClinic && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
     if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy) {
       return;
     }
@@ -120,7 +125,7 @@ export function LoginScreen() {
     setBusy(true);
     setMessage(undefined);
     try {
-      if (isDeviceSetup && showClinicSetup) {
+      if (creatingClinic) {
         await runtime.install({
           clinic_name: clinicName.trim(),
           clinic_phone: clinicPhone.trim(),
@@ -275,7 +280,7 @@ export function LoginScreen() {
               setMessage(undefined);
               setNeedsOnlineRepair(false);
             }} pill variant="ghost">
-              {t('auth.login.who')}
+              {t('auth.login.notYou')}
             </Button>
           </Card>
         )}

@@ -83,6 +83,7 @@ export const dictEn = {
   'auth.setup.internetRequired': 'This device must be set up once with an internet connection.',
   'auth.setup.repair': 'This session needs an online sign-in to repair this device.',
   'auth.login.who': 'Hello',
+  'auth.login.notYou': 'Not you?',
   'field.reveal': 'Show',
   'field.hide': 'Hide',
   'auth.login.pin': 'Enter PIN',

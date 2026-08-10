@@ -166,6 +166,8 @@ export const dictMy = {
   // TODO(native-review)
   'auth.login.who': 'မင်္ဂလာပါ',
   // TODO(native-review)
+  'auth.login.notYou': 'သင် မဟုတ်ဘူးလား?',
+  // TODO(native-review)
   'field.reveal': 'ပြရန်',
   // TODO(native-review)
   'field.hide': 'ဖျောက်ရန်',
