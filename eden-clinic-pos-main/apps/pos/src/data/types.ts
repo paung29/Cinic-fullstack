@@ -297,6 +297,14 @@ export const loginSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
 });
 
+// Pairing a device by the owner's email. Answers with the same shape as the
+// staff-ID login, so everything downstream of sign-in stays identical.
+export const emailLoginSchema = z.object({
+  email: z.string().min(1),
+  password: z.string().min(1),
+  pin: z.string().regex(/^\d{4}$/),
+});
+
 export const loginResponseSchema = z.object({
   token: z.string(),
   refresh: z.string(),
@@ -455,6 +463,7 @@ export type StockAdjustWire = z.infer<typeof stockAdjustSchema>;
 export type FollowupWire = z.infer<typeof followupSchema>;
 export type DailyReportWire = z.infer<typeof dailyReportSchema>;
 export type LoginWire = z.infer<typeof loginSchema>;
+export type EmailLoginWire = z.infer<typeof emailLoginSchema>;
 export type LoginResponseWire = z.infer<typeof loginResponseSchema>;
 export type RefreshRequestWire = z.infer<typeof refreshRequestSchema>;
 export type RefreshResponseWire = z.infer<typeof refreshResponseSchema>;

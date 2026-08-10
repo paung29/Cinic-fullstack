@@ -144,6 +144,12 @@ export const dictZh = {
   // TODO(native-review)
   'auth.setup.staffId': '安装人员员工 ID',
   // TODO(native-review)
+  'auth.setup.ownerEmail': '所有者邮箱',
+  // TODO(native-review)
+  'auth.setup.ownerPassword': '所有者密码',
+  // TODO(native-review)
+  'auth.setup.pairHint': '使用诊所所有者账户登录以添加此设备，然后设置日常使用的 PIN。',
+  // TODO(native-review)
   'auth.setup.internetRequired': '此设备必须先连接互联网完成一次设置。',
   // TODO(native-review)
   'auth.setup.repair': '此会话需要在线登录才能修复此设备。',

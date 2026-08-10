@@ -144,6 +144,12 @@ export const dictMy = {
   // TODO(native-review)
   'auth.setup.staffId': 'တပ်ဆင်သူ ဝန်ထမ်း ID',
   // TODO(native-review)
+  'auth.setup.ownerEmail': 'ပိုင်ရှင် အီးမေးလ်',
+  // TODO(native-review)
+  'auth.setup.ownerPassword': 'ပိုင်ရှင် စကားဝှက်',
+  // TODO(native-review)
+  'auth.setup.pairHint': 'ဤစက်ကို ထည့်ရန် ဆေးခန်းပိုင်ရှင် အကောင့်ဖြင့် ဝင်ပါ။ ထို့နောက် နေ့စဉ်သုံး PIN ကို ရွေးပါ။',
+  // TODO(native-review)
   'auth.setup.internetRequired': 'ဤစက်ကို အင်တာနက်ချိတ်ဆက်မှုဖြင့် တစ်ကြိမ် စတင်ပြင်ဆင်ရပါမည်။',
   // TODO(native-review)
   'auth.setup.repair': 'ဤစက်ကို ပြန်လည်ပြုပြင်ရန် အွန်လိုင်း အကောင့်ဝင်ရပါမည်။',

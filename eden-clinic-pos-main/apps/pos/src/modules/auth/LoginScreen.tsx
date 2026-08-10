@@ -8,7 +8,7 @@ import { useClinicRuntimeStatus } from '@/app/providers';
 import { useLocaleControl, useT, type Locale } from '@/i18n';
 import { loginFailureFor } from '@/modules/auth/loginErrors';
 import { pinDelayMs, type SessionIdentity } from '@/modules/auth/sessionController';
-import { Button, Card, Field, Input, PinPad, Skeleton } from '@/ui';
+import { Button, Card, Field, Input, PinPad, SecretInput, Skeleton } from '@/ui';
 import styles from './LoginScreen.module.css';
 
 const showDevelopmentLocaleOverride = process.env.NODE_ENV === 'development';
@@ -23,6 +23,8 @@ export function LoginScreen() {
   const [staff, setStaff] = useState<SessionIdentity[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<SessionIdentity | undefined>();
   const [installerStaffId, setInstallerStaffId] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPassword, setOwnerPassword] = useState('');
   // A device with no staff on it opens straight into create-clinic. Leading
   // with the installer staff ID stranded the one user who cannot possibly have
   // one — a brand-new clinic whose server is still empty — behind a secondary
@@ -84,6 +86,9 @@ export function LoginScreen() {
   const lang = locale === 'zh' ? 'zh-Hans' : locale;
   const isDeviceSetup = runtime !== undefined && staff.length === 0;
   const activeStaffId = isDeviceSetup ? installerStaffId : selectedStaff?.staffId;
+  // Owner email wins when it is filled in. The staff-ID field stays for the
+  // technician rolling out devices, and for the e2e suite that pairs by ID.
+  const pairingByEmail = isDeviceSetup && !showClinicSetup && ownerEmail.trim() !== '' && ownerPassword !== '';
 
   const clearForFailedPin = () => {
     setPin('');
@@ -94,7 +99,7 @@ export function LoginScreen() {
   };
 
   const handleSubmit = async () => {
-    const invalidExistingClinic = !showClinicSetup && (activeStaffId === undefined || activeStaffId === '');
+    const invalidExistingClinic = !showClinicSetup && !pairingByEmail && (activeStaffId === undefined || activeStaffId === '');
     const invalidNewClinic = showClinicSetup && (clinicName.trim() === '' || adminName.trim() === '' || adminPhone.trim() === '' || adminEmail.trim() === '' || adminPassword.length < 8);
     if (runtime === undefined || invalidExistingClinic || invalidNewClinic || pin.length !== 4 || isBusy) {
       return;
@@ -122,6 +127,8 @@ export function LoginScreen() {
           password: adminPassword,
           pin,
         });
+      } else if (pairingByEmail) {
+        await runtime.provisionByEmail({ email: ownerEmail.trim(), password: ownerPassword, pin });
       } else if (isDeviceSetup) {
         await runtime.provision({ staff_id: activeStaffId!, pin });
       } else if (needsOnlineRepair || await runtime.db.meta.get(authEnvelopeMetaKey(activeStaffId!)) === undefined) {
@@ -186,6 +193,15 @@ export function LoginScreen() {
               <h1>{t('auth.setup.title')}</h1>
               <span>{t('auth.setup.internetRequired')}</span>
             </header>
+            {showClinicSetup ? null : <div className={styles.setupFields}>
+              <Field htmlFor="owner-email" label={t('auth.setup.ownerEmail')}>
+                <Input autoComplete="email" data-testid="owner-email" id="owner-email" onChange={(event) => setOwnerEmail(event.target.value)} type="email" value={ownerEmail} />
+              </Field>
+              <Field htmlFor="owner-password" label={t('auth.setup.ownerPassword')}>
+                <SecretInput autoComplete="current-password" data-testid="owner-password" hideLabel={t('field.hide')} id="owner-password" onChange={(event) => setOwnerPassword(event.target.value)} revealLabel={t('field.reveal')} value={ownerPassword} />
+              </Field>
+              <p>{t('auth.setup.pairHint')}</p>
+            </div>}
             <Field htmlFor="installer-staff-id" label={t('auth.setup.staffId')}>
               <Input data-testid="installer-staff-id" id="installer-staff-id" onChange={(event) => setInstallerStaffId(event.target.value)} value={installerStaffId} />
             </Field>
