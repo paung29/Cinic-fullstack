@@ -23,7 +23,12 @@ export function LoginScreen() {
   const [staff, setStaff] = useState<SessionIdentity[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<SessionIdentity | undefined>();
   const [installerStaffId, setInstallerStaffId] = useState('');
-  const [showClinicSetup, setShowClinicSetup] = useState(false);
+  // A device with no staff on it opens straight into create-clinic. Leading
+  // with the installer staff ID stranded the one user who cannot possibly have
+  // one — a brand-new clinic whose server is still empty — behind a secondary
+  // ghost button. Joining an existing clinic is a technician's job and stays
+  // one tap away on the toggle.
+  const [showClinicSetup, setShowClinicSetup] = useState(true);
   const [clinicName, setClinicName] = useState('');
   const [clinicPhone, setClinicPhone] = useState('');
   const [clinicAddress, setClinicAddress] = useState('');

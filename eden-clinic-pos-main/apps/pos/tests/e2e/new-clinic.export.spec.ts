@@ -15,7 +15,9 @@ test('a clinic that sets the app up itself sees its own name and city, never the
   await page.goto('/login');
   await expect(page.getByTestId('device-setup')).toBeVisible();
 
-  await page.getByTestId('create-clinic-toggle').click();
+  // No toggle hunt: a device with no staff opens on the create-clinic form,
+  // because it is the only path that works when the server is still empty.
+  await expect(page.getByTestId('clinic-name')).toBeVisible();
   await page.getByTestId('clinic-name').fill(CLINIC);
   await page.locator('#clinic-phone').fill('09 111 222 333');
   await page.locator('#clinic-address').fill(CITY);
