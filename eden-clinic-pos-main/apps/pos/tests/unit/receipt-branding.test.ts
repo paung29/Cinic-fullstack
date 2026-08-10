@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildQrMatrix, normalizeTelegramHandle, telegramDisplayHandle, telegramLink } from '@/print/qr';
 import { RECEIPT_FONTS, headerFamilyFor, isReceiptFontId, receiptFontFamily } from '@/print/receiptFonts';
-import { ditherToDots, fitLogoBox, luminance } from '@/print/receiptLogo';
+import { ditherToDots, fitLogoBox, luminance, shouldInvertForPrint } from '@/print/receiptLogo';
 
 describe('telegram handle parsing', () => {
   it('accepts the shapes a clinic will actually paste', () => {
@@ -61,13 +61,75 @@ describe('logo preparation', () => {
     expect(luminance(255, 255, 255)).toBeCloseTo(255, 5);
   });
   it('turns dark pixels into dots and leaves transparency as paper', () => {
-    const rgba = new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 255]);
+    // Predominantly light, so the dark-logo inversion does not engage and this
+    // exercises the plain mapping: dark ink, transparent paper.
+    const rgba = new Uint8ClampedArray([
+      0, 0, 0, 255,
+      255, 255, 255, 255,
+      0, 0, 0, 0,
+      255, 255, 255, 255,
+    ]);
     const bitmap = ditherToDots(rgba, 2, 2);
     expect(bitmap.dots[0]).toBe(1);
     // Fully transparent is paper even though its RGB is black.
     expect(bitmap.dots[2]).toBe(0);
     expect(bitmap.dots).toHaveLength(4);
   });
+  it('inverts a light-on-dark brand mark instead of burning a solid slab', () => {
+    // The real Eden logo arrives this way: near-black field, cream artwork.
+    const pixels = 20 * 20;
+    const rgba = new Uint8ClampedArray(pixels * 4);
+    for (let i = 0; i < pixels; i += 1) {
+      const lit = i % 20 === 10;
+      rgba.set(lit ? [235, 225, 205, 255] : [8, 8, 8, 255], i * 4);
+    }
+    expect(shouldInvertForPrint(rgba, 20, 20)).toBe(true);
+
+    const { dots } = ditherToDots(rgba, 20, 20);
+    const on = dots.reduce((total, dot) => total + dot, 0);
+    // The lit stripe becomes the ink; the field stays paper.
+    expect(on).toBeGreaterThan(0);
+    expect(on).toBeLessThan(pixels * 0.25);
+  });
+
+  it('leaves an ordinary dark-on-white logo alone', () => {
+    const pixels = 20 * 20;
+    const rgba = new Uint8ClampedArray(pixels * 4);
+    for (let i = 0; i < pixels; i += 1) {
+      const inked = i % 20 === 10;
+      rgba.set(inked ? [10, 10, 10, 255] : [250, 250, 250, 255], i * 4);
+    }
+    expect(shouldInvertForPrint(rgba, 20, 20)).toBe(false);
+    const { dots } = ditherToDots(rgba, 20, 20);
+    expect(dots.reduce((total, dot) => total + dot, 0)).toBeLessThan(pixels * 0.25);
+  });
+
+  it('leaves a mostly-transparent cutout alone however dark its edge pixels read', () => {
+    // Regression from the real Eden logo: 97.8% transparent, and the soft
+    // antialiased edges pull the opaque mean down to ~57. Inverting that
+    // erased the mark, so coverage has to gate the darkness test.
+    const pixels = 100 * 100;
+    const rgba = new Uint8ClampedArray(pixels * 4);
+    for (let i = 0; i < pixels; i += 1) {
+      rgba.set(i < pixels * 0.022 ? [57, 57, 57, 255] : [0, 0, 0, 0], i * 4);
+    }
+    expect(shouldInvertForPrint(rgba, 100, 100)).toBe(false);
+  });
+
+  it('does invert a logo genuinely flattened onto a black background', () => {
+    const pixels = 100 * 100;
+    const rgba = new Uint8ClampedArray(pixels * 4);
+    for (let i = 0; i < pixels; i += 1) {
+      rgba.set(i % 100 === 50 ? [235, 225, 205, 255] : [8, 8, 8, 255], i * 4);
+    }
+    expect(shouldInvertForPrint(rgba, 100, 100)).toBe(true);
+  });
+
+  it('has nothing to judge in an entirely transparent or empty image', () => {
+    expect(shouldInvertForPrint(new Uint8ClampedArray(400), 10, 10)).toBe(false);
+    expect(shouldInvertForPrint(new Uint8ClampedArray(0), 0, 0)).toBe(false);
+  });
+
   it('renders a mid-grey block as a mix rather than all-black or all-white', () => {
     const pixels = 32 * 32;
     const rgba = new Uint8ClampedArray(pixels * 4);

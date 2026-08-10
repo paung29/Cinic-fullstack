@@ -25,14 +25,46 @@ export function luminance(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+// A logo exported flat on a black background (a JPEG, or a PNG with the
+// backdrop baked in) would print as a solid burnt slab with the artwork lost
+// inside it. Invert those so the lit artwork becomes the ink.
+//
+// Both conditions matter. Coverage alone is not enough, and darkness alone is
+// worse than useless: a transparent PNG of a pale mark is mostly soft
+// antialiased edges whose RGB is dark, so its opaque mean sits low even though
+// there is no dark field at all — inverting that erases the logo. Requiring a
+// large opaque area first is what separates "black backdrop" from "cutout".
+export const DARK_LOGO_MEAN = 100;
+export const DARK_LOGO_COVERAGE = 0.5;
+
+export function shouldInvertForPrint(rgba: Uint8ClampedArray | Uint8Array, width: number, height: number, alphaFloor = 32): boolean {
+  const pixels = width * height;
+  if (pixels === 0) return false;
+  let total = 0;
+  let opaque = 0;
+  for (let i = 0; i < pixels; i += 1) {
+    if ((rgba[i * 4 + 3] ?? 0) < alphaFloor) continue;
+    total += luminance(rgba[i * 4] ?? 0, rgba[i * 4 + 1] ?? 0, rgba[i * 4 + 2] ?? 0);
+    opaque += 1;
+  }
+  if (opaque / pixels < DARK_LOGO_COVERAGE) return false;
+  return total / opaque < DARK_LOGO_MEAN;
+}
+
 // Floyd–Steinberg: the error diffusion keeps photographic logos and soft
 // gradients legible at one bit, where a flat threshold would blow them out.
 export function ditherToDots(rgba: Uint8ClampedArray | Uint8Array, width: number, height: number, alphaFloor = 32): LogoBitmap {
+  const invert = shouldInvertForPrint(rgba, width, height, alphaFloor);
   const grey = new Float32Array(width * height);
   for (let i = 0; i < width * height; i += 1) {
     const alpha = rgba[i * 4 + 3] ?? 0;
     // Transparent pixels are paper, not black.
-    grey[i] = alpha < alphaFloor ? 255 : luminance(rgba[i * 4] ?? 0, rgba[i * 4 + 1] ?? 0, rgba[i * 4 + 2] ?? 0);
+    if (alpha < alphaFloor) {
+      grey[i] = 255;
+      continue;
+    }
+    const value = luminance(rgba[i * 4] ?? 0, rgba[i * 4 + 1] ?? 0, rgba[i * 4 + 2] ?? 0);
+    grey[i] = invert ? 255 - value : value;
   }
 
   const dots = new Uint8Array(width * height);
