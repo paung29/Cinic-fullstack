@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -26,7 +28,15 @@ public class EdenApiService {
     private final StaffRepository staff;
     private final AccountRepository accounts;
     private final ServiceRepository services;
+    /**
+     * Generous next to the 640px JPEG the device actually sends, but it stops
+     * a broken or hostile client parking arbitrary payloads in the clinic's
+     * database through an endpoint any signed-in staff member can reach.
+     */
+    private static final int MAX_PHOTO_BYTES = 2_000_000;
+
     private final ProductRepository products;
+    private final ProductPhotoRepository productPhotos;
     private final PatientRepository patients;
     private final SaleRepository sales;
     private final PaymentRepository payments;
@@ -263,6 +273,78 @@ public class EdenApiService {
         ProductDto result = productDto(p);
         emit(account.getClinic(), "product", result);
         return result;
+    }
+
+    /**
+     * Replace a product's shelf photo. Storing it bumps Product.photoKey, and
+     * that change rides the normal product sync event, so other devices learn
+     * a new photo exists without polling for one.
+     */
+    @Transactional
+    public ProductDto putProductPhoto(Account account, UUID productId, ProductPhotoInput input) {
+        Product product = requireProduct(account, productId);
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(input.data());
+        } catch (IllegalArgumentException error) {
+            throw new AppBusinessException("The photo payload is not valid base64.");
+        }
+        if (bytes.length == 0 || bytes.length > MAX_PHOTO_BYTES) {
+            throw new AppBusinessException("A product photo must be between 1 byte and 2 MB.");
+        }
+        String key = fingerprint(bytes);
+        productPhotos.save(ProductPhoto.builder()
+                .productId(product.getId())
+                .clinicId(account.getClinic().getId())
+                .contentType(input.contentType())
+                .photoKey(key)
+                .bytes(bytes)
+                .updatedAt(now())
+                .build());
+        product.setPhotoKey(key);
+        ProductDto result = productDto(product);
+        emit(account.getClinic(), "product", result);
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public ProductPhotoResponse productPhoto(Account account, UUID productId) {
+        requireProduct(account, productId);
+        ProductPhoto photo = productPhotos.findById(productId)
+                .filter(row -> row.getClinicId().equals(account.getClinic().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Product photo", "productId", productId.toString()));
+        return new ProductPhotoResponse(productId, photo.getPhotoKey(), photo.getContentType(),
+                Base64.getEncoder().encodeToString(photo.getBytes()));
+    }
+
+    @Transactional
+    public ProductDto deleteProductPhoto(Account account, UUID productId) {
+        Product product = requireProduct(account, productId);
+        productPhotos.findById(productId)
+                .filter(row -> row.getClinicId().equals(account.getClinic().getId()))
+                .ifPresent(productPhotos::delete);
+        product.setPhotoKey(null);
+        ProductDto result = productDto(product);
+        emit(account.getClinic(), "product", result);
+        return result;
+    }
+
+    /**
+     * Half a SHA-256 over the bytes. Long enough that two different photos will
+     * not collide in any clinic's catalogue, short enough to sit on every
+     * product row that goes over the wire.
+     */
+    private static String fingerprint(byte[] bytes) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder hex = new StringBuilder(32);
+            for (int index = 0; index < 16; index += 1) {
+                hex.append(String.format("%02x", digest[index]));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is unavailable in this runtime.", error);
+        }
     }
 
     @Transactional

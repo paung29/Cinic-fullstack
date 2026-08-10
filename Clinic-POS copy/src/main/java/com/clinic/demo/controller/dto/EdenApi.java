@@ -54,6 +54,16 @@ public final class EdenApi {
                                Integer durationMin, Boolean requiresLot, Integer defaultFollowupDays, Boolean active) {}
 
     public record ServiceEnvelope(ServiceDto service, Boolean replayed) {}
+    /**
+     * Photos travel as base64 in JSON rather than multipart. The device queues
+     * uploads in the same offline outbox as sales, and that queue stores JSON
+     * payloads — a multipart body could not sit in it and wait for a
+     * connection, which is the whole point on a clinic's patchy internet.
+     */
+    public record ProductPhotoInput(@NotBlank String contentType, @NotBlank String data) {}
+
+    public record ProductPhotoResponse(UUID productId, String photoKey, String contentType, String data) {}
+
     public record ProductDto(UUID id, String name, String category, String subcategory, int sortOrder,
             String barcode, long cost, long price, BigDecimal stockQty, BigDecimal lowStockAt,
             BigDecimal reorderAt, String stockType, String soldBy, boolean requiresLot,

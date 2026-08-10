@@ -40,6 +40,9 @@ public class EdenApiController {
     @PostMapping("/services") public ServiceEnvelope serviceCreate(Authentication auth, @Valid @RequestBody ServiceInput input, @RequestHeader("X-Elevation") UUID elevation) { return api.createService(account(auth), input, elevation); }
     @PatchMapping("/services/{id}") public ServiceDto servicePatch(Authentication auth, @PathVariable UUID id, @Valid @RequestBody ServicePatch input, @RequestHeader("X-Elevation") UUID elevation) { return api.patchService(account(auth), id, input, elevation); }
     @GetMapping("/barcode-lookup") public BarcodeLookup barcode(Authentication auth, @RequestParam String code) { return api.barcode(account(auth), code); }
+    @PutMapping("/products/{id}/photo") public ProductDto productPhotoPut(Authentication auth, @PathVariable UUID id, @Valid @RequestBody ProductPhotoInput input) { return api.putProductPhoto(account(auth), id, input); }
+    @GetMapping("/products/{id}/photo") public ProductPhotoResponse productPhotoGet(Authentication auth, @PathVariable UUID id) { return api.productPhoto(account(auth), id); }
+    @DeleteMapping("/products/{id}/photo") public ProductDto productPhotoDelete(Authentication auth, @PathVariable UUID id) { return api.deleteProductPhoto(account(auth), id); }
     @PostMapping("/stock/receive") public ProductEnvelope receive(Authentication auth, @Valid @RequestBody StockReceive input) { return api.receive(account(auth), input); }
     @PostMapping("/stock/adjust") public ProductDto adjust(Authentication auth, @Valid @RequestBody StockAdjust input, @RequestHeader("X-Elevation") UUID elevation) { return api.adjust(account(auth), input, elevation); }
     @PostMapping("/appointments") public AppointmentEnvelope appointment(Authentication auth, @Valid @RequestBody AppointmentDto input) { return api.createAppointment(account(auth), input); }
