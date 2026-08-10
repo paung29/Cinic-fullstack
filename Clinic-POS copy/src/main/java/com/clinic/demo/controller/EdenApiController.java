@@ -26,6 +26,7 @@ public class EdenApiController {
 
     @GetMapping("/health") public HealthResponse health() { return new HealthResponse(true, OffsetDateTime.now(ZoneOffset.UTC)); }
     @PostMapping("/auth/login") public LoginResponse login(@Valid @RequestBody LoginRequest input, HttpServletRequest request) { return api.login(input, request.getRemoteAddr()); }
+    @PostMapping("/auth/login-email") public LoginResponse loginEmail(@Valid @RequestBody EmailLoginRequest input, HttpServletRequest request) { return api.loginWithEmail(input, request.getRemoteAddr()); }
     @PostMapping("/auth/refresh") public TokenPair refresh(@Valid @RequestBody RefreshRequest input, HttpServletRequest request) { return api.refresh(input.refresh(), request.getRemoteAddr()); }
     @PostMapping("/auth/logout") public void logout(@Valid @RequestBody LogoutRequest input) { api.logout(input.refresh()); }
     @PostMapping("/auth/elevate") public ElevationResponse elevate(Authentication auth, @Valid @RequestBody ElevationRequest input) { return api.elevate(account(auth), input); }

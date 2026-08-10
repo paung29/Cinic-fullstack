@@ -55,6 +55,34 @@ public class EdenApiService {
         return new LoginResponse(pair.accessToken(), pair.refreshToken(), staffDto(member), clinicDto(member.getClinic()), now());
     }
 
+    /**
+     * Pair a device from the owner's email and password rather than a staff
+     * UUID nobody can be expected to type. The PIN is still verified against
+     * the staff record, so the device ends up holding a PIN the server agrees
+     * with and offline unlock keeps working afterwards.
+     *
+     * Every failure returns the same message on purpose. Telling a caller that
+     * the email was right but the password wrong turns this into an account
+     * enumeration oracle on an endpoint that must stay unauthenticated.
+     */
+    @Transactional
+    public LoginResponse loginWithEmail(EmailLoginRequest input, String clientIp) {
+        String email = input.email().trim().toLowerCase();
+        Account account = accounts.findByEmail(email)
+                .filter(candidate -> Boolean.TRUE.equals(candidate.getActive()))
+                .orElseThrow(() -> new TokenInvalidException("Email, password or PIN is incorrect."));
+        if (!passwordEncoder.matches(input.password(), account.getPasswordHash())) {
+            throw new TokenInvalidException("Email, password or PIN is incorrect.");
+        }
+        Staff member = account.getStaff();
+        if (member == null || !Boolean.TRUE.equals(member.getActive())
+                || !passwordEncoder.matches(input.pin(), member.getPinHash())) {
+            throw new TokenInvalidException("Email, password or PIN is incorrect.");
+        }
+        TokenResponse pair = jwtService.issueTokens(account, clientIp);
+        return new LoginResponse(pair.accessToken(), pair.refreshToken(), staffDto(member), clinicDto(member.getClinic()), now());
+    }
+
     public TokenPair refresh(String refresh, String clientIp) {
         TokenResponse pair = jwtService.rotateRefreshToken(refresh, clientIp);
         return new TokenPair(pair.accessToken(), pair.refreshToken());

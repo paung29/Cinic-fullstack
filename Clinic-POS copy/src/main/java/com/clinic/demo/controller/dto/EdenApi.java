@@ -13,6 +13,17 @@ public final class EdenApi {
     public record HealthResponse(boolean ok, OffsetDateTime serverTime) {}
 
     public record LoginRequest(@NotNull UUID staffId, @NotBlank @Pattern(regexp = "\\d{4}") String pin) {}
+
+    /**
+     * Pairing a device by the owner's email instead of a staff UUID. The UUID
+     * form above is unusable by a human at a counter, so it stays for machines
+     * and this is what the login screen asks for.
+     */
+    public record EmailLoginRequest(
+            @Email @NotBlank String email,
+            @NotBlank String password,
+            @NotBlank @Pattern(regexp = "\\d{4}") String pin
+    ) {}
     public record RefreshRequest(@NotBlank String refresh) {}
     public record LogoutRequest(@NotBlank String refresh) {}
     public record ElevationRequest(@NotBlank String password, String screen) {}
